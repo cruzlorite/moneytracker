@@ -74,14 +74,14 @@ export const BASE = CATS.slice();
 export { EXTRA_ICONS };
 
 /**
- * Your own types, from the settings: [{ id: 'c-…', name, icon (id of the built-in type whose icon it uses) }].
+ * Your own types, from the settings: [{ id: 'c-…', name, icon (id of the built-in type whose icon it uses), color ('p1'…'p12', optional) }].
  * They join CATS and CAT in the group "tuyos"; calling it again replaces them.
  */
 export function setCustomCats(list = []) {
   for (let i = CATS.length - 1; i >= 0; i--) if (CATS[i].group === 'tuyos') { delete CAT[CATS[i].id]; CATS.splice(i, 1); }
   for (const c of list) {
     const base = CAT[c.icon] || EXTRA_ICONS.find((x) => x.id === c.icon) || CAT.otros;
-    const x = { id: c.id, name: c.name, short: c.name, group: 'tuyos', d: base.d, icon: base.id };
+    const x = { id: c.id, name: c.name, short: c.name, group: 'tuyos', d: base.d, icon: base.id, ...(c.color ? { color: c.color } : {}) };
     CATS.push(x); CAT[c.id] = x;
   }
 }

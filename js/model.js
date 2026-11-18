@@ -589,7 +589,7 @@ export function normSettings(o = {}) {
   if (cd >= 1 && cd <= 28) st.cycleDay = cd;
   if (Array.isArray(o.cats)) {
     const cats = o.cats.filter((c) => c && isCustomCat(c.id) && String(c.name || '').trim())
-      .map((c) => ({ id: String(c.id), name: String(c.name).trim().slice(0, 24), icon: String(c.icon || 'otros') }));
+      .map((c) => ({ id: String(c.id), name: String(c.name).trim().slice(0, 24), icon: String(c.icon || 'otros'), ...(/^p([1-9]|1[0-2])$/.test(c.color) ? { color: c.color } : {}) }));
     if (cats.length) st.cats = cats;
   }
   if (Array.isArray(o.years) && o.years.length) st.years = o.years.filter((y) => y && isYM(y.start)).map((y) => ({ ...y }));

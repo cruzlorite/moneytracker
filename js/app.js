@@ -602,9 +602,10 @@ const quickKeep = () => ({ amt: $('#k-amt')?.value, note: $('#k-note')?.value, d
 
 
 // ---------- spending types ----------
+const catCls = (c) => `g-${c.group}${c.color ? ' pc-' + c.color : ''}`;
 const catEl = (id, cls = '') => {
   const c = CAT[id];
-  return c ? `<span class="ct g-${c.group} ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${c.d}"/></svg></span>`
+  return c ? `<span class="ct ${catCls(c)} ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${c.d}"/></svg></span>`
     : `<span class="ct none ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 11h3v3H6zm5 0h3v3h-3zm5 0h3v3h-3z"/></svg></span>`;
 };
 const catName = (id) => CAT[id]?.name || t('Sin tipo');
@@ -626,13 +627,13 @@ function quickCats(m) {
 const catHint = (m, id) => !id ? t('Tipo (opcional).') : id === SAVE_CAT ? t('Ahorro e inversión · sale de tu cuenta, pero no es gasto') : m.budByCat.get(id) ? `${catName(id)} · ${t('cuenta en tu presupuesto')}` : catName(id);
 function catRow(m, inSheet) {
   return `<div class="catrow" role="group" aria-label="Tipo de gasto (opcional)">${quickCats(m).map((id) =>
-    `<button type="button" class="catchip g-${CAT[id].group}" data-act="qcat" data-cat="${id}" aria-pressed="${UI.qcat === id}" title="${esc(CAT[id].name)}">${catEl(id)}<span>${esc(CAT[id].short)}</span></button>`).join('')}
+    `<button type="button" class="catchip ${catCls(CAT[id])}" data-act="qcat" data-cat="${id}" aria-pressed="${UI.qcat === id}" title="${esc(CAT[id].name)}">${catEl(id)}<span>${esc(CAT[id].short)}</span></button>`).join('')}
     <button type="button" class="catchip" data-act="${inSheet ? 'kmore' : 'catmore'}" aria-expanded="${inSheet ? !!UI.kmore : false}">${catEl('')}<span>${inSheet && UI.kmore ? t('Menos') : t('Más')}</span></button></div>
     <div class="cathint">${esc(catHint(m, UI.qcat))}</div>`;
 }
 /** Every type, by group. `act` is the action each button fires; `none` adds a "no type" choice. */
 const PLUS = '<span class="ct none" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg></span>';
-const catChip = (c, act, sel) => `<button type="button" class="catchip g-${c.group}" data-act="${act}" data-cat="${c.id}" aria-pressed="${sel === c.id}">${catEl(c.id)}<span>${esc(c.short)}</span></button>`;
+const catChip = (c, act, sel) => `<button type="button" class="catchip ${catCls(c)}" data-act="${act}" data-cat="${c.id}" aria-pressed="${sel === c.id}">${catEl(c.id)}<span>${esc(c.short)}</span></button>`;
 function catGrid(sel, act, none) {
   const by = {};
   for (const c of CATS) (by[c.group] ||= []).push(c);
@@ -661,7 +662,7 @@ function catSearch(input) {
 /** Create or edit a type of your own: a name and any of the icons. `from` says where to go back to. */
 function openNewCat(from, id) {
   const c = id ? (store.data.settings.cats || []).find((x) => x.id === id) : null;
-  UI.nc = { from, id: c?.id || null, name: c?.name || '', icon: c?.icon || '', keep: from === 'kpick' ? quickKeep() : null };
+  UI.nc = { from, id: c?.id || null, name: c?.name || '', icon: c?.icon || '', color: c?.color || '', keep: from === 'kpick' ? quickKeep() : null };
   renderNewCat();
   openDialog();
   setTimeout(() => dlg.querySelector('#nc-name')?.focus(), 60);
@@ -673,6 +674,8 @@ function renderNewCat() {
     <label class="field"><span class="label">${t('Nombre')}</span><input id="nc-name" value="${esc(n.name)}" maxlength="24" placeholder="${t('La moto, el pádel, caprichos…')}" autocomplete="off"></label>
     <div class="field"><span class="label">${t('Icono')}</span>
       <div class="icongrid" role="group" aria-label="${t('Icono')}">${[...BASE, ...EXTRA_ICONS].map((c) => `<button type="button" class="iconpick" data-act="ncicon" data-icon="${c.id}" aria-pressed="${n.icon === c.id}" aria-label="${esc(c.name)}" title="${esc(c.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${c.d}"/></svg></button>`).join('')}</div></div>
+    <div class="field"><span class="label">${t('Color')}</span>
+      <div class="colorgrid" role="group" aria-label="${t('Color')}"><button type="button" class="colorpick auto" data-act="nccolor" data-color="" aria-pressed="${!n.color}" aria-label="${t('Automático')}">${t('Auto')}</button>${Array.from({ length: 12 }, (_, i) => `<button type="button" class="colorpick pc-p${i + 1}" data-act="nccolor" data-color="p${i + 1}" aria-pressed="${n.color === 'p' + (i + 1)}" aria-label="${t('Color {n}', { n: i + 1 })}"></button>`).join('')}</div></div>
     <div class="formbtns"><button type="button" class="primary" data-act="ncsave">${n.id ? t('Guardar') : t('Crear')}</button>
       ${n.id ? `<button type="button" class="danger" data-act="ncdel">${n.confirm ? t('Confirmar borrado') : t('Borrar')}</button>` : ''}</div>
   </div>`;
@@ -693,7 +696,7 @@ function saveNewCat() {
   store.update('settings', (d) => {
     const list = (d.settings.cats || []).filter((c) => c.id !== id);
     const at = (d.settings.cats || []).findIndex((c) => c.id === id);
-    list.splice(at < 0 ? list.length : at, 0, { id, name: name.slice(0, 24), icon });
+    list.splice(at < 0 ? list.length : at, 0, { id, name: name.slice(0, 24), icon, ...(n.color ? { color: n.color } : {}) });
     d.settings.cats = list;
   });
   setCustomCats(store.data.settings.cats);
@@ -1426,7 +1429,6 @@ function openClose(ym) {
     <div class="row between"><span class="label">${t('Cierre de mes')} ${info('cierre')}</span><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div data-step class="cl-title row between"><h1>${cap(monthName(ym))}</h1><span id="cl-vd"></span></div>
     <div data-step class="stack-sm">
-      ${openField(m, ym, 'cl-open')}
       <label class="field"><span class="label">${t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) })}</span>
         <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="${curSym}" autocomplete="off">
 </label>
@@ -1520,7 +1522,6 @@ function openCheck(ym) {
   const m = mFor(ym), c = m.mon(ym).check;
   dlg.innerHTML = `<div class="sheet" id="check-sheet" data-ym="${ym}">
     <div class="row between"><h2>${t('Saldo de hoy')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
-    ${openField(m, ym, 'ck-open')}
     <label class="field"><span class="label">${t('Saldo hoy')}</span><input type="text" inputmode="decimal" id="ck-bal" class="bigin" value="" placeholder="${c ? t('El último: ') + fmt(c.bal) : t('Saldo según tu banco')}" autocomplete="off">
 </label>
     <div id="ck-calc" aria-live="polite"></div>
@@ -1734,6 +1735,7 @@ document.addEventListener('click', (e) => {
       dlg.querySelectorAll('.iconpick').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.icon === UI.nc.icon)));
       break;
     }
+    case 'nccolor': UI.nc.color = b.dataset.color; dlg.querySelectorAll('.colorpick').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.color === UI.nc.color))); break;
     case 'ncsave': saveNewCat(); break;
     case 'ncdel': {
       if (!UI.nc.confirm) { UI.nc.confirm = true; UI.nc.name = val('nc-name') || UI.nc.name; renderNewCat(); break; }

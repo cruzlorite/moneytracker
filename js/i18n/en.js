@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Color {n}': 'Colour {n}',
+  'Auto': 'Auto',
+  'Color': 'Colour',
   'Retirado': 'Withdrawn',
   'Retirar': 'Withdraw',
   'Aportar': 'Add',

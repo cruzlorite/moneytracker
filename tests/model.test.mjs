@@ -1,7 +1,7 @@
 // node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compute, normMonth, normItem, occurs, num, daysTo, monthGrid, parsePlanFile, ymAdd, ymDiff, timesIn, cycleRange, cycleOf, cycleDayOf } from '../js/model.js';
+import { compute, normMonth, normSettings, normItem, occurs, num, daysTo, monthGrid, parsePlanFile, ymAdd, ymDiff, timesIn, cycleRange, cycleOf, cycleDayOf } from '../js/model.js';
 import { parseSheet, toRows, TABS } from '../js/google.js';
 
 const plan = (items, extra = {}) => ({ settings: { goal: 1200, start: '2027-01', cycleDay: 1 }, items: items.map(normItem), months: {}, spends: [], ...extra });
@@ -481,4 +481,10 @@ test('balance updates: several per month, the latest one is the month\'s check',
   assert.deepEqual(m.checks.map((c) => c.date), ['2027-02-10', '2027-02-12']);
   assert.deepEqual(m.check, { date: '2027-02-12', bal: 1300 });
   assert.deepEqual(normMonth({ check: { date: '2027-02-10', bal: 5 } }).checks, [{ date: '2027-02-10', bal: 5 }]); // a single old check joins the list
+});
+
+test('custom types keep a colour from the palette only', () => {
+  const st = normSettings({ goal: 0, start: '2026-01', cats: [{ id: 'c-1', name: 'Padel', icon: 'ocio', color: 'p9' }, { id: 'c-2', name: 'Moto', icon: 'transporte', color: '#ff0000' }] });
+  assert.equal(st.cats[0].color, 'p9');
+  assert.equal(st.cats[1].color, undefined);
 });
