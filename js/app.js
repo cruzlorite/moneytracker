@@ -1108,9 +1108,6 @@ function plan(m) {
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
         <div class="row"><button class="small" data-act="goalfit" data-v="${Math.max(0, Math.floor((m.possible - Math.max(0, m.possible) * 0.4) / 100) * 100)}">${t('Ajustar a una cifra viable')}</button></div></div>`
       : ''}
-    ${off === 0 ? `<label class="field inline-field"><span class="label">${t('El año empieza en')}</span><span class="startsel"><select id="p-start-m" aria-label="${t('Mes')}">${MES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${+m.start.slice(5) === i + 1 ? 'selected' : ''}>${cap(n)}</option>`).join('')}</select>
-      <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +m.start.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +m.start.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>` : ''}
-    <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${m.cycleDay}" style="max-width: 80px"></label>
   </section>
   ${group(t('Ingresos planificados'), '', sIns, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
   ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null, 'out')}
@@ -1171,7 +1168,13 @@ function settings() {
   const startCard = smo.open != null ? `<section class="card"><h2>${t('Saldo de inicio')}</h2>
     <button type="button" class="goalbtn" data-act="startedit"><span class="gb-v num">${fmt(smo.open)}</span>
       <span class="fine">${smo.openDate ? t('Saldo del {d}', { d: shortDate(smo.openDate) }) : t('Saldo al empezar el mes')}</span><span class="gb-edit" aria-hidden="true">${t('Cambiar')}</span></button></section>` : '';
-  return `${startCard}<section class="card"><h2>${t('Dónde se guarda')}</h2>
+  const st = store.data.settings.start, cd = compute(store.data).cycleDay;
+  const calendar = `<section class="card"><h2>${t('Calendario')}</h2>
+    <label class="field inline-field"><span class="label">${t('El año empieza en')}</span><span class="startsel"><select id="p-start-m" aria-label="${t('Mes')}">${MES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${+st.slice(5) === i + 1 ? 'selected' : ''}>${cap(n)}</option>`).join('')}</select>
+      <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +st.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +st.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
+    <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${cd}" style="max-width: 80px"></label>
+  </section>`;
+  return `${startCard}${calendar}<section class="card"><h2>${t('Dónde se guarda')}</h2>
     ${mode === 'google' ? `<p>${t('En la hoja')} <b>${t('MoneyTracker')}</b> ${t('de tu Google Drive')}${savedHint() ? ` (${esc(savedHint())})` : ''}. ${t('Este dispositivo guarda una copia para abrir rápido y funcionar sin conexión.')}</p>
       <div class="row wrap-row"><a class="btn" href="${sheetUrl(store.sheetId)}" target="_blank" rel="noopener">${t('Abrir la hoja')}</a>
       ${tokenValid() ? '<button data-act="refresh">' + t('Recargar desde la hoja') + '</button>' : '<button class="primary" data-act="reauth">' + t('Volver a conectar') + '</button>'}

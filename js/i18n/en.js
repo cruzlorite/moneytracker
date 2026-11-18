@@ -52,6 +52,7 @@ export default {
   'Cómo se calcula': 'How it is calculated',
   'Ver como tabla': 'View as table',
   'Idioma': 'Language',
+  'Calendario': 'Calendar',
   '{x} por debajo': '{x} below',
   '{x} por encima': '{x} above',
   'Cierra {m} y podrás cerrar el año.': 'Close {m} and you will be able to close the year.',
