@@ -258,10 +258,10 @@ function infoHTML(key) {
       ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el gasto planificado.'))]);
     case 'ahorroMes': return card(t('Ahorrado este mes'), [
       ixRow(IX.proj(S), t('Proyección'), t('ahorro planificado del mes + lo que sobre del gasto planificado.'))]);
-    case 'limites': return card(t('Tus límites'), [
+    case 'limites': return card(t('Tus presupuestos'), [
       ixRow(IX.fill(O), t('Gastado'), t('en ese tipo, este mes (mensual) o este año (anual).')),
-      ixRow(IX.mark, t('Límite'), t('tope fijado en el Plan.')),
-      ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el límite.'))]);
+      ixRow(IX.mark, t('Presupuesto'), t('cantidad fijada en el Plan.')),
+      ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el presupuesto.'))]);
     case 'ano': return card(t('Este año'), [
       ixRow(IX.fill(S), t('Ahorrado'), t('suma de lo ahorrado cada mes.')),
       ixRow(IX.proj(S), t('Proyección'), t('ahorro estimado a fin de año.')),
@@ -283,7 +283,7 @@ function infoHTML(key) {
     case 'plan': return card(t('Ahorro e inversión planificados'), [
       ixRow(IX.k('k-save'), t('Ahorro'), t('cantidad planificada anual.')),
       ixRow(IX.k('k-fix'), t('Gastos planificados'), t('alquiler, recibos, seguros…')),
-      ixRow(IX.k('k-bud'), t('Límites de gasto'), t('topes de lo que vigilas.')),
+      ixRow(IX.k('k-bud'), t('Presupuestos'), t('lo que reservas para cada tipo de gasto.')),
       ixRow(IX.k('k-free'), t('Sin planificar'), t('el resto: comida, salidas…')),
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
       ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
@@ -415,7 +415,7 @@ function trailCard(m) {
 /** The budgets, compact: what you've spent of each. Tap one to log against it. */
 function watchCard(m, ym) {
   if (!m.budgets.length) return '';
-  return `<section class="card" aria-label="${t('Tus límites')}"><h2>${t('Tus límites')} ${info('limites')}</h2><div class="vlist">${m.budgets.map((b) => {
+  return `<section class="card" aria-label="${t('Tus presupuestos')}"><h2>${t('Tus presupuestos')} ${info('limites')}</h2><div class="vlist">${m.budgets.map((b) => {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     return `<button class="vrow" data-act="bud" data-id="${esc(b.id)}">
       <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
@@ -550,7 +550,7 @@ function quickCats(m) {
   STARTERS.forEach(add);
   return ids.slice(0, 8);
 }
-const catHint = (m, id) => !id ? t('Tipo (opcional).') : id === SAVE_CAT ? t('Ahorro e inversión · sale de tu cuenta, pero no es gasto') : m.budByCat.get(id) ? `${catName(id)} · ${t('cuenta en tu límite')}` : catName(id);
+const catHint = (m, id) => !id ? t('Tipo (opcional).') : id === SAVE_CAT ? t('Ahorro e inversión · sale de tu cuenta, pero no es gasto') : m.budByCat.get(id) ? `${catName(id)} · ${t('cuenta en tu presupuesto')}` : catName(id);
 function catRow(m, inSheet) {
   return `<div class="catrow" role="group" aria-label="Tipo de gasto (opcional)">${quickCats(m).map((id) =>
     `<button type="button" class="catchip g-${CAT[id].group}" data-act="qcat" data-cat="${id}" aria-pressed="${UI.qcat === id}" title="${esc(CAT[id].name)}">${catEl(id)}<span>${esc(CAT[id].short)}</span></button>`).join('')}
@@ -652,7 +652,7 @@ function budInfo(m, b, ym) {
   }
   return { spent, of: b.amount, left: round2(b.amount - spent), r: b.amount ? spent / b.amount : 1, proj, tone: spendTone(spent, b.amount) };
 }
-const budBar = (x, key) => gauge({ names: { fill: t('Gastado'), plan: t('Límite') }, v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
+const budBar = (x, key) => gauge({ names: { fill: t('Gastado'), plan: t('Presupuesto') }, v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
 function openBudget(id) {
   const m = compute(store.data), ym = m.curYM, b = m.shown(ym).find((i) => i.id === id && i.budget);
   if (!b) return;
@@ -831,7 +831,7 @@ function openYear() {
     </div>
     <div data-step class="cl-block">
       <span class="label">${t('El año siguiente')}: ${ymLabel(nextStart)} – ${ymLabel(ymAdd(nextStart, 11))}</span>
-      <p class="fine">${t('Se mantiene el mismo plan (ingresos, gastos y límites). Puedes modificarlo en Plan.')}</p>
+      <p class="fine">${t('Se mantiene el mismo plan (ingresos, gastos y presupuestos). Puedes modificarlo en Plan.')}</p>
       <label class="field"><span class="label">${t('Ahorro planificado para el año')}</span><input type="text" inputmode="decimal" id="y-goal" value="${esc(m.goal)}" autocomplete="off"></label>
       <button class="primary" data-act="yearnew">${t('Empezar {m}', { m: ymLabel(nextStart) })}</button>
     </div>
@@ -924,7 +924,7 @@ function planCard(m) {
     <div class="row between"><h2>${t('Plan y realidad')} ${info('planReal')}</h2><span class="fine">${MES3[+m.season[0].slice(5) - 1]} ${m.season[0].slice(2, 4)} – ${MES3[+m.season[11].slice(5) - 1]} ${m.season[11].slice(2, 4)}</span></div>
     <div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('hasta hoy')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('proyección')}</span><span class="lg-group">${t('planificado:')}<span><i class="lg-mark"></i>${t('año')}</span><span><i class="lg-today"></i>${t('a hoy')}</span></span></div>
     ${[c.ins, c.outs, c.sav].map((x, i) => cmpRow(m, x, 'm' + i)).join('')}
-    ${c.buds.length ? `<span class="label">${t('Tus límites')}</span>${c.buds.map((x, i) => cmpRow(m, x, 'b' + i)).join('')}` : ''}
+    ${c.buds.length ? `<span class="label">${t('Tus presupuestos')}</span>${c.buds.map((x, i) => cmpRow(m, x, 'b' + i)).join('')}` : ''}
     ${table(['', t('Planificado'), t('Hasta hoy'), t('Proyección')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), fmt(x.proj)]))}
   </section>`;
 }
@@ -979,7 +979,7 @@ function analisis(m) {
 
   <section class="card" aria-label="${t('Gasto por tipo')}">
     <div class="row between"><h2>${t('Gasto por tipo')}</h2><span class="fine num">${fmt(tot)}</span></div>
-    ${rows.length ? ranked([...shown.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('límite') + '</span>' : '',
+    ${rows.length ? ranked([...shown.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('presupuesto') + '</span>' : '',
       tip: `${rkName(c)}: ${fmt(v)} (${Math.round(v / (tot || 1) * 100)} %)` })), ...(rest ? [{ icon: catEl(''), label: t('Otros tipos'), value: rest, tip: `Otros tipos: ${fmt(rest)}` }] : [])])
       + table([t('Tipo'), t('Importe'), '%'], rows.map(([c, v]) => [esc(rkName(c)), fmt(v), Math.round(v / (tot || 1) * 100) + ' %']))
       : '<p class="fine">' + t('Aún no hay gastos en este periodo. Cierra el mes con tu saldo, o apunta con el + lo que quieras vigilar.') + '</p>'}
@@ -1051,14 +1051,14 @@ function plan(m) {
     </button>
     <span class="label">${t('Reparto de tus ingresos')}</span>
     <div class="stackbar" aria-hidden="true"><i class="k-save" data-bar="${w(m.target)}" data-key="sb-save"></i><i class="k-fix" data-bar="${w(avgOut)}" data-key="sb-out"></i><i class="k-bud" data-bar="${w(budM)}" data-key="sb-bud"></i><i class="${free >= 0 ? 'k-free' : 'k-neg'}" data-bar="${w(Math.abs(free))}" data-key="sb-free"></i></div>
-    <div class="legend num">${[['k-save', t('ahorro'), m.target], ['k-fix', t('gastos planificados'), avgOut], ['k-bud', t('límites de gasto'), budM], [free >= 0 ? 'k-free' : 'k-neg', free >= 0 ? t('sin planificar') : t('falta'), Math.abs(free)]]
+    <div class="legend num">${[['k-save', t('ahorro'), m.target], ['k-fix', t('gastos planificados'), avgOut], ['k-bud', t('presupuestos'), budM], [free >= 0 ? 'k-free' : 'k-neg', free >= 0 ? t('sin planificar') : t('falta'), Math.abs(free)]]
       .filter(([, , v]) => v > 0.5).map(([k, l, v]) => `<span><i class="dot ${k}"></i>${l} <b>${avgIn ? Math.round(v / avgIn * 100) : 0} %</b></span>`).join('')}</div>
     <div class="sum">
       <span>${t('Ingresos planificados')}</span><b>${fmt(m.incomeY)}</b>
       <span>${t('Ahorro planificado')}</span><span>−${fmt(m.goal)}</span>
       <span class="tot">${t('Gasto total planificado')}</span><span class="tot">${fmt(m.incomeY - m.goal)}</span>
       <span class="sub">${t('Gastos planificados')}</span><span>${fmt(m.outY)}</span>
-      ${sBuds.length ? `<span class="sub">${t('Límites de gasto')}</span><span>${fmt(budY)}</span>` : ''}
+      ${sBuds.length ? `<span class="sub">${t('Presupuestos')}</span><span>${fmt(budY)}</span>` : ''}
       <span class="sub">${t('Sin planificar')}</span><span class="${free < 0 ? 'c-spend' : ''}">${free < 0 ? '−' : ''}${fmt(Math.abs(free * 12))}</span>
     </div>
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
@@ -1070,7 +1070,7 @@ function plan(m) {
   </section>
   ${group(t('Ingresos planificados'), '', sIns, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
   ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null, 'out')}
-  ${group(t('Límites de gasto'), '', sBuds, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), sBuds.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}`;
+  ${group(t('Presupuestos'), '', sBuds, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir presupuesto'), sBuds.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}`;
 }
 const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 0h3v3H6zM0 6h3v3H0zM6 6h3v3H6zM0 12h3v3H0zM6 12h3v3H6z"/></svg>';
 function planRow(it, m, movable) {
@@ -1200,7 +1200,7 @@ function renderForm() {
   const bud = sec === 'bud';
   const monthSel = (allowNone) => `<select id="f-month">${allowNone ? `<option value="0" ${!f.month ? 'selected' : ''}>Sin fecha fija</option>` : ''}${MES.map((n, i) => `<option value="${i + 1}" ${+f.month === i + 1 ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
   dlg.innerHTML = `<form method="dialog" class="sheet" id="item-form">
-    <div class="row between"><h2>${f._edit ? (sec === 'in' ? t('Editar ingreso') : bud ? t('Editar límite') : t('Editar gasto')) : (sec === 'in' ? t('Nuevo ingreso') : bud ? t('Nuevo límite') : t('Nuevo gasto'))}</h2><button type="button" class="iconbtn" data-act="fclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="row between"><h2>${f._edit ? (sec === 'in' ? t('Editar ingreso') : bud ? t('Editar presupuesto') : t('Editar gasto')) : (sec === 'in' ? t('Nuevo ingreso') : bud ? t('Nuevo presupuesto') : t('Nuevo gasto'))}</h2><button type="button" class="iconbtn" data-act="fclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     ${f._copy ? `<p class="fine">${t('Copia de «{n}». Cambia lo que haga falta y pulsa Añadir.', { n: esc(f._copy) })}</p>` : ''}
     <div class="fields2">
       <label class="field"><span class="label">${t('Nombre')}</span><input id="f-name" value="${esc(f.name)}" placeholder="${sec === 'in' ? t('Nómina') : bud ? t('Viajes') : t('Alquiler')}" autocomplete="off"></label>
@@ -1249,7 +1249,7 @@ function saveForm() {
   if (f.kind === 'out' && !f.cat && !f._nocat) f.cat = guessCat(f.name);
   if (f.budget && f.kind === 'out') {
     const c = f.cat || 'otros', other = store.data.items.find((i) => i.budget && i.cat === c && i.id !== f.id && activeIn(i, f._from || compute(store.data).curYM));
-    if (other) return toast(t('Ya tienes un límite de {c}: «{n}»', { c: catName(c), n: other.name }), 3500);
+    if (other) return toast(t('Ya tienes un presupuesto de {c}: «{n}»', { c: catName(c), n: other.name }), 3500);
   }
   const m = compute(store.data), F = f._from || m.curYM, T = f._to || '';
   const old = f._edit ? (m.itemAt(f.id, F) || m.segmentsOf(f.id)[0]) : null;
@@ -1480,7 +1480,7 @@ function addSpend(date, amount, note, from, cat) {
   UI.qcat = null;
   const done = celebrate(() => store.update('spends', (d) => { d.spends.push(e); }), from);
   UI.undo.push(e.id); UI.undo = UI.undo.slice(-20);
-  if (!done) toast(`${t('Apuntado')} ${fmt(amount)}${cat ? ' · ' + CAT[cat].short : ''}${bud ? ` (${t('límite')})` : cat === SAVE_CAT ? ` (${t('no es gasto')})` : ''}`);
+  if (!done) toast(`${t('Apuntado')} ${fmt(amount)}${cat ? ' · ' + CAT[cat].short : ''}${bud ? ` (${t('presupuesto')})` : cat === SAVE_CAT ? ` (${t('no es gasto')})` : ''}`);
 }
 
 async function connect() {
