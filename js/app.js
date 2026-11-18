@@ -682,15 +682,19 @@ function openNewCat(from, id) {
   renderNewCat();
   openDialog();
 }
+/** The type as it will look: its icon in its colour. */
+const ncPreview = (n) => { const b = [...BASE, ...EXTRA_ICONS].find((c) => c.id === n.icon) || CAT.otros; return `<span class="ct ${n.color ? 'pc-' + n.color : 'g-tuyos'}"><svg viewBox="0 0 24 24"><path d="${b.d}"/></svg></span>`; };
 function renderNewCat() {
   const n = UI.nc;
-  dlg.innerHTML = `<div class="sheet" id="nc-sheet">
+  dlg.classList.add('full'); // the whole height: name, colours and the button stay in view, the icons use what is left
+  dlg.innerHTML = `<div class="sheet ${n.color ? 'pc-' + n.color : ''}" id="nc-sheet">
     <div class="row between"><h2>${n.id ? t('Editar tipo') : t('Nuevo tipo')}</h2><button type="button" class="iconbtn" data-act="ncback" aria-label="${t('Volver')}">${ic('x')}</button></div>
-    <label class="field"><span class="label">${t('Nombre')}</span><input id="nc-name" value="${esc(n.name)}" maxlength="24" placeholder="${t('La moto, el pádel, caprichos…')}" autocomplete="off"></label>
-    <div class="field"><span class="label">${t('Icono')}</span>
+    <div class="ncname"><span class="ncprev" id="nc-prev" aria-hidden="true">${ncPreview(n)}</span>
+    <label class="field"><span class="label">${t('Nombre')}</span><input id="nc-name" value="${esc(n.name)}" maxlength="24" placeholder="${t('La moto, el pádel, caprichos…')}" autocomplete="off"></label></div>
+    <div class="field iconfield"><span class="label">${t('Icono')}</span>
       <div class="icongrid" role="group" aria-label="${t('Icono')}">${[...BASE, ...EXTRA_ICONS].map((c) => `<button type="button" class="iconpick" data-act="ncicon" data-icon="${c.id}" aria-pressed="${n.icon === c.id}" aria-label="${esc(c.name)}" title="${esc(c.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${c.d}"/></svg></button>`).join('')}</div></div>
     <div class="field"><span class="label">${t('Color')}</span>
-      <div class="colorgrid" role="group" aria-label="${t('Color')}"><button type="button" class="colorpick auto" data-act="nccolor" data-color="" aria-pressed="${!n.color}" aria-label="${t('Automático')}">${t('Auto')}</button>${Array.from({ length: 12 }, (_, i) => `<button type="button" class="colorpick pc-p${i + 1}" data-act="nccolor" data-color="p${i + 1}" aria-pressed="${n.color === 'p' + (i + 1)}" aria-label="${t('Color {n}', { n: i + 1 })}"></button>`).join('')}</div></div>
+      <div class="colorgrid" role="group" aria-label="${t('Color')}"><button type="button" class="colorpick auto" data-act="nccolor" data-color="" aria-pressed="${!n.color}" aria-label="${t('Automático')}">${t('Auto')}</button>${Array.from({ length: 12 }, (_, i) => `<button type="button" class="colorpick pc-p${i + 1}" data-act="nccolor" data-color="p${i + 1}" aria-pressed="${n.color === 'p' + (i + 1)}" aria-label="${t('Color {n}', { n: i + 1 })}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg></button>`).join('')}</div></div>
     <div class="formbtns"><button type="button" class="primary" data-act="ncsave">${n.id ? t('Guardar') : t('Crear')}</button>
       ${n.id ? `<button type="button" class="danger" data-act="ncdel">${n.confirm ? t('Confirmar borrado') : t('Borrar')}</button>` : ''}</div>
   </div>`;
@@ -1750,9 +1754,14 @@ document.addEventListener('click', (e) => {
     case 'ncicon': {
       UI.nc.icon = UI.nc.icon === b.dataset.icon ? '' : b.dataset.icon;
       dlg.querySelectorAll('.iconpick').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.icon === UI.nc.icon)));
-      break;
+      $('#nc-prev').innerHTML = ncPreview(UI.nc); break;
     }
-    case 'nccolor': UI.nc.color = b.dataset.color; dlg.querySelectorAll('.colorpick').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.color === UI.nc.color))); break;
+    case 'nccolor': {
+      UI.nc.color = b.dataset.color;
+      dlg.querySelectorAll('.colorpick').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.color === UI.nc.color)));
+      const sh = $('#nc-sheet'); if (sh) { sh.className = sh.className.replace(/\bpc-p\d+\b/g, '').trim() + (UI.nc.color ? ' pc-' + UI.nc.color : ''); }
+      $('#nc-prev').innerHTML = ncPreview(UI.nc); break;
+    }
     case 'ncsave': saveNewCat(); break;
     case 'ncdel': {
       if (!UI.nc.confirm) { UI.nc.confirm = true; UI.nc.name = val('nc-name') || UI.nc.name; renderNewCat(); break; }

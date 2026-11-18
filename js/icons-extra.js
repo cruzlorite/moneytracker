@@ -3,6 +3,7 @@
 import { t } from './i18n.js';
 
 export const EXTRA_ICONS = [
+  { id: 'x-motorbike', name: t('Moto'), d: 'M16 2h4v2h-4zM4 4h8v2h-8zM18 4h2v2h-2zM6 6h14v2h-14zM8 8h10v2h-10zM6 10h2v2h-2zM18 10h2v2h-2zM2 12h6v2h-6zM16 12h6v2h-6zM0 14h2v2h-2zM8 14h2v2h-2zM14 14h2v2h-2zM22 14h2v2h-2zM0 16h2v2h-2zM8 16h2v2h-2zM14 16h2v2h-2zM22 16h2v2h-2zM0 18h2v2h-2zM8 18h2v2h-2zM14 18h2v2h-2zM22 18h2v2h-2zM2 20h6v2h-6zM16 20h6v2h-6z' },
   { id: 'x-wallet', name: t('Cartera'), d: 'M18 5h2v2h-2zM4 3h14v2H4zM2 5h2v14H2zm2 14h16v2H4zm12-4h6v2h-6zm0-4h6v2h-6zm-2 0h2v6h-2z M20 7h2v12h-2zM4 7h16v2H4z' },
   { id: 'x-banknote', name: t('Billetes'), d: 'M3 5h18v2H3zM1 7h2v10H1zm2 10h18v2H3zM21 7h2v10h-2zM11 9h2v2h-2zm-2 2h2v2H9zm2 2h2v2h-2zm2-2h2v2h-2zm4 0h2v2h-2zM5 11h2v2H5z' },
   { id: 'x-coins', name: t('Monedas'), d: 'M6 2h6v2H6zM4 4h2v2H4zm8 0h2v2h-2zm-8 8h2v2H4zm8 0h2v2h-2zm-6 2h6v2H6zM2 6h2v6H2zm12 0h2v6h-2z M14 8h4v2h-4zm-4 10h2v2h-2zm8-8h2v2h-2zm-6 10h2v2h-2zm6-2h2v2h-2z M12 20h6v2h-6zm-4-6h2v4H8zm12-2h2v6h-2zM7 6h4v2H7z M9 6h2v6H9zm6 8h2v4h-2zm-1-2h3v2h-3z' },
