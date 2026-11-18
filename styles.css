@@ -1072,3 +1072,10 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .notify .trow .okbtn:active { background: var(--ok); color: var(--panel); }
 .notify .trow .okbtn[data-act="occ"] { border-color: var(--line); color: var(--ink); }
 @media (max-width: 360px) { .notify .trow { flex-wrap: wrap; } .notify .trow .okbtn { margin-left: auto; } }
+
+/* Análisis · gasto por tipo: spending is orange, labels keep together */
+.rk-bar i { background: var(--out); }
+.rk-l { text-wrap: balance; }
+.rk-l .fine { white-space: nowrap; margin-left: 4px; }
+.tile .fine, .tile .v { text-wrap: balance; }
+.tiles { align-items: stretch; }

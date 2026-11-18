@@ -1027,7 +1027,7 @@ function analisis(m) {
   <section class="card" aria-label="${t('Gasto por tipo')}">
     <div class="row between"><h2>${t('Gasto por tipo')}</h2><span class="fine num">${fmt(tot)}</span></div>
     ${rows.length ? ranked([...shown.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('presupuesto') + '</span>' : '',
-      tip: `${rkName(c)}: ${fmt(v)} (${Math.round(v / (tot || 1) * 100)} %)` })), ...(rest ? [{ icon: catEl(''), label: t('Otros tipos'), value: rest, tip: `Otros tipos: ${fmt(rest)}` }] : [])])
+      tip: `${rkName(c)}: ${fmt(v)} (${Math.round(v / (tot || 1) * 100)} %)` })), ...(rest ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), value: rest, tip: `Otros tipos: ${fmt(rest)}` }] : [])])
       + table([t('Tipo'), t('Importe'), '%'], rows.map(([c, v]) => [esc(rkName(c)), fmt(v), Math.round(v / (tot || 1) * 100) + ' %']))
       : '<p class="fine">' + t('Aún no hay gastos en este periodo. Cierra el mes con tu saldo, o apunta con el + lo que quieras vigilar.') + '</p>'}
   </section>
@@ -1895,3 +1895,23 @@ if (store.mode === 'google') {
   if (tokenValid()) store.sync().then(() => store.refresh());
   else store.setStatus('auth');
 }
+
+// The on-screen keyboard covers the bottom of the page: the open sheet lifts above it and shrinks to what is left,
+// and the type search jumps to the top of the sheet so its results are in view.
+if (window.visualViewport) {
+  const fit = () => {
+    const vv = window.visualViewport, kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    const d = document.querySelector('dialog[open]');
+    document.querySelectorAll('dialog').forEach((x) => { x.style.marginBottom = ''; x.style.maxHeight = ''; });
+    if (!d || kb < 80) return;
+    d.style.marginBottom = kb + 'px'; d.style.maxHeight = Math.round(vv.height * 0.96) + 'px';
+    d.querySelector('.sheet')?.style.setProperty('max-height', Math.round(vv.height * 0.96) + 'px');
+  };
+  window.visualViewport.addEventListener('resize', fit);
+  window.visualViewport.addEventListener('scroll', fit);
+}
+document.addEventListener('focusin', (e) => {
+  if (e.target?.id !== 'cat-search') return;
+  const go = () => { const sh = e.target.closest('.sheet'); if (sh) sh.scrollTop = Math.max(0, e.target.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - 8); };
+  go(); setTimeout(go, 300); // again once the keyboard has finished opening
+});
