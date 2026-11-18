@@ -404,7 +404,7 @@ function home(m) {
   ];
   const quick = pending.filter((p) => !p.it.vary);
   return `
-  ${tasks.length ? `<section class="card list notify" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><span class="notify-t"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span></span>${quick.length > 1 ? `<button type="button" class="btn-sec sm" data-act="qokall" data-ym="${ym}">${t('Confirmar todo')}</button>` : ''}</div>${(UI.notifyAll ? tasks : tasks.slice(0, 3)).join('')}${tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore">${UI.notifyAll ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
+  ${tasks.length ? `<section class="card list notify" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><button type="button" class="notify-t notify-tog" data-act="notifyfold" aria-expanded="${UI.notifyFold ? 'false' : 'true'}" aria-label="${UI.notifyFold ? t('Mostrar') : t('Ocultar')}"><span class="label">${t('Por confirmar')}</span><b class="ncount">${tasks.length}</b><span class="chev" aria-hidden="true">${UI.notifyFold ? '▸' : '▾'}</span></button>${quick.length > 1 ? `<button type="button" class="btn-sec sm" data-act="qokall" data-ym="${ym}">${t('Confirmar todo')}</button>` : ''}</div>${UI.notifyFold ? '' : (UI.notifyAll ? tasks : tasks.slice(0, 3)).join('')}${!UI.notifyFold && tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore">${UI.notifyAll ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
   ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
   ${closeBanner(due)}
   ${setupCard(m, ym)}
@@ -1011,6 +1011,7 @@ function analisis(m) {
   return `
   ${yearNav(m)}
   ${planCard(m)}
+  <div id="ana-per">
   <h2 class="section-h">${t('Tus gastos')}</h2>
   ${(UI.yearOff || 0) !== 0 ? '' : ''}<div class="seg period" ${(UI.yearOff || 0) !== 0 ? 'hidden' : ''} role="group" aria-label="${t('Periodo')}">${Object.entries(PERIODS).map(([k, l]) => `<button data-act="anaper" data-v="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</div>
 
@@ -1028,6 +1029,7 @@ function analisis(m) {
       : '<p class="fine">' + t('Aún no hay gastos en este periodo. Cierra el mes con tu saldo, o apunta con el + lo que quieras vigilar.') + '</p>'}
   </section>
 
+  </div>
   <h2 class="section-h">${t('Tu año, mes a mes')}</h2>
 
   <section class="card" aria-label="${t('Ahorrado cada mes')}">
@@ -1696,7 +1698,16 @@ document.addEventListener('click', (e) => {
       if (card && tmp.firstElementChild) card.replaceWith(tmp.firstElementChild); else render(true);
       break;
     }
-    case 'anaper': UI.anaPer = b.dataset.v; lsSet('hucha:ana', UI.anaPer); render(true); break;
+    case 'anaper': {
+      UI.anaPer = b.dataset.v; lsSet('hucha:ana', UI.anaPer);
+      const box = $('#ana-per');
+      if (!box) { render(true); break; }
+      // only the part that depends on the period is drawn again: the rest of the page stays as it is
+      const doc = new DOMParser().parseFromString(analisis(computeYear(UI.yearOff)), 'text/html'), nb = doc.getElementById('ana-per');
+      if (!nb) { render(true); break; }
+      box.innerHTML = nb.innerHTML;
+      break;
+    }
     case 'morespends': UI.allSpends = ym; render(true); break;
     case 'qpick': UI.qcat = b.dataset.cat || null; dlg.close(); render(true); break;
     case 'fcatopen': readForm(); FORM._pick = !FORM._pick; renderForm(); break;
@@ -1726,6 +1737,7 @@ document.addEventListener('click', (e) => {
     case 'doneall': UI.doneAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'yearnow': UI.yearOff = 0; render(true); break;
+    case 'notifyfold': UI.notifyFold = !UI.notifyFold; render(true); break;
     case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
     case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
     case 'qokall': {

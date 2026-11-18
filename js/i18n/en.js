@@ -1,5 +1,7 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Ocultar': 'Hide',
+  'Mostrar': 'Show',
   // ---------- the app ----------
   'MoneyTracker': 'MoneyTracker',
   '· MoneyTracker': '· MoneyTracker',
