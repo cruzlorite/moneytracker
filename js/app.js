@@ -1880,6 +1880,7 @@ function go(tab) {
   if (tab === 'home' && depth > 0) { history.go(-depth); return; } // Hoy is the root
   if (subTab(tab) || UI.tab === 'home') history.pushState({ tab, depth: depth + 1 }, '', '#' + ROUTES[tab]);
   else history.replaceState({ tab, depth }, '', '#' + ROUTES[tab]); // tab to tab: no pile of entries
+  UI.yearOff = 0; // a tab always opens on the current year: the year you looked at before is not carried over
   setTab(tab);
 }
 function goBack() {
