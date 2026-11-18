@@ -1164,3 +1164,12 @@ details.tview td:first-child { white-space: normal; }
 .move .grow b { font-size: 14px; font-weight: 600; }
 .move .grow .fine { font-size: 12px; }
 .move .num { flex: none; font-weight: 700; font-size: 14px; white-space: nowrap; }
+
+/* Análisis tiles: numbers never break */
+.tiles.t2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tiles.t3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tiles .tile .v { white-space: nowrap; }
+.tiles.t3 .tile .v { font-size: 22px; }
+.tiles .tile .fine.tl { display: grid; gap: 0; }
+.tiles .tile .fine.tl .num { white-space: nowrap; }
+.tiles.t3 .tile .label { font-size: 12px; white-space: nowrap; }

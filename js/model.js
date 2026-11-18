@@ -604,6 +604,10 @@ export function normMonth(m) {
   if (o.open != null && isISO(m?.openDate)) o.openDate = m.openDate; // the day you started, when it wasn't the month's first
   const cb = num(m?.check?.bal);
   if (cb != null && isISO(m?.check?.date)) o.check = { date: m.check.date, bal: cb };
+  // every look at the balance you gave (the latest one, `check`, is what the month uses)
+  const ck = (Array.isArray(m?.checks) ? m.checks : []).map((c) => ({ date: c?.date, bal: num(c?.bal) })).filter((c) => isISO(c.date) && c.bal != null);
+  if (o.check && !ck.some((c) => c.date === o.check.date)) ck.push({ ...o.check });
+  if (ck.length) { ck.sort((a, b) => a.date.localeCompare(b.date)); o.checks = ck; o.check = ck[ck.length - 1]; }
   const ps = {};
   for (const [k, v] of Object.entries(m?.potSpent || {})) { const n = num(v); if (n != null) ps[k] = n; }
   if (Object.keys(ps).length) o.potSpent = ps;

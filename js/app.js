@@ -1071,10 +1071,10 @@ function analisis(m) {
   <h2 class="section-h">${t('Tus gastos')}</h2>
   ${(UI.yearOff || 0) !== 0 ? '' : ''}<div class="seg period" ${(UI.yearOff || 0) !== 0 ? 'hidden' : ''} role="group" aria-label="${t('Periodo')}">${Object.entries(PERIODS).map(([k, l]) => `<button data-act="anaper" data-v="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</div>
 
-  <div class="tiles">
+  <div class="tiles ${per === 'mes' ? 't2' : 't3'}">
     <div class="tile"><span class="label">${t('Gastado')}</span><span class="v num">${compactMoney(tot)}</span><span class="fine">${esc(PERIODS[per].toLowerCase())}</span></div>
     ${per === 'mes' ? '' : `<div class="tile"><span class="label">${t('Al mes')}</span><span class="v num">${compactMoney(tot / n)}</span><span class="fine">${t('de media')}</span></div>`}
-    <div class="tile"><span class="label">${t('Mayor gasto')}</span><span class="v">${top ? catEl(top[0], 'sm') : '—'}</span><span class="fine">${top ? esc(CAT[top[0]].short) + ' · ' + fmt(top[1]) : t('sin tipos')}</span></div>
+    <div class="tile"><span class="label">${t('Mayor gasto')}</span><span class="v">${top ? catEl(top[0], 'sm') : '—'}</span><span class="fine tl">${top ? `<span>${esc(CAT[top[0]].short)}</span><span class="num">${fmt(top[1])}</span>` : t('sin tipos')}</span></div>
   </div>
 
   <section class="card" aria-label="${t('Gasto por tipo')}">
@@ -1103,7 +1103,7 @@ function analisis(m) {
     ${table([t('Mes'), t('Ingresado'), t('Gastado'), t('Diferencia')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—', has ? diffCell(m.incomeTo(ym), outOfM(ym), 'good') : '—']))}
   </section>`;
 }
-const compactMoney = (v) => (v < 10000 ? fmt(v) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
+const compactMoney = (v) => (v < 10000 ? fmt(Math.round(v)) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
 
 // ---------- Plan ----------
 // Plan once: the yearly goal, what comes in, what you know will go out, and budgets for what you want to keep an eye on.
@@ -1529,8 +1529,8 @@ function openCheck(ym) {
     <label class="field"><span class="label">${t('Saldo hoy')}</span><input type="text" inputmode="decimal" id="ck-bal" class="bigin" value="" placeholder="${c ? t('El último: ') + fmt(c.bal) : t('Saldo según tu banco')}" autocomplete="off">
 </label>
     <div id="ck-calc" aria-live="polite"></div>
-    <div class="formbtns"><button class="primary" data-act="checkset" data-ym="${ym}">${t('Guardar')}</button>${c ? `<button class="ghost" data-act="checkclear" data-ym="${ym}">${t('Olvidar el del {d}', { d: +c.date.slice(8) })}</button>` : ''}</div>
-  </div>`;
+    <div class="formbtns"><button class="primary" data-act="checkset" data-ym="${ym}">${t('Guardar')}</button></div>
+    ${(m.mon(ym).checks || []).length ? `<div class="stack-sm"><span class="label">${t('Actualizaciones de saldo')}</span><div class="moves">${[...m.mon(ym).checks].reverse().map((x) => `<div class="move"><span class="grow"><b class="num">${fmt(x.bal)}</b><span class="fine">${shortDate(x.date)}</span></span><button type="button" class="iconbtn sm" data-act="checkdel" data-ym="${ym}" data-date="${x.date}" aria-label="${t('Borrar actualización del {d}', { d: shortDate(x.date) })}">${ic('x')}</button></div>`).join('')}</div></div>` : ''}`;
   openDialog();
   checkCalc();
   setTimeout(() => (dlg.querySelector('#ck-open') || dlg.querySelector('#ck-bal'))?.focus(), 80);
@@ -1704,14 +1704,22 @@ document.addEventListener('click', (e) => {
       if (bal == null) { invalid('#ck-bal', t('Escribe tu saldo')); return; }
       dlg.close();
       store.update('months', (d) => {
-        const mo = d.months[ym] = { ...(d.months[ym] || {}), check: patch.check };
+        const prev = d.months[ym] || {}, list = [...(prev.checks || (prev.check ? [prev.check] : []))].filter((x) => x.date !== patch.check.date);
+        list.push(patch.check); list.sort((a, b2) => a.date.localeCompare(b2.date));
+        const mo = d.months[ym] = { ...prev, check: list[list.length - 1], checks: list };
         if (patch.open != null) mo.open = patch.open;
         if (patch.openDate) mo.openDate = patch.openDate;
       });
       toast(t('Saldo guardado'));
       break;
     }
-    case 'checkclear': store.update('months', (d) => { const mo = d.months[ym] = { ...(d.months[ym] || {}) }; delete mo.check; }); dlg.close(); toast(t('Olvidado')); break;
+    case 'checkdel': {
+      store.update('months', (d) => {
+        const mo = d.months[ym] = { ...(d.months[ym] || {}) }, list = (mo.checks || (mo.check ? [mo.check] : [])).filter((x) => x.date !== b.dataset.date);
+        if (list.length) { mo.checks = list; mo.check = list[list.length - 1]; } else { delete mo.checks; delete mo.check; }
+      });
+      toast(t('Actualización borrada')); openCheck(ym); break;
+    }
     case 'closeundo': setClose(ym, null); toast(t('Cierre deshecho')); break;
     case 'qcat': {
       UI.qcat = UI.qcat === b.dataset.cat ? null : b.dataset.cat;
