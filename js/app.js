@@ -191,7 +191,7 @@ function render(force) {
   document.querySelectorAll('nav.tabs button[data-tab]').forEach((b) => b.setAttribute('aria-current', b.dataset.tab === navTab ? 'page' : 'false'));
   const sub = UI.tab === 'mes'; // only a month opens on top of a tab; the top bar exists just for its back button
   $('#backbtn').hidden = !sub; $('#top').hidden = !sub; view.classList.toggle('nohead', !sub);
-  $('#fab').disabled = !m.items.length;
+  $('#fab').disabled = !m.items.length; $('#fab').hidden = UI.tab !== 'home'; // the + only lives in Hoy
   hideTip();
   animateNumbers(view); animateBars(view);
   renderStatus();

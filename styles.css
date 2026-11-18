@@ -1225,3 +1225,4 @@ nav.tabs .in { grid-template-columns: repeat(5, 1fr); }
 .sheet.quick:not(.more) { overflow-y: visible; max-height: none; }
 dialog:has(.sheet.quick:not(.more)) { max-height: none; overflow: visible; }
 .sheet.quick { overscroll-behavior: contain; }
+.plusbtn.fab[hidden] { display: none !important; }
