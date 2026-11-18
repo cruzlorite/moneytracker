@@ -438,21 +438,28 @@ function home(m) {
     <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
   </div>
   ${monthTypes(m, ym)}
-  ${watchCard(m, ym)}
   ${trailCard(m)}
   ${monthMoves(m, ym)}`;
 }
-/** This month by type: one bar split into its biggest parts, and who they are. */
+/** This month by type, budgets and the rest in one card: each budget against its limit, then what you spent on the other types. */
 function monthTypes(m, ym) {
+  const buds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(buds.map((b) => b.cat));
   const { rows, tot } = spendByType(m, [ym]);
-  if (tot < 0.5 || !rows.length) return '';
-  const top = rows.slice(0, 5), rest = rows.slice(5).reduce((a, [, v]) => a + v, 0);
-  const parts = [...top.map(([c, v]) => ({ c, v })), ...(rest > 0.5 ? [{ c: null, v: rest }] : [])];
-  const nm = (c) => (c === null ? t('Otros tipos') : c === DIA ? t('Sin detallar') : catName(c));
-  const shade = (i) => `color-mix(in srgb, var(--out) ${Math.max(28, 100 - i * 16)}%, var(--panel))`;
-  return `<section class="card" aria-label="${t('Gasto por tipo')}"><div class="row between"><h2>${t('Gasto por tipo')}</h2><span class="fine num">${fmt(tot)}</span></div>
-    <div class="typebar" role="img" aria-label="${esc(parts.map((p) => `${nm(p.c)} ${fmt(p.v)}`).join(', '))}">${parts.map((p, i) => `<i style="flex:${p.v};background:${shade(i)}" data-tip="${esc(nm(p.c))}: ${esc(fmt(p.v))} (${Math.round(p.v / tot * 100)} %)"></i>`).join('')}</div>
-    <div class="typeleg">${parts.map((p, i) => `<span><i class="dot" style="background:${shade(i)}"></i>${esc(nm(p.c))} <b class="num">${Math.round(p.v / tot * 100)} %</b></span>`).join('')}</div>
+  const plain = rows.filter(([c]) => !budCats.has(c)), top = plain.slice(0, 5), rest = plain.slice(5).reduce((a, [, v]) => a + v, 0);
+  if (!buds.length && tot < 0.5) return '';
+  const nm = (c) => (c === DIA ? t('Sin detallar') : catName(c));
+  const list = [...top.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: nm(c), value: v, tip: `${nm(c)}: ${fmt(v)}` })),
+    ...(rest > 0.5 ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), value: rest, tip: `${t('Otros tipos')}: ${fmt(rest)}` }] : [])];
+  const budRows = buds.map((b) => {
+    const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
+    return `<button class="vrow" data-act="bud" data-id="${esc(b.id)}">
+      <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
+      ${budBar(x, 'v-' + b.id)}
+      ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt(Math.round(x.proj))}</b></span>` : ''}</button>`;
+  }).join('');
+  return `<section class="card" aria-label="${t('Gasto por tipo')}"><div class="row between"><h2>${t('Gasto por tipo')} ${info('limites')}</h2><span class="fine num">${fmt(tot)}</span></div>
+    ${buds.length ? `<span class="label">${t('Presupuestos')}</span><div class="vlist">${budRows}</div>` : ''}
+    ${list.length ? `${buds.length ? `<span class="label">${t('Sin presupuestar')}</span>` : ''}${ranked(list)}` : ''}
   </section>`;
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */
@@ -461,7 +468,7 @@ const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary }) =>
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
   for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) {
-    rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: e.amount, kind: 'out' }) });
+    rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: Math.abs(e.amount), kind: e.amount < 0 ? 'in' : 'out' }) });
   }
   for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) {
     rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real' }) });
@@ -486,19 +493,6 @@ function trailCard(m) {
     ${(() => { const x = m.curveNow(m.curYM)?.extra; return x ? `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.', { x: fmt(x) })}</p>` : ''; })()}
   </section>`;
 }
-/** The budgets, compact: what you've spent of each. Tap one to log against it. */
-function watchCard(m, ym) {
-  const budgetsNow = m.shown().filter((b) => b.budget && activeIn(b, m.curYM));
-  if (!budgetsNow.length) return '';
-  return `<section class="card" aria-label="${t('Tus presupuestos')}"><h2>${t('Tus presupuestos')} ${info('limites')}</h2><div class="vlist">${budgetsNow.map((b) => {
-    const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
-    return `<button class="vrow" data-act="bud" data-id="${esc(b.id)}">
-      <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
-      ${budBar(x, 'v-' + b.id)}
-      ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt(Math.round(x.proj))}</b></span>` : ''}</button>`;
-  }).join('')}</div></section>`;
-}
-
 // ---------- Año ----------
 function metas(m) {
   if (!m.items.length) return emptyPlanCard(m);
@@ -589,6 +583,7 @@ function openQuick(keep = {}) {
   dlg.innerHTML = `<div class="sheet quick" id="quick-sheet">
     <div class="row between"><h2>${UI.editSpend ? t('Editar gasto') : t('Apuntar un gasto')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
+    <div class="seg qdir" id="k-dir" role="group" aria-label="${t('Ahorro e inversión')}" ${UI.qcat === SAVE_CAT ? '' : 'hidden'}><button type="button" data-act="qdir" data-v="in" aria-pressed="${UI.qdir !== 'out'}">${t('Aportar')}</button><button type="button" data-act="qdir" data-v="out" aria-pressed="${UI.qdir === 'out'}">${t('Retirar')}</button></div>
     ${catRow(m, true)}
     ${UI.kmore ? catGrid(UI.qcat, 'kpick', true) : ''}
     <div class="fields2">
@@ -768,7 +763,7 @@ const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
 };
 
 // ---------- Mes ----------
-const spendRow = (e) => `<div class="spend editable" role="button" tabindex="0" data-act="editspend" data-id="${esc(e.id)}" aria-label="${t('Editar gasto')}">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num c-spend">−${fmt(e.amount)}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
+const spendRow = (e) => `<div class="spend editable" role="button" tabindex="0" data-act="editspend" data-id="${esc(e.id)}" aria-label="${t('Editar gasto')}">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num ${e.amount < 0 ? 'c-in' : 'c-spend'}">${e.amount < 0 ? '+' : '−'}${fmt(Math.abs(e.amount))}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
 const stPill = (st) => `<span class="pill ${st === 'clear' ? 'c-ok' : st === 'partial' ? 'c-warn' : 'c-acc'}">${st === 'clear' ? t('Cumplido') : st === 'partial' ? t('Parcial') : t('Sin datos')}</span>`;
 
 
@@ -1588,7 +1583,7 @@ function addSpend(date, amount, note, from, cat) {
   UI.qcat = null;
   const done = celebrate(() => store.update('spends', (d) => { d.spends.push(e); }), from);
   UI.undo.push(e.id); UI.undo = UI.undo.slice(-20);
-  if (!done) toast(`${t('Apuntado')} ${fmt(amount)}${cat ? ' · ' + CAT[cat].short : ''}${bud ? ` (${t('presupuesto')})` : cat === SAVE_CAT ? ` (${t('no es gasto')})` : ''}`);
+  if (!done) toast(`${amount < 0 ? t('Retirado') : t('Apuntado')} ${fmt(Math.abs(amount))}${cat ? ' · ' + CAT[cat].short : ''}${bud ? ` (${t('presupuesto')})` : cat === SAVE_CAT ? ` (${t('no es gasto')})` : ''}`);
 }
 
 async function connect() {
@@ -1724,10 +1719,12 @@ document.addEventListener('click', (e) => {
     case 'qcat': {
       UI.qcat = UI.qcat === b.dataset.cat ? null : b.dataset.cat;
       document.querySelectorAll('.catrow [data-act="qcat"]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.cat === UI.qcat)));
+      const dir = $('#k-dir'); if (dir) dir.hidden = UI.qcat !== SAVE_CAT;
       const hint = catHint(compute(store.data), UI.qcat);
       document.querySelectorAll('.cathint').forEach((h) => { h.textContent = hint; });
       break;
     }
+    case 'qdir': UI.qdir = b.dataset.v; document.querySelectorAll('#k-dir [data-act="qdir"]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === UI.qdir))); break;
     case 'catmore': openCatPicker(); break;
     case 'catnew': if (b.dataset.from === 'fcat') readForm(); openNewCat(b.dataset.from); break;
     case 'catedit': openNewCat('manage', b.dataset.id); break;
@@ -1747,21 +1744,22 @@ document.addEventListener('click', (e) => {
       UI.nc = null; dlg.close(); toast(t('Tipo borrado')); render(true);
       break;
     }
-    case 'quick': UI.quickDate = b.dataset.date || null; UI.kmore = false; openQuick(); break;
+    case 'quick': UI.quickDate = b.dataset.date || null; UI.kmore = false; UI.qdir = 'in'; openQuick(); break;
     case 'kmore': { const k = quickKeep(); UI.kmore = !UI.kmore; openQuick(k); break; }
     case 'kpick': { const k = quickKeep(); UI.qcat = b.dataset.cat || null; UI.kmore = false; openQuick(k); break; }
     case 'kgo': {
       const v = num(val('k-amt')), date = val('k-date') || toISO(new Date());
       if (!v || v <= 0) { invalid('#k-amt', t('Escribe un importe')); return; }
+      const sgn = UI.qcat === SAVE_CAT && UI.qdir === 'out' ? -1 : 1; // taking money out of savings: only there a negative amount makes sense
       if (UI.editSpend) {
         const id = UI.editSpend, cat = UI.qcat || undefined;
         dlg.close(); UI.qcat = null;
-        store.update('spends', (d) => { const e = d.spends.find((x) => x.id === id); if (e) { e.amount = round2(v); e.date = date; e.note = (val('k-note') || '').trim(); if (cat) e.cat = cat; else delete e.cat; } });
+        store.update('spends', (d) => { const e = d.spends.find((x) => x.id === id); if (e) { e.amount = round2(v * sgn); e.date = date; e.note = (val('k-note') || '').trim(); if (cat) e.cat = cat; else delete e.cat; } });
         toast(t('Gasto guardado'));
         break;
       }
       dlg.close();
-      addSpend(date, v, (val('k-note') || '').trim(), null, UI.qcat);
+      addSpend(date, v * sgn, (val('k-note') || '').trim(), null, UI.qcat);
       break;
     }
     case 'trail': {
@@ -1808,8 +1806,8 @@ document.addEventListener('click', (e) => {
     case 'editspend': {
       const e = store.data.spends.find((x) => x.id === b.dataset.id);
       if (!e) break;
-      UI.editSpend = e.id; UI.qcat = e.cat || null; UI.kmore = false; UI.quickDate = e.date;
-      openQuick({ amt: String(e.amount).replace('.', ','), note: e.note || '', date: e.date });
+      UI.editSpend = e.id; UI.qcat = e.cat || null; UI.kmore = false; UI.quickDate = e.date; UI.qdir = e.amount < 0 ? 'out' : 'in';
+      openQuick({ amt: String(Math.abs(e.amount)).replace('.', ','), note: e.note || '', date: e.date });
       break;
     }
     case 'delspend': {

@@ -629,7 +629,8 @@ export function normMonth(m) {
 export function normSpend(e) {
   const amount = num(e?.amount);
   if (!isISO(e?.date) || !amount) return null;
-  const o = { id: String(e.id || uid('g')), date: e.date, amount, note: String(e.note || '') };
+  // a negative amount is only for taking money out of savings; for anything else it is just the amount
+  const o = { id: String(e.id || uid('g')), date: e.date, amount: amount < 0 && e.cat !== SAVE_CAT ? -amount : amount, note: String(e.note || '') };
   if (e.cat) o.cat = String(e.cat);
   return o;
 }

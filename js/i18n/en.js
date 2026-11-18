@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Retirado': 'Withdrawn',
+  'Retirar': 'Withdraw',
+  'Aportar': 'Add',
   'Borrar actualización del {d}': 'Delete the update of {d}',
   'Actualización borrada': 'Update deleted',
   'Actualizaciones de saldo': 'Balance updates',
