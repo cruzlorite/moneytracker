@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
@@ -264,6 +264,11 @@ function infoHTML(key) {
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
       ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
       t('Porcentajes: sobre tus ingresos. Lo que no gastes, también es ahorro.'));
+    case 'acumulado': return card(t('Ahorro acumulado'), [
+      ixRow(IX.fill('var(--sav)'), t('Ahorrado'), t('suma de lo ahorrado mes a mes.')),
+      ixRow(IX.proj('var(--sav)'), t('Estimado'), t('este mes a tu ritmo y los siguientes según lo planificado.')),
+      ixRow('<i class="lg-plan"></i>', t('Planificado'), t('suma de lo planificado cada mes.'))],
+      t('Por encima de la línea gris vas adelantado; por debajo, atrasado.'));
     case 'saldo': return card(t('Saldo de tu cuenta'), [
       ixRow(IX.fill('var(--s1)'), t('Saldo'), t('lo que había en tu cuenta cada día.')),
       ixRow(IX.proj('var(--s1)'), t('Estimado'), t('desde hoy hasta fin de mes: lo planificado y tu ritmo de gasto desde tu último saldo.'))],
@@ -402,12 +407,28 @@ function metas(m) {
   const cells = m.season.map((ym) => {
     const mm = MES3[+ym.slice(5) - 1], d = m.mon(ym);
     const tg = m.targetOf(ym), obj = `<small class="num">/ ${shortMoney(tg).replace('+', '')}</small>`;
-    if (ym < m.curYM && d.close) return `<button class="mcell" style="${savedScale(m, ym).style}" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('ahorrado')} ${fmt(m.savedOf(ym))} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm}</span><b class="num">${shortMoney(m.savedOf(ym))}</b>${obj}</button>`;
+    if (ym < m.curYM && d.close) return `<button class="mcell" style="${savedScale(m, ym).style}" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('ahorrado')} ${fmt(m.savedOf(ym))} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm}</span><b class="num">${shortMoney(m.savedOf(ym))}</b>${obj}<span class="mbar" style="--w:${tg > 0 ? clamp(m.savedOf(ym) / tg * 100, 0, 100).toFixed(0) : 0}%"></span></button>`;
     if (ym < m.curYM) return `<button class="mcell due" data-act="msel" data-ym="${ym}"><span>${mm}</span><b>${t('por cerrar')}</b>${obj}</button>`;
     if (ym === m.curYM) return `<button class="mcell now" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('proyección')} ${ps == null ? '—' : fmt(ps)} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm} · ${t('hoy')}</span><b class="num muted">${ps == null ? '' : '≈ ' + shortMoney(ps).replace('+', '')}</b>${obj}<i style="width:${pct(pc.day, pc.dim).toFixed(0)}%"></i></button>`;
     const b = big(ym);
-    return `<button class="mcell fut" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('planificado')} ${fmt(tg)}${b ? ` · ${b.name} ${fmt(b.amount)}` : ''}`)}"><span>${mm}</span><b class="num">${shortMoney(tg).replace('+', '')}</b><small>${b ? esc(b.name.length > 13 ? b.name.slice(0, 12) + '…' : b.name) : t('planificado')}</small></button>`;
+    return `<button class="mcell fut" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('planificado')} ${fmt(tg)}${b ? ` · ${b.name} ${fmt(b.amount)}` : ''}`)}"><span>${mm}</span><b class="num">${shortMoney(tg).replace('+', '')}</b><small>${t('plan')}</small>${b ? '<u class="mbig" aria-hidden="true"></u>' : ''}</button>`;
   }).join('');
+  // saved so far against planned, month by month and added up; the months to come follow the plan (an estimate)
+  let cumCard = '';
+  if (!m.pre && !m.over && m.goal > 0) {
+    const planC = [], realC = []; let pa = 0, ra = 0;
+    m.season.forEach((ym, i) => {
+      pa += m.targetOf(ym);
+      ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : m.targetOf(ym);
+      planC.push(round2(pa)); realC.push(round2(ra));
+    });
+    cumCard = `<section class="card" aria-label="${t('Ahorro acumulado')}">
+      <div class="row between"><h2>${t('Ahorro acumulado')} ${info('acumulado')}</h2></div>
+      ${cumLines({ plan: planC, real: realC, projFrom: m.curIdx, labels: m.season.map((ym) => MES3[+ym.slice(5) - 1]), aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
+      <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
+      ${table([t('Mes'), t('Ahorrado'), t('Planificado')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), (i > m.curIdx ? '≈ ' : i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i])]))}
+    </section>`;
+  }
   const nexts = m.outs.filter((i) => i.freq !== 'monthly' && !i.budget).map((i) => ({ i, k: m.season.findIndex((s, ix) => ix >= m.curIdx && m.occurs(i, s)) }))
     .filter((x) => x.k >= 0).sort((a, b) => a.k - b.k).slice(0, 4);
   const last = m.season[11], ended = m.curYM > last;
@@ -425,6 +446,7 @@ function metas(m) {
     <div class="row between"><div><h2>${t('Mes a mes')} ${info('meses')}</h2><span class="fine">${t('ahorrado / planificado de cada mes')}</span></div><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span></div>
     <div class="mgrid">${cells}</div>
   </section>
+  ${cumCard}
   ${nexts.length ? `<section class="card list" aria-label="${t('Meses con más gasto')}">${nexts.map(({ i, k }) => `<div class="trow"><span class="mm">${MES3[+m.season[k].slice(5) - 1]}</span><span class="grow">${esc(i.name)}</span><b class="num">${fmt(i.amount)}</b></div>`).join('')}</section>` : ''}
   ${ended ? yearCard(m) : ''}`;
 }
@@ -972,7 +994,8 @@ function plan(m) {
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
         <div class="row"><button class="small" data-act="goalfit" data-v="${Math.max(0, Math.floor((m.possible - Math.max(0, m.possible) * 0.4) / 100) * 100)}">${t('Ajustar a una cifra viable')}</button></div></div>`
       : ''}
-    <label class="field inline-field"><span class="label">${t('El año empieza en')}</span><input type="month" id="p-start" value="${esc(m.start)}"></label>
+    <label class="field inline-field"><span class="label">${t('El año empieza en')}</span><span class="startsel"><select id="p-start-m" aria-label="${t('Mes')}">${MES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${+m.start.slice(5) === i + 1 ? 'selected' : ''}>${cap(n)}</option>`).join('')}</select>
+      <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +m.start.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +m.start.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${m.cycleDay}" style="max-width: 80px"></label>
   </section>
   ${group(t('Ingresos planificados'), '', m.ins, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'))}
@@ -1222,7 +1245,7 @@ function moneyChart(m, ym, bal) {
   const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmtSigned(p.y)]);
   return `<div class="cl-block">
     <div><span class="label">${t('Tu dinero en {m}', { m: name })}</span>${live ? `<div class="fine">${t('estimado según tu último saldo')}</div>` : ''}</div>
-    ${line({ pts, marks, projFrom, xTicks: [1, 10, 20, dim].filter((d) => d >= first).map((d) => ({ i: d - first, text: d })), aria: t('Tu dinero a lo largo de {m}: empieza en 0 y termina en {x}', { m: name, x: fmtSigned(cv.pts[dim].y) }) })}
+    ${line({ pts, marks, projFrom, xTicks: [1, 10, 20, dim].filter((d) => d >= first).map((d) => ({ i: d - first, text: d })), aria: t('Tu dinero a lo largo de {m}: empieza en 0 y termina en {x}', { m: name, x: fmtSigned(cv.pts[last].y) }) })}
     ${table([t('Día'), t('Movimientos'), t('Acumulado')], rows)}
   </div>`;
 }
@@ -1567,9 +1590,10 @@ document.addEventListener('change', (e) => {
     const v = Math.round(num(el.value) ?? 0);
     if (v < 1 || v > 28) { toast(t('Un día del 1 al 28')); return; }
     store.update('settings', (d) => { d.settings.cycleDay = v; }); toast(v === 1 ? t('Meses del 1 al último día') : t('Tu mes va del {a} al {b}', { a: v, b: v - 1 })); render(true);
-  } else if (el.id === 'p-start') {
-    if (!isYM(el.value)) return;
-    store.update('settings', (d) => { d.settings.start = el.value; }); toast(t('Primer mes guardado')); render(true);
+  } else if (el.id === 'p-start-m' || el.id === 'p-start-y') {
+    const v = `${document.querySelector('#p-start-y').value}-${document.querySelector('#p-start-m').value}`;
+    if (!isYM(v)) return;
+    store.update('settings', (d) => { d.settings.start = v; }); toast(t('Primer mes guardado')); render(true);
   } else if ((el.id === 'import-file' || el.id === 'import-welcome') && el.files?.[0]) {
     importFile(el.files[0]); el.value = '';
   }

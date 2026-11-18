@@ -305,3 +305,19 @@ test('money moved to savings leaves the account but is not spending', () => {
   assert.equal(m.savedOf('2027-01'), 400 + 300); // moved + left over in the account
   assert.equal(round(m.incomeTo('2027-01') - m.spentAll('2027-01')), 700); // the same thing: in − spent
 });
+
+test('the current month before closing: a line from the start balance, estimated after today', () => {
+  const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 1 };
+  const d = plan([salary], { months: { '2027-01': { open: 900, openDate: '2027-01-10', check: { date: '2027-01-15', bal: 700 } } } });
+  const m = compute(d, new Date(2027, 0, 20));
+  const cv = m.curveNow('2027-01');
+  assert.ok(cv, 'there is a curve with a start balance');
+  assert.equal(cv.pts[0].day, 10, 'it starts the day the balance refers to, not on day 1');
+  assert.equal(cv.pts[0].y, 0);
+  assert.equal(cv.pts.find((p) => p.day === 15).y, -200, 'on the day of the look it matches the balance you gave');
+  assert.equal(cv.fromDay, 21, 'what comes after today is an estimate');
+  const trail = m.balanceTrail(30);
+  assert.ok(trail.length > 5 && trail.some((p) => p.proj) && trail.some((p) => !p.proj));
+  assert.equal(trail.find((p) => p.date === '2027-01-15').bal, 700);
+  assert.equal(compute(plan([salary]), new Date(2027, 0, 20)).curveNow('2027-01'), null, 'no start balance, no curve');
+});

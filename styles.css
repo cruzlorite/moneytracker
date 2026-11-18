@@ -944,3 +944,23 @@ svg.bal-chart { touch-action: pan-y; -webkit-user-select: none; user-select: non
 .bl-label rect { fill: var(--ink); }
 .bl-label text { fill: var(--bg); font: 600 11.5px Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
 .bl-hover[hidden] { display: none; }
+/* Año: month cells and the cumulative chart */
+.mcell .mbar { position: absolute; left: 8px; right: 8px; bottom: 6px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--c) var(--w), color-mix(in srgb, var(--c) 22%, transparent) var(--w)); }
+.mcell.fut { position: relative; }
+.mcell .mbig { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--out); }
+.ch-plan { fill: none; stroke: var(--muted); stroke-width: 1.5; stroke-linejoin: round; }
+.cl-real { stroke: var(--sav); }
+.lg-plan { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--muted); vertical-align: 3px; margin-right: 4px; }
+.ch-vend { text-anchor: start; }
+.mcell { height: 80px; }
+.mcell:has(.mbar) { padding-bottom: 16px; }
+.mcell { height: 92px; }
+.mcell:has(.mbar) { padding-bottom: 18px; }
+.mcell .mbar { bottom: 8px; }
+.mcell .mbar { display: block; padding: 0; border: 0; box-sizing: content-box; }
+.startsel { display: flex; gap: 8px; }
+.startsel select { flex: 1; min-width: 0; }
+/* the bar is part of the cell's column (not floated over it) */
+.mcell .mbar { position: static; align-self: stretch; flex: none; margin: 4px 0 0; height: 4px; }
+.mcell:has(.mbar) { padding-bottom: 0; }
+.mcell { height: 86px; }
