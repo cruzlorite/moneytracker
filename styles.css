@@ -1097,3 +1097,5 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .notify-tog .chev { display: inline-grid; place-items: center; margin-left: 2px; color: var(--muted); transition: transform .2s ease; }
 .notify-tog .chev svg { width: 16px; height: 16px; }
 .notify-tog .chev.open { transform: rotate(90deg); }
+/* Confirmar / Indicar: same size and colour */
+.notify .trow .okbtn, .notify .trow .okbtn[data-act="occ"] { min-width: 84px; justify-content: center; border-color: var(--ok); color: var(--ok); }
