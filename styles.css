@@ -1033,3 +1033,8 @@ details.tview th:first-child, details.tview td:first-child { padding-left: 0; }
 .bl-dot2[hidden] { display: none; }
 .bl-dot.cl-dot { fill: var(--sav); }
 .ch-dot.cl-dot { fill: var(--sav); }
+/* bar parts you can touch: a wider hit area around the thin marks */
+.gauge [data-tip] { cursor: pointer; }
+.gauge .g-mark, .gauge .g-today { position: absolute; }
+.gauge .g-mark::after { content: ""; position: absolute; top: -10px; bottom: -10px; left: -12px; right: -12px; }
+.gauge .g-today::after { content: ""; position: absolute; top: -12px; bottom: -4px; left: -12px; right: -12px; }

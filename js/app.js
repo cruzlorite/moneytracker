@@ -311,26 +311,29 @@ const vPill = (vd) => (vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : '
  * over shows as the bar running past the mark. fill: what is; proj: where it ends at this pace (hatched);
  * marks: the plan's references, each named under the bar ({ at, label }). thin: a list row (the row says the figures).
  */
-function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = false, tall = false, label = '', scale = 0, cap = null, note = null }) {
+function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = false, tall = false, label = '', scale = 0, cap = null, note = null, names = {} }) {
+  // touching a part says what it is and its figure: the fill (what is), the hatched part (the projection), the marks (the plan)
+  const nm = { fill: t('Actual'), proj: t('Proyección'), plan: t('Planificado'), over: t('Exceso'), ...names };
+  const tipFill = `data-tip="${esc(`${nm.fill} ${fmt(v)}`)}"`, tipProj = proj != null ? `data-tip="${esc(`${nm.proj} ≈ ${fmt(proj)}`)}"` : '', tipOver = cap != null ? `data-tip="${esc(`${nm.over} ${fmt(v - cap)}`)}"` : '';
   const max = Math.max(1, scale, v, proj || 0, ...marks.map((k) => k.at));
   const w = (x) => +clamp(x / max * 100, 0, 100).toFixed(1);
   const lab = marks.filter((k) => k.label).map((k) => { const at = w(k.at); return `<span class="${at > 70 ? 'end' : at < 15 ? 'start' : ''}" style="left:${at}%">${k.label}</span>`; }).join('');
-  const seg = (a, b, c, hatch) => (b - a > 0.004 ? `<i class="${hatch ? 'g-proj' : 'g-over'}" style="left:${w(a)}%; width:${(w(b) - w(a)).toFixed(1)}%; ${hatch ? `--pc:${c}` : `background:${c}`}"></i>` : '');
+  const seg = (a, b, c, hatch) => (b - a > 0.004 ? `<i class="${hatch ? 'g-proj' : 'g-over'}" ${hatch ? tipProj : tipOver} style="left:${w(a)}%; width:${(w(b) - w(a)).toFixed(1)}%; ${hatch ? `--pc:${c}` : `background:${c}`}"></i>` : '');
   let bars;
   if (cap != null) {
     // spending against a cap: within it, spending's own orange; only what goes past it in red
     const ok = 'var(--out)', over = 'var(--spend)', inV = Math.min(v, cap);
-    bars = `<i class="g-fill" style="background:${ok}; width:${w(Math.max(0, inV))}%"></i>${seg(cap, v, over)}`
+    bars = `<i class="g-fill" ${tipFill} style="background:${ok}; width:${w(Math.max(0, inV))}%"></i>${seg(cap, v, over)}`
       + (proj != null && proj > v ? seg(v, Math.min(proj, cap), ok, true) + seg(Math.max(v, cap), proj, over, true) : '');
   } else {
-    bars = `<i class="g-fill" style="background:${tone}; width:${w(Math.max(0, v))}%"></i>${proj != null && proj > v ? seg(v, proj, ptone, true) : ''}`;
+    bars = `<i class="g-fill" ${tipFill} style="background:${tone}; width:${w(Math.max(0, v))}%"></i>${proj != null && proj > v ? seg(v, proj, ptone, true) : ''}`;
   }
   // a stretch of the bar named inside it (what would be left, what would go over): only when there's room for the words
   const noteEl = note && w(note.b) - w(note.a) >= 30 ? `<span class="g-note ${note.cls || ''}" style="left:${w(note.a)}%; width:${(w(note.b) - w(note.a)).toFixed(1)}%">${note.text}</span>` : '';
   return `<div class="gauge ${thin ? 'thin' : ''} ${tall ? 'tall' : ''}" role="img" aria-label="${esc(label)}">
     <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}">${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
-      ? `<span class="g-today" style="left:${w(k.at)}%" aria-hidden="true"><i></i></span>`
-      : `<b class="g-mark" style="left:${w(k.at)}%"></b>`).join('')}</div>
+      ? `<span class="g-today" style="left:${w(k.at)}%" data-tip="${esc(`${t('Planificado a hoy')} ${fmt(k.at)}`)}"><i></i></span>`
+      : `<b class="g-mark" style="left:${w(k.at)}%" data-tip="${esc(`${k.name || nm.plan} ${fmt(k.at)}`)}"></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
 }
 const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
@@ -381,7 +384,7 @@ function home(m) {
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
     <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
-    ${gauge({ v: spent, proj, tone, ptone, cap: plan, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], note: hpNote, label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
+    ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], note: hpNote, label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}${hpNote && !hpNoteFits ? `<b style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}</b>` : ''}</div>
     <div class="row between balrow">${(() => {
       const bs = m.balStart(ym), has = cm.check ? cm.check.bal : bs;
@@ -467,7 +470,7 @@ function metas(m) {
   <section class="card hero" aria-label="${t('Ahorro del año')}">
     <div class="row between"><h2>${t('Este año')} ${info('ano')}</h2>${vPill(vd)}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(m.saved, m.goal, t('ahorrado / planificado'), { tone: 'var(--sav)' })}</div>
-    <div id="goal-meter">${gauge({ v: m.saved, proj: m.pre || m.over ? null : proj, tone: 'var(--sav)', ptone: 'var(--sav)', tall: true, key: 'goal',
+    <div id="goal-meter">${gauge({ names: { fill: t('Ahorrado') }, v: m.saved, proj: m.pre || m.over ? null : proj, tone: 'var(--sav)', ptone: 'var(--sav)', tall: true, key: 'goal',
       marks: [{ at: m.goal, label: `${t('planificado')} ${fmt(m.goal)}` }], note: yNote, label: t('Ahorrado {a} de {b}', { a: fmt(m.saved), b: fmt(m.goal) }) + '; ' + t('proyección a fin de año {x}', { x: fmt(proj) }) })}</div>
     <div class="barleg small num">${m.pre || m.over ? '<span></span>' : `<span><i class="lg-proj" style="--pc:var(--sav)"></i>${t('Proyección a fin de año')} ≈ ${fmt(Math.round(proj))}</span>`}${yNote && !yNoteFits ? `<b style="${toneText(scaleOf(proj, m.goal).c)}">${yNote.text}</b>` : ''}</div>
   </section>
@@ -634,7 +637,7 @@ function budInfo(m, b, ym) {
   }
   return { spent, of: b.amount, left: round2(b.amount - spent), r: b.amount ? spent / b.amount : 1, proj, tone: spendTone(spent, b.amount) };
 }
-const budBar = (x, key) => gauge({ v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
+const budBar = (x, key) => gauge({ names: { fill: t('Gastado'), plan: t('Límite') }, v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
 function openBudget(id) {
   const b = store.data.items.find((i) => i.id === id && i.budget);
   if (!b) return;
@@ -802,7 +805,7 @@ function openYear() {
       <p class="muted">${reached >= 1 ? t('Ahorro planificado cumplido.') : reached >= 0.8 ? t('Cerca del ahorro planificado.') : t('Por debajo del ahorro planificado.')}</p></div>
     <div data-step class="cl-block">
       <div class="row between bottom"><span class="label">${t('Ahorro e inversión')}</span><span class="big c-save num">${fmt(y.saved)}</span></div>
-      ${gauge({ v: y.saved, tone: scaleOf(y.saved, y.goal).c, key: 'yr-s' + Date.now(), marks: [{ at: y.goal, label: `${t('planificado')} ${fmt(y.goal)}` }], label: t('Ahorrado {a} de {b}', { a: fmt(y.saved), b: fmt(y.goal) }) })}
+      ${gauge({ names: { fill: t('Ahorrado') }, v: y.saved, tone: scaleOf(y.saved, y.goal).c, key: 'yr-s' + Date.now(), marks: [{ at: y.goal, label: `${t('planificado')} ${fmt(y.goal)}` }], label: t('Ahorrado {a} de {b}', { a: fmt(y.saved), b: fmt(y.goal) }) })}
       <span class="fine num">${t('de {x}', { x: fmt(y.goal) })}</span>
     </div>
     <div data-step class="sum">
@@ -893,7 +896,7 @@ function cmpRow(m, x, key) {
   return `<div class="cmp">
     <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b></span>
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
-    ${gauge({ v: x.real, proj: x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
+    ${gauge({ names: { fill: t('Hasta hoy') }, v: x.real, proj: x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
       marks: [...(x.due != null ? [{ at: Math.max(0, x.due), cls: 'today' }] : []), { at: x.plan }], label: tip })}
     <div class="barleg small num"><span><i class="lg-proj" style="--pc:${spendLine ? (x.proj > x.plan + 0.5 ? 'var(--spend)' : 'var(--out)') : ptone}"></i>${t('Proyección')} ≈ ${fmt(Math.round(x.proj))}</span><b style="${toneText(wtone)}">${what}</b></div>
   </div>`;
