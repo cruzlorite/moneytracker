@@ -40,6 +40,23 @@ const ic = (n, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none
 
 // ---------- toast ----------
 let tt;
+/** A missing or wrong field: say it under the field, mark it, and put the cursor there (a toast hides behind a sheet). */
+function invalid(sel, msg) {
+  const el = (dlg.open ? dlg : document).querySelector(sel) || document.querySelector(sel);
+  if (!el) return toast(msg);
+  const box = el.closest('.field') || el.parentElement;
+  box.querySelector('.field-err')?.remove();
+  const e = Object.assign(document.createElement('span'), { className: 'field-err', textContent: msg, id: (el.id || 'f') + '-err' });
+  e.setAttribute('role', 'alert');
+  box.appendChild(e);
+  el.setAttribute('aria-invalid', 'true'); el.setAttribute('aria-describedby', e.id);
+  el.classList.add('invalid');
+  const clear = () => { el.classList.remove('invalid'); el.removeAttribute('aria-invalid'); el.removeAttribute('aria-describedby'); e.remove(); };
+  el.addEventListener('input', clear, { once: true });
+  el.focus();
+  el.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+  return false;
+}
 function toast(msg, ms = 2200) {
   toastEl.textContent = msg; toastEl.hidden = false;
   pop(toastEl);
@@ -492,7 +509,7 @@ function ncReturn(id) {
 }
 function saveNewCat() {
   const n = UI.nc, name = (dlg.querySelector('#nc-name')?.value || '').trim();
-  if (!name) { toast(t('Ponle un nombre')); dlg.querySelector('#nc-name')?.focus(); return; }
+  if (!name) { invalid('#nc-name', t('Ponle un nombre')); return; }
   const icon = n.icon || guessCat(name) || 'otros', id = n.id || uid('c');
   store.update('settings', (d) => {
     const list = (d.settings.cats || []).filter((c) => c.id !== id);
@@ -781,7 +798,7 @@ function cmpRow(m, x, key) {
     : near ? t('≈ planificado')
       : t(d > 0 ? '≈ {x} por encima' : '≈ {x} por debajo', { x: fmt(Math.abs(d)) });
   const tip = `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
-  return `<div class="cmp" tabindex="0" data-tip="${esc(tip)}">
+  return `<div class="cmp">
     <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b></span>
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
     ${gauge({ v: x.real, proj: x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
@@ -1035,10 +1052,10 @@ function readForm() {
 function saveForm() {
   readForm();
   const f = FORM;
-  if (!String(f.name || '').trim()) return toast(t('Ponle un nombre'));
+  if (!String(f.name || '').trim()) return invalid('#f-name', t('Ponle un nombre'));
   const amount = num(f.amount);
-  if (amount == null || amount < 0) return toast(t('Escribe un importe'));
-  if (f.freq === 'once' && !(+f.year > 2000)) return toast(t('Escribe el año'));
+  if (amount == null || amount < 0) return invalid('#f-amount', t('Escribe un importe'));
+  if (f.freq === 'once' && !(+f.year > 2000)) return invalid('#f-year', t('Escribe el año'));
   if (f.kind === 'out' && !f.cat && !f._nocat) f.cat = guessCat(f.name);
   if (f.budget && f.kind === 'out') {
     const c = f.cat || 'otros', other = store.data.items.find((i) => i.budget && i.cat === c && i.id !== f.id);
@@ -1325,16 +1342,16 @@ document.addEventListener('click', (e) => {
     case 'startbal': {
       // the balance on the day you start: this month counts from today, what came before is already in it
       const v = num(val('h-start'));
-      if (v == null) { toast(t('Escribe tu saldo')); $('#h-start')?.focus(); return; }
+      if (v == null) { invalid('#h-start', t('Escribe tu saldo')); return; }
       setMonth(ym, { open: v, openDate: toISO(new Date()) });
       toast(t('Saldo guardado: el mes cuenta desde hoy'));
       break;
     }
     case 'closeset': {
       const { bal, patch } = closePatch();
-      if (bal == null) { toast(t('Escribe tu saldo')); dlg.querySelector('#cl-bal')?.focus(); return; }
+      if (bal == null) { invalid('#cl-bal', t('Escribe tu saldo')); return; }
       const r = withMonth(ym, patch).fromBalance(ym, bal);
-      if (!r) return toast(t('Falta el saldo al empezar el mes'));
+      if (!r) return invalid('#cl-open', t('Falta el saldo al empezar el mes'));
       const amount = round2(r.left), close = { amount };
       dlg.close();
       const done = celebrate(() => store.update('months', (d) => {
@@ -1352,7 +1369,7 @@ document.addEventListener('click', (e) => {
     case 'openyear': openYear(); break;
     case 'yearnew': {
       const g = num(val('y-goal'));
-      if (g == null || g < 0) return toast(t('Escribe el ahorro planificado'));
+      if (g == null || g < 0) return invalid('#y-goal', t('Escribe el ahorro planificado'));
       const m = compute(store.data), y = yearSummary(m);
       const { best, worst, ...keep } = y;
       dlg.close();
@@ -1365,7 +1382,7 @@ document.addEventListener('click', (e) => {
     }
     case 'checkset': {
       const { bal, patch } = checkPatch();
-      if (bal == null) { toast(t('Escribe tu saldo')); dlg.querySelector('#ck-bal')?.focus(); return; }
+      if (bal == null) { invalid('#ck-bal', t('Escribe tu saldo')); return; }
       dlg.close();
       store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), check: patch.check };
@@ -1407,7 +1424,7 @@ document.addEventListener('click', (e) => {
     case 'kpick': { const k = quickKeep(); UI.qcat = b.dataset.cat || null; UI.kmore = false; openQuick(k); break; }
     case 'kgo': {
       const v = num(val('k-amt')), date = val('k-date') || toISO(new Date());
-      if (!v || v <= 0) { toast(t('Escribe un importe')); $('#k-amt')?.focus(); return; }
+      if (!v || v <= 0) { invalid('#k-amt', t('Escribe un importe')); return; }
       dlg.close();
       addSpend(date, v, (val('k-note') || '').trim(), null, UI.qcat);
       break;
@@ -1420,7 +1437,7 @@ document.addEventListener('click', (e) => {
     case 'bud': openBudget(b.dataset.id); break;
     case 'bspend': case 'bspendc': {
       const v = act === 'bspend' ? +b.dataset.v : num(val('b-amt'));
-      if (!v || v <= 0) return toast(t('Escribe un importe'));
+      if (!v || v <= 0) return invalid('#b-amt', t('Escribe un importe'));
       addSpend(b.dataset.date, v, act === 'bspend' ? '' : (val('b-note') || '').trim(), b, b.dataset.cat);
       openBudget(b.dataset.id); break;
     }
@@ -1440,7 +1457,7 @@ document.addEventListener('click', (e) => {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'oconfirm': {
       const v = num(val('o-real'));
-      if (v == null || v < 0) return toast(t('Escribe un importe'));
+      if (v == null || v < 0) return invalid('#o-real', t('Escribe un importe'));
       dlg.close();
       if (!celebrate(() => setReal(b.dataset.id, ym, v), null)) toast(`Confirmado: ${fmt(v)}`);
       break;
@@ -1461,7 +1478,7 @@ document.addEventListener('click', (e) => {
       goalCalc(); dlg.querySelector('#g-val').focus(); break;
     }
     case 'goalset': {
-      const g = goalYear(); if (g == null) { toast(t('Escribe una cifra válida')); break; }
+      const g = goalYear(); if (g == null) { invalid('#g-val', t('Escribe una cifra válida')); break; }
       store.update('settings', (d) => { d.settings.goal = g; }); dlg.close(); toast(t('Ahorro planificado: {x} al año', { x: fmt(g) })); render(true); break;
     }
     case 'fsave': saveForm(); break;

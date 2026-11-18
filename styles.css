@@ -904,3 +904,7 @@ button.info:hover, button.info.tipon { color: var(--ink); border-color: var(--in
 .legend .lg-group > span { gap: 4px; }
 .legend .lg-group .lg-mark { margin-right: 0; }
 @media (max-width: 349px) { .legend.tight { flex-wrap: wrap; white-space: normal; row-gap: 6px; } }
+/* a field that needs attention: red edge and a line under it (not colour alone) */
+input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1px var(--spend); }
+.field-err { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--spend); }
+.field-err::before { content: "! "; font-weight: 800; }
