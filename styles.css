@@ -1049,3 +1049,10 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .catsearch { display: grid; gap: 8px; margin-bottom: 8px; }
 .catsearch input { width: 100%; }
 .catfound[hidden], .catall[hidden] { display: none; }
+/* the plan year you are looking at: previous / this / next */
+.yearnav { display: flex; align-items: center; gap: 6px; background: var(--panel); border-radius: 14px; padding: 4px; box-shadow: var(--shadow); }
+.yearnav .yn-t { flex: 1; min-width: 0; display: grid; justify-items: center; gap: 0; padding: 4px 6px; border: none; background: transparent; border-radius: 10px; color: var(--ink); }
+.yearnav .yn-t:disabled { opacity: 1; cursor: default; }
+.yearnav .yn-t b { font-size: 15px; }
+.yearnav .iconbtn:disabled { opacity: .3; }
+.goalbtn:disabled { opacity: 1; cursor: default; }

@@ -137,6 +137,37 @@ function ensureFrame() {
     </div></nav>`;
 }
 
+// ---------- years: the plan year you are looking at (0 = the one in progress) ----------
+/** The goal of the year that starts in `start`: the current one, one saved when that year was closed, or (a year to come) the current one. */
+const goalIn = (settings, start) => (settings.years || []).find((y) => y.start === start)?.goal ?? settings.goal;
+const goalOfYear = (start) => goalIn(store.data.settings, start);
+const yearStartAt = (off) => ymAdd(store.data.settings.start, 12 * off);
+/** Everything computed for the plan year that starts in `start` (same plan, that year's goal). */
+function computeYearAt(start, data = store.data) {
+  return compute({ ...data, settings: { ...data.settings, start, goal: goalIn(data.settings, start) } });
+}
+const computeYear = (off) => computeYearAt(yearStartAt(off));
+/** The year (offset from the one in progress) that holds month `ym`. */
+const yearOffOf = (ym) => Math.floor(ymDiff(store.data.settings.start, ym) / 12);
+/** The same, for a month: so its figures (its target, its share of the year) are those of its own year. */
+const mFor = (ym, data = store.data) => computeYearAt(ymAdd(data.settings.start, 12 * Math.floor(ymDiff(data.settings.start, ym) / 12)), data);
+/** How far back and forward you can go: back to the first year with anything in it, forward a few years to plan ahead. */
+function yearBounds() {
+  const s = store.data.settings, firsts = [s.start, ...(s.years || []).map((y) => y.start), ...Object.keys(store.data.months), ...store.data.spends.map((e) => e.date.slice(0, 7))].filter(isYM).sort();
+  return { min: Math.min(0, Math.floor(ymDiff(s.start, firsts[0]) / 12)), max: 3 };
+}
+/** The month the Plan shows its items "as of": this month in the current year, the last of a past year, the first of a year to come. */
+const viewYMOf = (m) => ((UI.yearOff || 0) === 0 ? m.curYM : (UI.yearOff || 0) < 0 ? m.season[11] : m.season[0]);
+const yearRange = (m) => `${MES3[+m.season[0].slice(5) - 1]} ${m.season[0].slice(2, 4)} – ${MES3[+m.season[11].slice(5) - 1]} ${m.season[11].slice(2, 4)}`;
+const yearWord = (off) => (off === 0 ? t('Año en curso') : off === -1 ? t('Año pasado') : off < 0 ? t('Hace {n} años', { n: -off }) : off === 1 ? t('Año que viene') : t('Dentro de {n} años', { n: off }));
+/** Go back and forward through the plan years; it is the same everywhere (Año, Análisis, Plan). */
+function yearNav(m) {
+  const off = UI.yearOff || 0, b = yearBounds();
+  return `<div class="yearnav" role="group" aria-label="${t('Año')}">
+    <button type="button" class="iconbtn" data-act="yearmove" data-k="-1" ${off <= b.min ? 'disabled' : ''} aria-label="${t('Año anterior')}">${ic('left')}</button>
+    <button type="button" class="yn-t" data-act="yearnow" ${off ? '' : 'disabled'} aria-label="${t('Volver al año en curso')}"><b class="num">${yearRange(m)}</b><span class="fine">${yearWord(off)}</span></button>
+    <button type="button" class="iconbtn" data-act="yearmove" data-k="1" ${off >= b.max ? 'disabled' : ''} aria-label="${t('Año siguiente')}">${ic('right')}</button></div>`;
+}
 function render(force) {
   if (!store.mode) { renderWelcome(); return; }
   setCustomCats(store.data.settings.cats || []);
@@ -145,7 +176,8 @@ function render(force) {
   const a = document.activeElement;
   if (!force && a && view.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) { UI.pending = true; return; }
   UI.pending = false;
-  const m = compute(store.data);
+  UI.yearOff = clamp(UI.yearOff || 0, yearBounds().min, yearBounds().max);
+  const m = ['metas', 'ana', 'plan'].includes(UI.tab) ? computeYear(UI.yearOff) : UI.tab === 'mes' ? mFor(UI.mesYM || compute(store.data).curYM) : compute(store.data);
   const views = { home, mes, ana: analisis, metas, plan, settings };
   view.innerHTML = (views[UI.tab] || home)(m);
   if (UI.lastTab !== UI.tab) {
@@ -428,13 +460,13 @@ function watchCard(m, ym) {
 // ---------- Año ----------
 function metas(m) {
   if (!m.items.length) return emptyPlanCard(m);
-  const due = closeDue(m), inSeason = m.season.includes(m.curYM), pc = inSeason ? pace(m, m.curYM) : null;
+  const off = UI.yearOff || 0, due = off === 0 ? closeDue(m) : null, inSeason = m.season.includes(m.curYM), pc = inSeason ? pace(m, m.curYM) : null;
   const ps = pc ? projSaved(m, pc, m.curYM) : null;
   const proj0 = planVsReal(m).sav.proj;
   // one question: will the year reach its goal? The verdict comes from where the year ends at this pace, like Hoy's month
   const vd = m.goal > 0 && !m.pre ? verdict(proj0, m.goal) : null;
   const proj = proj0, ygap = Math.round(Math.abs(m.goal - proj));
-  const yNote = !m.goal || m.pre || ygap < 1 ? null : proj < m.goal ? { a: proj, b: m.goal, text: t('≈ {x} por debajo', { x: fmt(ygap) }), cls: 'short' } : { a: m.goal, b: proj, text: t('≈ {x} por encima', { x: fmt(ygap) }), cls: 'gap' };
+  const yNote = !m.goal || m.pre || ygap < 1 ? null : proj < m.goal ? { a: proj, b: m.goal, text: t(m.over ? '{x} por debajo' : '≈ {x} por debajo', { x: fmt(ygap) }), cls: 'short' } : { a: m.goal, b: proj, text: t(m.over ? '{x} por encima' : '≈ {x} por encima', { x: fmt(ygap) }), cls: 'gap' };
   const yNoteFits = yNote && (yNote.b - yNote.a) / Math.max(m.goal, proj, 1) >= 0.3;
   const big = (ym) => m.outs.filter((it) => !it.budget && it.freq !== 'monthly' && m.occurs(it, ym)).sort((a, b) => b.amount - a.amount)[0];
   const cells = m.season.map((ym) => {
@@ -448,7 +480,7 @@ function metas(m) {
   }).join('');
   // saved so far against planned, month by month and added up; the months to come follow the plan (an estimate)
   let cumCard = '';
-  if (!m.pre && !m.over && m.goal > 0) {
+  if (!m.pre && m.goal > 0) {
     const planC = [], realC = []; let pa = 0, ra = 0;
     m.season.forEach((ym, i) => {
       pa += m.targetOf(ym);
@@ -457,7 +489,7 @@ function metas(m) {
     });
     cumCard = `<section class="card" aria-label="${t('Ahorro acumulado')}">
       <div class="row between"><h2>${t('Ahorro acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.curIdx + 1, nowIdx: m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`)], aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
+      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`)], aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
       ${table([t('Mes'), t('Ahorrado'), t('Planificado')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i])]))}
     </section>`;
@@ -467,9 +499,10 @@ function metas(m) {
   const last = m.season[11], ended = m.curYM > last;
   return `
   ${pageHead(t('Tu año'), `${MES3[+m.season[0].slice(5) - 1]} ${m.season[0].slice(0, 4)} – ${MES3[+last.slice(5) - 1]} ${last.slice(0, 4)}`, t('Ahorro e inversión'))}
+  ${yearNav(m)}
   ${closeBanner(due)}
   <section class="card hero" aria-label="${t('Ahorro del año')}">
-    <div class="row between"><h2>${t('Este año')} ${info('ano')}</h2>${vPill(vd)}</div>
+    <div class="row between"><h2>${off === 0 ? t('Este año') : yearWord(off)} ${info('ano')}</h2>${vPill(vd)}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(m.saved, m.goal, t('ahorrado / planificado'), { tone: 'var(--sav)' })}</div>
     <div id="goal-meter">${gauge({ names: { fill: t('Ahorrado') }, v: m.saved, proj: m.pre || m.over ? null : proj, tone: 'var(--sav)', ptone: 'var(--sav)', tall: true, key: 'goal',
       marks: [{ at: m.goal, label: `${t('planificado')} ${fmt(m.goal)}` }], note: yNote, label: t('Ahorrado {a} de {b}', { a: fmt(m.saved), b: fmt(m.goal) }) + '; ' + t('proyección a fin de año {x}', { x: fmt(proj) }) })}</div>
@@ -481,7 +514,7 @@ function metas(m) {
   </section>
   ${cumCard}
   ${nexts.length ? `<section class="card list" aria-label="${t('Meses con más gasto')}">${nexts.map(({ i, k }) => `<div class="trow"><span class="mm">${MES3[+m.season[k].slice(5) - 1]}</span><span class="grow">${esc(i.name)}</span><b class="num">${fmt(i.amount)}</b></div>`).join('')}</section>` : ''}
-  ${ended ? yearCard(m) : ''}`;
+  ${ended ? yearCard(m, off) : ''}`;
 }
 
 // ---------- one month ----------
@@ -796,7 +829,7 @@ function yearSummary(m) {
   return { start: m.start, goal: m.goal, saved: m.saved, spent, months: withBal.length, avg: withBal.length ? round2(spent / withBal.length) : 0,
     cleared: m.cleared, closed: m.season.filter((ym) => m.mon(ym).close).length, best, worst };
 }
-function yearCard(m) {
+function yearCard(m, off = 0) {
   const y = yearSummary(m), last = m.season[11], ended = m.curYM > last, ready = ended && m.mon(last).close;
   const past = store.data.settings.years || [];
   return `<section class="card" aria-label="${t('Cierre del año')}">
@@ -806,9 +839,9 @@ function yearCard(m) {
       <span>${t('Gastado')}</span><span class="num">${y.months ? `${fmt(y.spent)} <span class="muted">(${fmt(y.avg)}${t('/mes')})</span>` : '—'}</span>
       <span>${t('Meses cumplidos')}</span><span class="num">${t('{a} de {b}', { a: y.cleared, b: 12 })}</span>
     </div>
-    ${ready ? `<button class="primary" data-act="openyear">${t('Cerrar el año y planificar el siguiente')}</button>`
-      : `<p class="fine">${ended ? `Cierra ${monthName(last)} y podrás cerrar el año.` : `Se abre al terminar ${ymLabel(last)}: verás el resumen y empezarás el año siguiente con el mismo plan.`}</p>`}
-    ${past.length ? `<details class="adjust"><summary>${t('Años anteriores')}</summary><div class="sum">${past.slice().reverse().map((p) =>
+    ${ready && off === 0 ? `<button class="primary" data-act="openyear">${t('Cerrar el año y planificar el siguiente')}</button>`
+      : `<p class="fine">${ended ? t('Cierra {m} y podrás cerrar el año.', { m: monthName(last) }) : t('Se abre al terminar {m}: verás el resumen y empezarás el año siguiente con el mismo plan.', { m: ymLabel(last) })}</p>`}
+    ${past.length && off === 0 ? `<details class="adjust"><summary>${t('Años anteriores')}</summary><div class="sum">${past.slice().reverse().map((p) =>
       `<span>${esc(ymLabel(p.start))} – ${esc(ymLabel(ymAdd(p.start, 11)))}</span><span class="num">${t('{a} de {b}', { a: fmt(p.saved), b: fmt(p.goal) })}</span>`).join('')}</div></details>` : ''}
   </section>`;
 }
@@ -911,16 +944,18 @@ function cmpRow(m, x, key) {
   const wtone = spendLine ? ptone : d < -Math.max(1, x.plan * 0.02) ? spendTone(x.plan * 2 - x.proj, x.plan) : 'var(--ok)';
   // a fact when it already happened; the projection's gap with ≈, like the projection beside it
   const overNow = spendLine && x.real > x.plan + 0.5;
-  const what = overNow ? t('superado en {x}', { x: fmt(Math.round(x.real - x.plan)) })
+  const fin = m.over, dr = Math.round(x.real - x.plan), nearR = Math.abs(dr) < Math.max(1, x.plan * 0.02); // a finished year: it is what it was
+  const what = fin ? (overNow ? t('superado en {x}', { x: fmt(dr) }) : nearR ? t('Cumplido') : t(dr > 0 ? '{x} por encima' : '{x} por debajo', { x: fmt(Math.abs(dr)) }))
+    : overNow ? t('superado en {x}', { x: fmt(Math.round(x.real - x.plan)) })
     : near ? t('≈ planificado')
       : t(d > 0 ? '≈ {x} por encima' : '≈ {x} por debajo', { x: fmt(Math.abs(d)) });
-  const tip = `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
+  const tip = fin ? `${x.label}: ${fmt(x.real)} / ${fmt(x.plan)}` : `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
   return `<div class="cmp">
     <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b></span>
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
-    ${gauge({ names: { fill: t('Hasta hoy') }, v: x.real, proj: x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
+    ${gauge({ names: { fill: fin ? t('Actual') : t('Hasta hoy') }, v: x.real, proj: fin ? null : x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
       marks: [...(x.due != null ? [{ at: Math.max(0, x.due), cls: 'today' }] : []), { at: x.plan }], label: tip })}
-    <div class="barleg small num"><span><i class="lg-proj" style="--pc:${spendLine ? (x.proj > x.plan + 0.5 ? 'var(--spend)' : 'var(--out)') : ptone}"></i>${t('Proyección')} ≈ ${fmt(Math.round(x.proj))}</span><b style="${toneText(wtone)}">${what}</b></div>
+    <div class="barleg small num">${fin ? '<span></span>' : `<span><i class="lg-proj" style="--pc:${spendLine ? (x.proj > x.plan + 0.5 ? 'var(--spend)' : 'var(--out)') : ptone}"></i>${t('Proyección')} ≈ ${fmt(Math.round(x.proj))}</span>`}<b style="${toneText(wtone)}">${what}</b></div>
   </div>`;
 }
 function planCard(m) {
@@ -929,16 +964,16 @@ function planCard(m) {
   // the same place on every row, and "hoy" at what that line's plan expects by today
   return `<section class="card" aria-label="${t('Plan y realidad')}">
     <div class="row between"><h2>${t('Plan y realidad')} ${info('planReal')}</h2><span class="fine">${MES3[+m.season[0].slice(5) - 1]} ${m.season[0].slice(2, 4)} – ${MES3[+m.season[11].slice(5) - 1]} ${m.season[11].slice(2, 4)}</span></div>
-    <div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('hasta hoy')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('proyección')}</span><span class="lg-group">${t('planificado:')}<span><i class="lg-mark"></i>${t('año')}</span><span><i class="lg-today"></i>${t('a hoy')}</span></span></div>
+    ${m.over ? `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('Actual')}</span><span><i class="lg-mark"></i>${t('planificado')}</span></div>` : `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('hasta hoy')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('proyección')}</span><span class="lg-group">${t('planificado:')}<span><i class="lg-mark"></i>${t('año')}</span><span><i class="lg-today"></i>${t('a hoy')}</span></span></div>`}
     ${[c.ins, c.outs, c.sav].map((x, i) => cmpRow(m, x, 'm' + i)).join('')}
     ${c.buds.length ? `<span class="label">${t('Tus presupuestos')}</span>${c.buds.map((x, i) => cmpRow(m, x, 'b' + i)).join('')}` : ''}
-    ${table(['', t('Planificado'), t('Hasta hoy'), t('Proyección')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), fmt(x.proj)]))}
+    ${m.over ? table(['', t('Planificado'), t('Actual')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real)])) : table(['', t('Planificado'), t('Hasta hoy'), t('Proyección')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), fmt(x.proj)]))}
   </section>`;
 }
 const PERIODS = { mes: t('Este mes'), '3m': t('3 meses'), ano: t('Todo el plan') };
 function analisis(m) {
   if (!m.items.length) return emptyPlanCard(m);
-  const per = PERIODS[UI.anaPer] ? UI.anaPer : 'mes';
+  const per = (UI.yearOff || 0) !== 0 ? 'ano' : PERIODS[UI.anaPer] ? UI.anaPer : 'mes'; // another year: the whole year
   const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM]
     : m.season.filter((ym) => ym <= m.curYM);
   const inPer = (e) => yms.includes(m.monthOf(e.date));
@@ -974,9 +1009,10 @@ function analisis(m) {
     tip: `${cap(ymLabel(ym))}: ${t('ingresado')} ${fmt(m.incomeTo(ym))}${has ? ` · ${t('gastado')} ${fmt(outOfM(ym))}` : ` (${t('planificado')})`}` }));
 
   return `
+  ${yearNav(m)}
   ${planCard(m)}
   <h2 class="section-h">${t('Tus gastos')}</h2>
-  <div class="seg period" role="group" aria-label="${t('Periodo')}">${Object.entries(PERIODS).map(([k, l]) => `<button data-act="anaper" data-v="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</div>
+  ${(UI.yearOff || 0) !== 0 ? '' : ''}<div class="seg period" ${(UI.yearOff || 0) !== 0 ? 'hidden' : ''} role="group" aria-label="${t('Periodo')}">${Object.entries(PERIODS).map(([k, l]) => `<button data-act="anaper" data-v="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</div>
 
   <div class="tiles">
     <div class="tile"><span class="label">${t('Gastado')}</span><span class="v num">${compactMoney(tot)}</span><span class="fine">${esc(PERIODS[per].toLowerCase())}</span></div>
@@ -1018,7 +1054,7 @@ function plan(m) {
   const avgIn = m.incomeY / 12, avgOut = m.outY / 12, free = m.restAvg;
   const budM = m.budY / 12, tot = Math.max(avgIn, avgOut + budM + m.target, 1), w = (v) => clamp(v / tot * 100, 0, 100).toFixed(1);
   // the lists show one version per item (the one in force this month, or the next one to start); the sums use them all
-  const shown = m.shown(), sIns = shown.filter((i) => i.kind === 'in'), sBuds = shown.filter((i) => i.budget);
+  const off = UI.yearOff || 0, shown = m.shown(viewYMOf(m)), sIns = shown.filter((i) => i.kind === 'in'), sBuds = shown.filter((i) => i.budget);
   const outs = shown.filter((i) => i.kind === 'out' && !i.budget).sort((a, b) => (a.freq === 'monthly' ? 0 : 1) - (b.freq === 'monthly' ? 0 : 1));
   const budY = m.budY;
   const outM = m.outs.filter((i) => !i.budget && !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
@@ -1031,13 +1067,14 @@ function plan(m) {
   const doneList = (kind) => {
     const rows = [];
     for (const [ym, mo] of Object.entries(store.data.months)) for (const [id, amount] of Object.entries(mo.real || {})) {
+      if (!m.season.includes(ym)) continue; // the year you are looking at
       const it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
       if (!it || it.kind !== kind || it.budget) continue;
       const date = m.dateOf(it, ym);
       rows.push({ date, html: flowRow(ym, m.openAfter(ym))({ it, date, day: +date.slice(8), amount, state: 'real' }) });
     }
     // under the limits: the spends you logged in the categories that have a limit
-    if (kind === 'bud') for (const e of m.allSpends) if (m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, html: spendRow(e) });
+    if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, html: spendRow(e) });
     return rows.sort((a, b) => b.date.localeCompare(a.date));
   };
   const DONE_MAX = 40;
@@ -1049,12 +1086,12 @@ function plan(m) {
     ${done.length ? `<details class="tview donelist" ${UI.doneOpen?.[kind] ? 'open' : ''} data-done="${kind}"><summary>${t('Cumplidos')} (${done.length})</summary>
       <div class="flows">${(more ? done.slice(0, DONE_MAX) : done).map((r) => r.html).join('')}</div>
       ${more ? `<button type="button" class="ghost small center-self" data-act="doneall">${t('Ver los {n}', { n: done.length })}</button>` : ''}</details>` : ''}</section>`; };
-  return `<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
+  return `${yearNav(m)}<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
     <div class="row between"><h2>${t('Ahorro e inversión planificados')} ${info('plan')}</h2></div>
-    <button type="button" class="goalbtn" data-act="goaledit" aria-label="Cambiar el ahorro planificado: ${esc(fmt(s.goal))} al año">
-      <span class="gb-v num">${fmt(s.goal)}<small> ${t('al año')}</small></span>
-      <span class="fine num">≈ ${fmt(round2(s.goal / 12))} ${t('al mes')}${m.incomeY ? ` · ${t('{p} % de tus ingresos', { p: share })}` : ''}</span>
-      <span class="gb-edit" aria-hidden="true">${t('Cambiar')}</span>
+    <button type="button" class="goalbtn" ${off === 0 ? 'data-act="goaledit"' : 'disabled'} aria-label="${t('Ahorro planificado')}: ${esc(fmt(m.goal))} ${t('al año')}">
+      <span class="gb-v num">${fmt(m.goal)}<small> ${t('al año')}</small></span>
+      <span class="fine num">≈ ${fmt(round2(m.goal / 12))} ${t('al mes')}${m.incomeY ? ` · ${t('{p} % de tus ingresos', { p: share })}` : ''}</span>
+      ${off === 0 ? `<span class="gb-edit" aria-hidden="true">${t('Cambiar')}</span>` : ''}
     </button>
     <span class="label">${t('Reparto de tus ingresos')}</span>
     <div class="stackbar" aria-hidden="true"><i class="k-save" data-bar="${w(m.target)}" data-key="sb-save"></i><i class="k-fix" data-bar="${w(avgOut)}" data-key="sb-out"></i><i class="k-bud" data-bar="${w(budM)}" data-key="sb-bud"></i><i class="${free >= 0 ? 'k-free' : 'k-neg'}" data-bar="${w(Math.abs(free))}" data-key="sb-free"></i></div>
@@ -1071,8 +1108,8 @@ function plan(m) {
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
         <div class="row"><button class="small" data-act="goalfit" data-v="${Math.max(0, Math.floor((m.possible - Math.max(0, m.possible) * 0.4) / 100) * 100)}">${t('Ajustar a una cifra viable')}</button></div></div>`
       : ''}
-    <label class="field inline-field"><span class="label">${t('El año empieza en')}</span><span class="startsel"><select id="p-start-m" aria-label="${t('Mes')}">${MES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${+m.start.slice(5) === i + 1 ? 'selected' : ''}>${cap(n)}</option>`).join('')}</select>
-      <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +m.start.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +m.start.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
+    ${off === 0 ? `<label class="field inline-field"><span class="label">${t('El año empieza en')}</span><span class="startsel"><select id="p-start-m" aria-label="${t('Mes')}">${MES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${+m.start.slice(5) === i + 1 ? 'selected' : ''}>${cap(n)}</option>`).join('')}</select>
+      <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +m.start.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +m.start.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>` : ''}
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${m.cycleDay}" style="max-width: 80px"></label>
   </section>
   ${group(t('Ingresos planificados'), '', sIns, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
@@ -1083,10 +1120,10 @@ const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 
 function planRow(it, m, movable) {
   let real = '';
   // what the history says about this item: it starts later, it ends, or a change is already planned
-  const nx = planNext(m.items, it.id, m.curYM);
+  const ref = viewYMOf(m), nx = planNext(m.items, it.id, ref);
   const when = [
-    it.from && it.from > m.curYM ? `<span class="c-sav">${t('empieza en {m}', { m: ymLabel(it.from) })}</span>` : '',
-    it.to && it.to >= m.curYM ? `<span class="c-warn">${t('hasta {m}', { m: ymLabel(it.to) })}</span>` : '',
+    it.from && it.from > ref ? `<span class="c-sav">${t('empieza en {m}', { m: ymLabel(it.from) })}</span>` : '',
+    it.to && it.to >= ref ? `<span class="c-warn">${t('hasta {m}', { m: ymLabel(it.to) })}</span>` : '',
     nx && nx !== it ? `<span class="c-sav">${t('desde {m}: {x}', { m: ymLabel(nx.from), x: fmt(nx.amount) })}</span>` : '',
   ].join('');
   if (it.real != null) {
@@ -1316,7 +1353,7 @@ function setReal(id, ym, v, date) {
 
 // ---------- the balance: the figure everything else comes from ----------
 /** compute() as if the month had these figures (for previews while you type). */
-const withMonth = (ym, patch) => compute({ ...store.data, months: { ...store.data.months, [ym]: { ...(store.data.months[ym] || {}), ...patch } } });
+const withMonth = (ym, patch) => mFor(ym, { ...store.data, months: { ...store.data.months, [ym]: { ...(store.data.months[ym] || {}), ...patch } } });
 // the month's start balance: asked when there is none, and editable while it was typed by hand (the balance just before payday)
 const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<div class="fields2"><label class="field"><span class="label">${t('Saldo de tu cuenta')} · ${t('inicio')}</span>
   <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off"></label>
@@ -1326,7 +1363,7 @@ const sumLine = (l, v, cls = '') => `<span>${l}</span><span class="num ${cls}">$
 
 /** The month close: one question (your balance) and what to do with what's left. */
 function openClose(ym) {
-  const m = compute(store.data), d = m.mon(ym);
+  const m = mFor(ym), d = m.mon(ym);
   dlg.innerHTML = `<div class="sheet closer" id="close-sheet" data-ym="${ym}">
     <div class="row between"><span class="label">${t('Cierre de mes')} ${info('cierre')}</span><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div data-step class="cl-title row between"><h1>${cap(monthName(ym))}</h1><span id="cl-vd"></span></div>
@@ -1421,7 +1458,7 @@ function goalCalc() {
 }
 
 function openCheck(ym) {
-  const m = compute(store.data), c = m.mon(ym).check;
+  const m = mFor(ym), c = m.mon(ym).check;
   dlg.innerHTML = `<div class="sheet" id="check-sheet" data-ym="${ym}">
     <div class="row between"><h2>${t('Saldo de hoy')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     ${openField(m, ym, 'ck-open')}
@@ -1684,6 +1721,8 @@ document.addEventListener('click', (e) => {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
     case 'doneall': UI.doneAll = true; render(true); break;
+    case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
+    case 'yearnow': UI.yearOff = 0; render(true); break;
     case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
     case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
     case 'qokall': {

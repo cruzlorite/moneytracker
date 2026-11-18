@@ -352,7 +352,7 @@ test('only real dates are kept for a moved item', () => {
 test('a one-off item is placed in its payday-to-payday month, whatever its calendar month says', () => {
   const m = compute(plan([{ id: 'b', kind: 'in', name: 'Venta', amount: 150, freq: 'once', month: 11, year: 2026, day: 28 }, { id: 'c', kind: 'in', name: 'Otra', amount: 80, freq: 'once', month: 11, year: 2026 }], { settings: { goal: 0, start: '2026-07', cycleDay: 26 } }), new Date(2026, 10, 30));
   assert.equal(m.onceDate(m.items.find((i) => i.id === 'b')), '2026-11-28', 'the 28th is in the month that starts on the 26th');
-  assert.equal(m.onceDate(m.items.find((i) => i.id === 'c')), '2026-11-25', 'no day: the last day of its month');
+  assert.equal(m.onceDate(m.items.find((i) => i.id === 'c')), '2026-10-26', 'no day: the first day of its month');
 });
 
 test('a balance higher than the plan explains is an unlogged income, not money coming in every day', () => {
@@ -465,4 +465,13 @@ test('budgets over time: each month uses the budget in force, its spends count a
   assert.equal(m2.budFor('tabaco', '2027-08').amount, 80);
   assert.equal(m2.budFor('tabaco', '2027-09'), undefined);
   assert.equal(m2.shown('2027-12').length, 0, 'an ended budget is not shown any more');
+});
+
+test('an item with no day counts from the first day of the month; with a day, from that day', () => {
+  const rent = { id: 'r', kind: 'out', name: 'Alquiler', amount: 600, freq: 'monthly' };
+  const gym = { id: 'g', kind: 'out', name: 'Gimnasio', amount: 30, freq: 'monthly', day: 20 };
+  const m = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: [rent, gym].map(normItem), months: {}, spends: [] }, new Date(2027, 0, 5));
+  assert.deepEqual(m.plannedIn('2027-01').map((p) => [p.it.id, p.date, p.state]), [['r', '2027-01-01', 'auto'], ['g', '2027-01-20', 'future']], 'the rent is due from day 1, the gym from day 20');
+  assert.equal(m.outOf('2027-01'), 630);
+  assert.equal(m.flowTo('2027-01', '2027-01-05').out, 600, 'so far this month: the one with no day');
 });

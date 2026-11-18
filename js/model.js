@@ -224,10 +224,10 @@ export function compute(data, today = new Date()) {
   const start = isYM(data.settings?.start) ? data.settings.start : curYM;
   const season = Array.from({ length: 12 }, (_, i) => ymAdd(start, i));
 
-  /** The date (ISO) an item falls on in month `ym`, or null if it doesn't. No day: the month's last day. */
+  /** The date (ISO) an item falls on in month `ym`, or null if it doesn't. No day: the month's first day. */
   const dateIn = (it, ym) => {
     if (!activeIn(it, ym)) return null; // this version isn't in force in that month
-    if (!it.day || D <= 1) return recurs(it, ym) ? (it.day ? `${ym}-${pad(dayIn(it.day, ym))}` : range(ym).to) : null;
+    if (!it.day || D <= 1) return recurs(it, ym) ? (it.day ? `${ym}-${pad(dayIn(it.day, ym))}` : range(ym).from) : null; // no day: from the month's first day
     const r = range(ym);
     for (const c of [ymAdd(ym, -1), ym]) {
       if (!recurs(it, c)) continue;
@@ -279,8 +279,8 @@ export function compute(data, today = new Date()) {
     const v = (mon(ym).real || {})[it.id] ?? (mon(ym).potSpent || {})[it.id];
     return v == null ? null : +v;
   };
-  /** The date an item falls on in a month; without a day, the last day of the month. */
-  const dateOf = (it, ym) => (mon(ym).dates || {})[it.id] || dateIn(it, ym) || range(ym).to;
+  /** The date an item falls on in a month; without a day, the first day of the month. */
+  const dateOf = (it, ym) => (mon(ym).dates || {})[it.id] || dateIn(it, ym) || range(ym).from;
   /** future: not due yet · auto: due, taken as planned · pending: due, variable, not confirmed · real: exact amount entered */
   const stateOf = (it, ym) => realOf(it, ym) != null ? 'real' : dateOf(it, ym) > todayISO ? 'future' : it.vary ? 'pending' : 'auto';
   /** Best figure for one occurrence: the exact amount if entered, otherwise the planned one. */
@@ -521,7 +521,7 @@ export function compute(data, today = new Date()) {
       const date = dateOf(it, ym);
       out.push({ it, date, day: it.day ? +date.slice(8) : 0, amount: amountIn(it, ym), state: stateOf(it, ym), save: isSave(it) });
     }
-    return out.sort((a, b) => (a.it.day ? 0 : 1) - (b.it.day ? 0 : 1) || a.date.localeCompare(b.date) || (a.it.kind === b.it.kind ? b.it.amount - a.it.amount : a.it.kind === 'in' ? -1 : 1));
+    return out.sort((a, b) => a.date.localeCompare(b.date) || (a.it.kind === b.it.kind ? b.it.amount - a.it.amount : a.it.kind === 'in' ? -1 : 1));
   };
   /** Variable amounts already due that you haven't confirmed, in a month. */
   const pendingIn = (ym) => plannedIn(ym).filter((p) => p.state === 'pending');
