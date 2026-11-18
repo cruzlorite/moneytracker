@@ -1259,12 +1259,15 @@ dialog { max-height: var(--vvh, 92dvh); }
 dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(--vvh, 70dvh)); }
 .g-note { pointer-events: none; }
 
-/* what you are touching is marked: the part (or row, or column) gets an outline and a tint, not just a slightly brighter colour */
-.g-bars > i.tipon { box-shadow: inset 0 0 0 2px var(--ink); filter: brightness(1.08); }
-.g-track:has(> .g-bars.tipon) { box-shadow: 0 0 0 2px var(--ink); }
-.rk.tipon { background: var(--panel-2); box-shadow: 0 0 0 4px var(--panel-2); }
-.rk.tipon .rk-bar i { box-shadow: 0 0 0 2px var(--ink); }
-.segbar .seg.tipon { box-shadow: 0 0 0 2px var(--ink); filter: none; z-index: 1; }
-.ch-band.tipon .ch-hit { fill: color-mix(in srgb, var(--ink) 9%, transparent); }
-.ch-band.tipon .ch-col { filter: none; stroke: var(--ink); stroke-width: 2; }
-.mcell.tipon { box-shadow: 0 0 0 2px var(--ink); }
+/* what you are touching is marked by dimming the rest and intensifying it (no outlines) */
+.g-bars:has(> i.tipon) > i:not(.tipon) { opacity: .3; }
+.g-bars > i.tipon { filter: saturate(1.3) brightness(1.04); }
+.g-bars > i { transition: opacity .15s ease, filter .15s ease; }
+.ranked:has(.rk.tipon) .rk:not(.tipon) { opacity: .35; }
+.rk { transition: opacity .15s ease; }
+.rk.tipon .rk-bar i { filter: saturate(1.3) brightness(1.04); }
+.segbar:has(.seg.tipon) .seg:not(.tipon) { opacity: .35; }
+.segbar .seg.tipon { filter: saturate(1.3); }
+.chart:has(.ch-band.tipon) .ch-band:not(.tipon) .ch-col { opacity: .3; }
+.ch-band.tipon .ch-col { filter: saturate(1.3) brightness(1.04); }
+.ch-band.tipon .ch-hit { fill: transparent; }
