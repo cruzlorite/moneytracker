@@ -157,7 +157,7 @@ const mFor = (ym, data = store.data) => computeYearAt(ymAdd(data.settings.start,
 /** How far back and forward you can go: back to the first year with anything in it, forward a few years to plan ahead. */
 function yearBounds() {
   const s = store.data.settings, firsts = [s.start, ...(s.years || []).map((y) => y.start), ...Object.keys(store.data.months), ...store.data.spends.map((e) => e.date.slice(0, 7))].filter(isYM).sort();
-  return { min: 0, max: UI.tab === 'plan' ? 3 : 0 }; // never the past; only the Plan looks ahead
+  return { min: 0, max: 3 }; // never the past; the coming years, yes
 }
 /** The month the Plan shows its items "as of": this month in the current year, the last of a past year, the first of a year to come. */
 const viewYMOf = (m) => ((UI.yearOff || 0) === 0 ? m.curYM : (UI.yearOff || 0) < 0 ? m.season[11] : m.season[0]);
@@ -437,8 +437,36 @@ function home(m) {
       <span class="fine num">${toCome.length ? t('+{x} el {d}', { x: fmt(toCome.reduce((a, p) => a + p.amount, 0)), d: shortDate(toCome[0].date) }) : came ? `${esc(came.it.name.toLowerCase())} · ${shortDate(came.date)}` : ''}</span></section>
     <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
   </div>
+  ${monthTypes(m, ym)}
   ${watchCard(m, ym)}
-  ${trailCard(m)}`;
+  ${trailCard(m)}
+  ${monthMoves(m, ym)}`;
+}
+/** This month by type: one bar split into its biggest parts, and who they are. */
+function monthTypes(m, ym) {
+  const { rows, tot } = spendByType(m, [ym]);
+  if (tot < 0.5 || !rows.length) return '';
+  const top = rows.slice(0, 5), rest = rows.slice(5).reduce((a, [, v]) => a + v, 0);
+  const parts = [...top.map(([c, v]) => ({ c, v })), ...(rest > 0.5 ? [{ c: null, v: rest }] : [])];
+  const nm = (c) => (c === null ? t('Otros tipos') : c === DIA ? t('Sin detallar') : catName(c));
+  const shade = (i) => `color-mix(in srgb, var(--out) ${Math.max(28, 100 - i * 16)}%, var(--panel))`;
+  return `<section class="card" aria-label="${t('Gasto por tipo')}"><div class="row between"><h2>${t('Gasto por tipo')}</h2><span class="fine num">${fmt(tot)}</span></div>
+    <div class="typebar" role="img" aria-label="${esc(parts.map((p) => `${nm(p.c)} ${fmt(p.v)}`).join(', '))}">${parts.map((p, i) => `<i style="flex:${p.v};background:${shade(i)}" data-tip="${esc(nm(p.c))}: ${esc(fmt(p.v))} (${Math.round(p.v / tot * 100)} %)"></i>`).join('')}</div>
+    <div class="typeleg">${parts.map((p, i) => `<span><i class="dot" style="background:${shade(i)}"></i>${esc(nm(p.c))} <b class="num">${Math.round(p.v / tot * 100)} %</b></span>`).join('')}</div>
+  </section>`;
+}
+/** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
+function monthMoves(m, ym) {
+  const after = m.openAfter(ym), rows = [];
+  for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) rows.push({ date: e.date, html: spendRow(e) });
+  const fr = flowRow(ym, after);
+  for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) rows.push({ date: p.date, html: fr(p) });
+  if (!rows.length) return '';
+  rows.sort((a, b) => b.date.localeCompare(a.date));
+  const more = rows.length > 10 && !UI.movesAll;
+  return `<section class="card" aria-label="${t('Movimientos')}"><div class="row between"><h2>${t('Movimientos')}</h2><span class="fine">${rows.length}</span></div>
+    <div class="flows">${(more ? rows.slice(0, 10) : rows).map((r) => r.html).join('')}</div>
+    ${more ? `<button type="button" class="ghost small center-self" data-act="movesall">${t('Ver los {n}', { n: rows.length })}</button>` : ''}</section>`;
 }
 /** The account balance over the last 30, 60 or 90 days, and on to the end of the month (an estimate). */
 function trailCard(m) {
@@ -988,11 +1016,9 @@ function planCard(m) {
   </section>`;
 }
 const PERIODS = { mes: t('Este mes'), '3m': t('3 meses'), ano: t('Todo el plan') };
-function analisis(m) {
-  if (!m.items.length) return emptyPlanCard(m);
-  const per = (UI.yearOff || 0) !== 0 ? 'ano' : PERIODS[UI.anaPer] ? UI.anaPer : 'mes'; // another year: the whole year
-  const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM]
-    : m.season.filter((ym) => ym <= m.curYM);
+/** What was spent in those months, by type (logged spends + the plan's expenses that already came + what the balance says
+ * you spent beyond what you logged): { rows: [[type, amount]] biggest first, tot }. */
+function spendByType(m, yms) {
   const inPer = (e) => yms.includes(m.monthOf(e.date));
   const sp = m.allSpends.filter((e) => inPer(e) && e.cat !== SAVE_CAT && !(m.openAfter(m.monthOf(e.date)) && e.date <= m.openAfter(m.monthOf(e.date))));
   const by = {};
@@ -1008,6 +1034,14 @@ function analisis(m) {
   if (dia > 0.5) by[DIA] = dia;
   const tot = Object.values(by).reduce((s, v) => s + v, 0), n = Math.max(1, yms.length);
   const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
+  return { rows, tot, by };
+}
+function analisis(m) {
+  if (!m.items.length) return emptyPlanCard(m);
+  const per = (UI.yearOff || 0) !== 0 ? 'ano' : PERIODS[UI.anaPer] ? UI.anaPer : 'mes'; // another year: the whole year
+  const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM]
+    : m.season.filter((ym) => ym <= m.curYM);
+  const { rows, tot } = spendByType(m, yms), n = Math.max(1, yms.length);
   const top = rows.find(([c]) => c && c !== DIA);
   const rkName = (c) => (c === DIA ? t('Sin detallar') : catName(c));
   const shown = rows.slice(0, 8), rest = rows.slice(8).reduce((s, [, v]) => s + v, 0);
@@ -1738,7 +1772,13 @@ document.addEventListener('click', (e) => {
     case 'qpick': UI.qcat = b.dataset.cat || null; dlg.close(); render(true); break;
     case 'fcatopen': readForm(); FORM._pick = !FORM._pick; renderForm(); break;
     case 'fcat': readForm(); FORM.cat = b.dataset.cat || null; FORM._nocat = !b.dataset.cat; FORM._pick = false; renderForm(); break;
-    case 'bud': openBudget(b.dataset.id); break;
+    case 'bud': {
+      // the same "Apuntar un gasto" sheet, with this budget's type already chosen
+      const bd = compute(store.data).shown(compute(store.data).curYM).find((i) => i.id === b.dataset.id && i.budget);
+      if (!bd) { openBudget(b.dataset.id); break; }
+      UI.qcat = bd.cat || null; UI.kmore = false; UI.quickDate = null; openQuick();
+      break;
+    }
     case 'bspend': case 'bspendc': {
       const v = act === 'bspend' ? +b.dataset.v : num(val('b-amt'));
       if (!v || v <= 0) return invalid('#b-amt', t('Escribe un importe'));
@@ -1774,6 +1814,7 @@ document.addEventListener('click', (e) => {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
     case 'doneall': UI.doneAll = true; render(true); break;
+    case 'movesall': UI.movesAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'notifyfold': case 'notifymore': {
       // only the card changes (no redraw of the page), and the choice is kept for the next time

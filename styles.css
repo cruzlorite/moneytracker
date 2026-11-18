@@ -1148,3 +1148,10 @@ details.tview td:first-child { white-space: normal; }
 .mhead-t { display: grid; justify-items: center; text-align: center; gap: 2px; min-width: 0; }
 .mhead-t h1 { font-size: 28px; }
 .mhead .iconbtn { width: 40px; height: 40px; }
+
+/* Hoy: this month by type */
+.typebar { display: flex; gap: 2px; height: 14px; border-radius: 7px; overflow: hidden; }
+.typebar i { min-width: 3px; }
+.typeleg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; }
+.typeleg span { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.typeleg .dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
