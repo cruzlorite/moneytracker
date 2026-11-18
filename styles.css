@@ -1255,11 +1255,10 @@ dialog { max-height: var(--vvh, 92dvh); }
 dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(--vvh, 70dvh)); }
 .g-note { pointer-events: none; }
 
-/* selection feedback lives only on the two thick bars (Hoy and Año): the rest fades, the part gets a bolder colour and a ring drawn outside it, so it never gets smaller */
+/* selection feedback lives only on the two thick bars (Hoy and Año): the rest fades and the part takes a bolder colour. Nothing is drawn around it and nothing changes its size. */
 .gauge.tall .g-bars > i { transition: opacity .15s ease, filter .15s ease; }
-.gauge.tall .g-bars:has(> i.tipon) { overflow: visible; }
 .gauge.tall .g-bars:has(> i.tipon) > i:not(.tipon) { opacity: .25; filter: grayscale(.6); }
-.gauge.tall .g-bars > i.tipon { filter: saturate(1.7) brightness(1.08); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); z-index: 2; }
+.gauge.tall .g-bars > i.tipon { filter: saturate(1.8) brightness(1.06); }
 .vrow { cursor: default; }
 /* the + always above the bottom bar (it sits on the bar's real height, set from the script) */
 .plusbtn.fab { z-index: 30; bottom: calc(var(--navh, var(--nav-h)) + 16px); }
