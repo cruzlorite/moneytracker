@@ -15,6 +15,8 @@ import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, 
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app'), dlg = $('#modal'), toastEl = $('#toast');
+// a reload starts at the top: the browser's own scroll restoration lands after the content changes and covers the top
+try { history.scrollRestoration = 'manual'; } catch { /* not supported */ }
 const notifyOn = (k) => !!lsGet('hucha:n' + k);
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* ignore */ } };
