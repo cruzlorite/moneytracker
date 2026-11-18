@@ -52,6 +52,8 @@ export default {
   'Cómo se calcula': 'How it is calculated',
   'Ver como tabla': 'View as table',
   'Idioma': 'Language',
+  'Hay una versión nueva': 'A new version is available',
+  'Actualizar': 'Update',
   'Versión': 'Version',
   'Actualizar la app': 'Update the app',
   'Actualizando…': 'Updating…',

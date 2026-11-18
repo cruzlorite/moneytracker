@@ -92,6 +92,28 @@ document.addEventListener('scroll', hideTip, { passive: true, capture: true });
 
 bindBalance();
 
+// ---------- updates: the installed app keeps old files; say so when a newer version is published ----------
+function refreshApp(btn) {
+  // fetch every file again, bypassing the browser's cache, then reload
+  if (btn) { btn.disabled = true; btn.textContent = t('Actualizando…'); }
+  const files = ['./', 'index.html', 'styles.css', 'config.js', ...['app', 'model', 'cats', 'charts', 'fx', 'google', 'store', 'play', 'sort', 'demo', 'i18n', 'icons-extra', 'version'].map((n) => `js/${n}.js`), 'js/i18n/en.js'];
+  Promise.all(files.map((f) => fetch(f, { cache: 'reload' }).catch(() => null))).then(() => location.reload());
+}
+function checkUpdate() {
+  if (VERSION === 'dev' || document.getElementById('updbar')) return;
+  fetch('js/version.js', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : '')).then((txt) => {
+    const v = /VERSION = '([^']+)'/.exec(txt)?.[1];
+    if (!v || v === VERSION || document.getElementById('updbar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'updbar'; bar.setAttribute('role', 'status');
+    bar.innerHTML = `<span>${t('Hay una versión nueva')}</span><button type="button" class="btn-dark sm">${t('Actualizar')}</button>`;
+    bar.querySelector('button').addEventListener('click', (e) => refreshApp(e.currentTarget));
+    document.body.appendChild(bar);
+  }).catch(() => { /* offline: nothing to say */ });
+}
+checkUpdate();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
+
 // ---------- theme ----------
 function applyTheme(t) { if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
 applyTheme(lsGet('hucha:theme'));
@@ -1587,14 +1609,7 @@ document.addEventListener('click', (e) => {
     case 'ffreq': readForm(); FORM.freq = b.dataset.v; renderForm(); break;
     case 'goalfit': { const v = +b.dataset.v; store.update('settings', (d) => { d.settings.goal = v; }); toast(t('Ahorro planificado: {x} al año', { x: fmt(v) })); render(true); break; }
     case 'fclose': case 'dclose': dlg.close(); break;
-    case 'refreshapp': {
-      // fetch every file again, bypassing the browser's cache, then reload
-      b.disabled = true; b.textContent = t('Actualizando…');
-      const files = ['./', 'index.html', 'styles.css', 'config.js', ...['app', 'model', 'cats', 'charts', 'fx', 'google', 'store', 'play', 'sort', 'demo', 'i18n', 'icons-extra', 'version'].map((n) => `js/${n}.js`), 'js/i18n/en.js'];
-      Promise.all(files.map((f) => fetch(f, { cache: 'reload' }).catch(() => null))).then(() => location.reload());
-      break;
-
-    }
+    case 'refreshapp': refreshApp(b); break;
     case 'goaledit': openGoal(); break;
     case 'startedit': openCheck(compute(store.data).curYM); break;
     case 'goalper': {
