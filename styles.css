@@ -988,3 +988,5 @@ svg.bal-chart { touch-action: pan-y; -webkit-user-select: none; user-select: non
 .bannerlink { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 4px 0 12px; background: transparent; border: none; text-align: left; font-size: 16px; font-weight: 500; }
 .bannerlink .i { width: 18px; height: 18px; color: var(--muted); flex: none; }
 .bellwrap .badge { display: grid; place-items: center; line-height: 1; font-size: 10px; box-sizing: border-box; width: 18px; height: 18px; top: -7px; right: -8px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bellwrap .badge { color: #1b0b0b; } }
+:root[data-theme="dark"] .bellwrap .badge { color: #1b0b0b; }
