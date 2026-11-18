@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
@@ -87,6 +87,8 @@ document.addEventListener('pointerout', (e) => { if (e.pointerType === 'mouse' &
 document.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { const t = e.target.closest?.('[data-tip],[data-info]'); t ? showTip(t) : hideTip(); } });
 document.addEventListener('focusin', (e) => { const t = e.target.closest?.('[data-tip],[data-info]'); if (t && t.matches(':focus-visible')) showTip(t); });
 document.addEventListener('scroll', hideTip, { passive: true, capture: true });
+
+bindBalance();
 
 // ---------- theme ----------
 function applyTheme(t) { if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }

@@ -932,8 +932,15 @@ input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1p
 .ch-valproj { text-anchor: end; }
 .seg.trail { grid-auto-columns: auto; padding: 2px; }
 .seg.trail button { padding: 5px 9px; font-size: 13px; }
-/* the tab you are on: a tinted pill, a bar on top, heavier icon and label */
-nav.tabs button { position: relative; transition: background .15s ease, color .15s ease; }
-nav.tabs button[aria-current="page"] { color: var(--ink); font-weight: 700; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
-nav.tabs button[aria-current="page"] svg { stroke-width: 2.6; }
-nav.tabs button[aria-current="page"]::before { content: ""; position: absolute; top: -7px; left: 50%; width: 26px; height: 3px; margin-left: -13px; border-radius: 0 0 3px 3px; background: var(--accent); }
+/* the tab you are on: ink-coloured icon and bold label, a light pill behind */
+nav.tabs button { transition: background .15s ease, color .15s ease; }
+nav.tabs button[aria-current="page"] { color: var(--ink); font-weight: 700; background: color-mix(in srgb, var(--ink) 9%, transparent); }
+nav.tabs button[aria-current="page"] svg { stroke-width: 2.4; }
+/* balance chart: scrub with finger or mouse */
+svg.bal-chart { touch-action: pan-y; -webkit-user-select: none; user-select: none; }
+.bl-hit { fill: transparent; }
+.bl-guide { stroke: var(--ink); stroke-width: 1; opacity: .5; }
+.bl-dot { fill: var(--s1); stroke: var(--panel); stroke-width: 2.5; }
+.bl-label rect { fill: var(--ink); }
+.bl-label text { fill: var(--bg); font: 600 11.5px Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.bl-hover[hidden] { display: none; }

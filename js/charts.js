@@ -99,13 +99,37 @@ export function table(head, rows) {
  * A line through the days of a month. pts: [{ y, tip }] from day 0; marks: [{ i, text }] labels at some points.
  * The zero line is where the month began; the area under the line is tinted.
  */
+/** Smooth curve through points without overshooting them (monotone cubic): flat stays flat, a jump stays a rise. */
+function tangents(xs, ys) {
+  const n = xs.length, d = [], m = [];
+  for (let i = 0; i < n - 1; i++) d.push((ys[i + 1] - ys[i]) / ((xs[i + 1] - xs[i]) || 1));
+  m[0] = d[0] ?? 0; m[n - 1] = d[n - 2] ?? 0;
+  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], q = a * a + b * b;
+    if (q > 9) { const tau = 3 / Math.sqrt(q); m[i] = tau * a * d[i]; m[i + 1] = tau * b * d[i]; }
+  }
+  return m;
+}
+/** SVG path of the points a..b (inclusive) of a series, with the tangents of the whole series so pieces join up. */
+function curve(xs, ys, m, a, b) {
+  let out = `M${xs[a].toFixed(1)} ${ys[a].toFixed(1)}`;
+  for (let i = a; i < b; i++) {
+    const dx = (xs[i + 1] - xs[i]) / 3;
+    out += `C${(xs[i] + dx).toFixed(1)} ${(ys[i] + m[i] * dx).toFixed(1)} ${(xs[i + 1] - dx).toFixed(1)} ${(ys[i + 1] - m[i + 1] * dx).toFixed(1)} ${xs[i + 1].toFixed(1)} ${ys[i + 1].toFixed(1)}`;
+  }
+  return out;
+}
+
 export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFrom = null }) {
   const W = 340, padL = 38, padR = 12, padT = 22, padB = 20;
   const ys = pts.map((p) => p.y);
   const hi = nice(Math.max(0, ...ys)), lo = -nice(Math.max(0, ...ys.map((v) => -v)));
   const span = hi - lo || 1, ph = h - padT - padB, n = pts.length - 1;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (hi - v) / span * ph;
-  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
+  const px = pts.map((_, i) => X(i)), py = pts.map((p) => Y(p.y)), tg = tangents(px, py);
+  const d = curve(px, py, tg, 0, n);
   const area = `${d}L${X(n).toFixed(1)} ${Y(0).toFixed(1)}L${X(0).toFixed(1)} ${Y(0).toFixed(1)}Z`;
   const ticks = [hi, 0, ...(lo < 0 ? [lo] : [])].filter((t, i, a) => a.indexOf(t) === i);
   const grid = ticks.map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}"/>
@@ -123,8 +147,8 @@ export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFro
   const xs = xTicks.map((tk) => { const i = tk.i ?? tk; return `<text class="ch-x" x="${X(i).toFixed(1)}" y="${h - 5}">${tk.text ?? i}</text>`; }).join('');
   // the days not known yet (projFrom on) are drawn dashed, from the last known point
   const k = projFrom != null && projFrom > 0 && projFrom <= n ? projFrom : null;
-  const dSolid = k == null ? d : pts.slice(0, k).map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
-  const dProj = k == null ? '' : pts.slice(k - 1).map((p, i) => `${i ? 'L' : 'M'}${X(k - 1 + i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
+  const dSolid = k == null ? d : curve(px, py, tg, 0, k - 1);
+  const dProj = k == null ? '' : curve(px, py, tg, k - 1, n);
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${dSolid}"/>${dProj ? `<path class="ch-line ch-proj" d="${dProj}"/>` : ''}${lab}${xs}${hits}</svg>`;
 }
 
@@ -139,19 +163,43 @@ export function balanceLine({ pts, aria = '', h = 170 }) {
   const lo = mn - pad, hi = mx + pad, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (hi - v) / (hi - lo) * ph;
   const ti = Math.max(0, pts.findIndex((p) => p.proj) - 1), hasProj = pts.some((p) => p.proj), tp = hasProj ? ti : n;
-  const path = (a, b) => pts.slice(a, b + 1).map((p, i) => `${i ? 'L' : 'M'}${X(a + i).toFixed(1)} ${Y(p.bal).toFixed(1)}`).join('');
+  const px = pts.map((_, i) => X(i)), py = pts.map((p) => Y(p.bal)), tg = tangents(px, py);
+  const path = (a, b) => curve(px, py, tg, a, b);
   const area = `${path(0, tp)}L${X(tp).toFixed(1)} ${(padT + ph).toFixed(1)}L${X(0).toFixed(1)} ${(padT + ph).toFixed(1)}Z`;
   const ticks = [mx, (mx + mn) / 2, mn];
   const grid = ticks.map((v) => `<line class="ch-grid" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
   const day = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   const xs = [...new Set([0, Math.round(n / 2), n])].map((i) => `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(day(pts[i].date))}</text>`).join('');
-  const band = (W - padL - padR) / n;
-  const hits = pts.map((p, i) => `<rect class="ch-hit ch-band" x="${(X(i) - band / 2).toFixed(1)}" y="0" width="${band.toFixed(1)}" height="${h}" tabindex="-1" data-tip="${esc(`${day(p.date)}: ${p.proj ? '≈ ' : ''}${fmt(p.bal)}${p.proj ? ' · ' + t('estimado') : ''}`)}"/>`).join('');
+  // touching or dragging over it shows a guide, a dot and the figure inside the chart (see bindBalance)
+  const geo = { w: W, x: px.map((v) => +v.toFixed(1)), y: py.map((v) => +v.toFixed(1)), l: pts.map((p) => `${day(p.date)}${p.proj ? ' · ≈ ' : ' · '}${fmt(p.bal)}`), top: padT, bottom: padT + ph };
+  const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
+    <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${padT + ph}"/><circle class="bl-dot" r="5"/><g class="bl-label"><rect rx="6"/><text/></g></g>`;
   const cx = X(tp), cy = Y(pts[tp].bal), end = pts[n];
   const today = `<line class="ch-todayline" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${padT}" y2="${padT + ph}"/><circle class="ch-dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4"/>
     <text class="ch-val" x="${clamp(cx, padL + 30, W - padR - 30).toFixed(1)}" y="${(cy - 10).toFixed(1)}">${esc(fmt(pts[tp].bal))}</text>`;
   const last = hasProj ? `<text class="ch-val ch-valproj" x="${(W - padR).toFixed(1)}" y="${(Y(end.bal) + (end.bal < pts[tp].bal && Y(end.bal) + 16 <= padT + ph - 2 ? 16 : -8)).toFixed(1)}">≈ ${esc(fmt(end.bal))}</text>` : '';
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${path(0, tp)}"/>${hasProj ? `<path class="ch-line ch-proj" d="${path(tp, n)}"/>` : ''}${today}${last}${xs}${hits}</svg>`;
+  return `<svg class="chart bal-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${path(0, tp)}"/>${hasProj ? `<path class="ch-line ch-proj" d="${path(tp, n)}"/>` : ''}${today}${last}${xs}${hits}</svg>`;
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/** One listener for every balance chart: the nearest day follows your finger or the mouse. */
+export function bindBalance() {
+  const NS = 'http://www.w3.org/2000/svg';
+  const at = (svg, e) => {
+    const g = JSON.parse(svg.dataset.geo), r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * g.w;
+    let k = 0; for (let i = 1; i < g.x.length; i++) if (Math.abs(g.x[i] - x) < Math.abs(g.x[k] - x)) k = i;
+    const hv = svg.querySelector('.bl-hover'), line = hv.querySelector('.bl-guide'), dot = hv.querySelector('.bl-dot'), lab = hv.querySelector('.bl-label');
+    const tx = lab.querySelector('text'), bg = lab.querySelector('rect');
+    line.setAttribute('x1', g.x[k]); line.setAttribute('x2', g.x[k]); dot.setAttribute('cx', g.x[k]); dot.setAttribute('cy', g.y[k]);
+    tx.textContent = g.l[k]; hv.removeAttribute('hidden');
+    const bb = tx.getBBox(), w = bb.width + 14, hgt = bb.height + 8, lx = Math.max(2, Math.min(g.w - w - 2, g.x[k] - w / 2));
+    bg.setAttribute('x', lx); bg.setAttribute('y', 2); bg.setAttribute('width', w); bg.setAttribute('height', hgt);
+    tx.setAttribute('x', lx + 7); tx.setAttribute('y', 2 + hgt / 2 + 4);
+  };
+  const hideAll = () => document.querySelectorAll('.bl-hover').forEach((h) => h.setAttribute('hidden', ''));
+  document.addEventListener('pointerdown', (e) => { const svg = e.target.closest?.('svg.bal-chart'); if (!svg) return hideAll(); try { svg.setPointerCapture(e.pointerId); } catch { /* no capture */ } at(svg, e); });
+  document.addEventListener('pointermove', (e) => { const svg = e.target.closest?.('svg.bal-chart'); if (svg && (e.pointerType === 'mouse' || e.buttons)) at(svg, e); });
+  document.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hideAll(); }, true);
+  document.addEventListener('scroll', hideAll, { passive: true, capture: true });
+}
