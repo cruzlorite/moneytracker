@@ -640,9 +640,10 @@ function quickCats(m) {
 }
 const catHint = (m, id) => !id ? t('Tipo (opcional).') : id === SAVE_CAT ? t('Ahorro e inversión · sale de tu cuenta, pero no es gasto') : m.budByCat.get(id) ? `${catName(id)} · ${t('cuenta en tu presupuesto')}` : catName(id);
 function catRow(m, inSheet) {
-  return `<div class="catrow" role="group" aria-label="Tipo de gasto (opcional)">${quickCats(m).map((id) =>
-    `<button type="button" class="catchip ${catCls(CAT[id])}" data-act="qcat" data-cat="${id}" aria-pressed="${UI.qcat === id}" title="${esc(CAT[id].name)}">${catEl(id)}<span>${esc(CAT[id].short)}</span></button>`).join('')}
-    <button type="button" class="catchip" data-act="${inSheet ? 'kmore' : 'catmore'}" aria-expanded="${inSheet ? !!UI.kmore : false}">${catEl('')}<span>${inSheet && UI.kmore ? t('Menos') : t('Más')}</span></button></div>
+  // "Más" comes first, so it is never hidden at the end of the scrolling row
+  return `<div class="catrow" role="group" aria-label="Tipo de gasto (opcional)">
+    <button type="button" class="catchip" data-act="${inSheet ? 'kmore' : 'catmore'}" aria-expanded="${inSheet ? !!UI.kmore : false}">${catEl('')}<span>${inSheet && UI.kmore ? t('Menos') : t('Más')}</span></button>${quickCats(m).map((id) =>
+    `<button type="button" class="catchip ${catCls(CAT[id])}" data-act="qcat" data-cat="${id}" aria-pressed="${UI.qcat === id}" title="${esc(CAT[id].name)}">${catEl(id)}<span>${esc(CAT[id].short)}</span></button>`).join('')}</div>
     <div class="cathint">${esc(catHint(m, UI.qcat))}</div>`;
 }
 /** Every type, by group. `act` is the action each button fires; `none` adds a "no type" choice. */
@@ -1056,9 +1057,12 @@ function spendByType(m, yms) {
 function analisis(m) {
   if (!m.items.length) return emptyPlanCard(m);
   const per = (UI.yearOff || 0) !== 0 ? 'ano' : PERIODS[UI.anaPer] ? UI.anaPer : 'mes'; // another year: the whole year
-  const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM]
+  // only months of the plan that have begun: before its start there is nothing to count
+  const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM].filter((ym) => m.season.includes(ym) || ym === m.curYM)
     : m.season.filter((ym) => ym <= m.curYM);
-  const { rows, tot } = spendByType(m, yms), n = Math.max(1, yms.length);
+  const { rows, tot } = spendByType(m, yms);
+  // the monthly average uses whole months only: this month is still running and would pull it down
+  const whole = yms.filter((ym) => ym < m.curYM), avg = whole.length ? spendByType(m, whole).tot / whole.length : null;
   const top = rows.find(([c]) => c && c !== DIA);
   const rkName = (c) => (c === DIA ? t('Sin detallar') : catName(c));
   const shown = rows.slice(0, 8), rest = rows.slice(8).reduce((s, [, v]) => s + v, 0);
@@ -1083,9 +1087,9 @@ function analisis(m) {
   <h2 class="section-h">${t('Tus gastos')}</h2>
   ${(UI.yearOff || 0) !== 0 ? '' : ''}<div class="seg period" ${(UI.yearOff || 0) !== 0 ? 'hidden' : ''} role="group" aria-label="${t('Periodo')}">${Object.entries(PERIODS).map(([k, l]) => `<button data-act="anaper" data-v="${k}" aria-pressed="${per === k}">${l}</button>`).join('')}</div>
 
-  <div class="tiles ${per === 'mes' ? 't2' : 't3'}">
+  <div class="tiles ${per === 'mes' || avg == null ? 't2' : 't3'}">
     <div class="tile"><span class="label">${t('Gastado')}</span><span class="v num">${compactMoney(tot)}</span><span class="fine">${esc(PERIODS[per].toLowerCase())}</span></div>
-    ${per === 'mes' ? '' : `<div class="tile"><span class="label">${t('Al mes')}</span><span class="v num">${compactMoney(tot / n)}</span><span class="fine">${t('de media')}</span></div>`}
+    ${per === 'mes' || avg == null ? '' : `<div class="tile"><span class="label">${t('Al mes')}</span><span class="v num">${compactMoney(avg)}</span><span class="fine">${t('media de {n} {m} completos', { n: whole.length, m: tn(whole.length, 'mes', 'meses') })}</span></div>`}
     <div class="tile"><span class="label">${t('Mayor gasto')}</span><span class="v">${top ? catEl(top[0], 'sm') : '—'}</span><span class="fine tl">${top ? `<span>${esc(CAT[top[0]].short)}</span><span class="num">${fmt(top[1])}</span>` : t('sin tipos')}</span></div>
   </div>
 

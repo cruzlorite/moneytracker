@@ -1,5 +1,6 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'media de {n} {m} completos': 'average of {n} full {m}',
   'Dif.': 'Diff.',
   'Dif. ≈': 'Diff. ≈',
   'Proy.': 'Proj.',
