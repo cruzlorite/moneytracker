@@ -29,12 +29,13 @@ Lo que no gastes del presupuesto acaba siendo ahorro. Lo que gastes de más sale
 | **Ahorrado** | Lo que pasaste al ahorro + lo que sobró al cerrar (o − lo que faltó). Nada pasa al mes siguiente. | Hoy, Año, cada mes, cierre |
 | **Aportar / consumir** | Un mes en positivo aporta a tu ahorro; uno en negativo lo consume. Lo calcula la app (ingresado − gastado); no hace falta mover nada en el banco. | Cierre, Año |
 | **Ahorro e inversión** (tipo) | Dinero que pasas de tu cuenta a ahorro o inversión. Se apunta como un gasto (con el +, o en el Plan si es una transferencia fija), sale de la cuenta, pero **no es gasto**: cuenta como ahorro. | +, Plan |
+| **Retirar** | Sacar dinero del ahorro hacia tu cuenta: se apunta con el tipo «Ahorro e inversión» y «Retirar» (importe negativo; solo ahí se admite). Resta de lo ahorrado. | + |
 | **Primer día** | La app te pide tu saldo de hoy y ese mes cuenta desde ese día; lo anterior ya está en tu saldo. | Hoy |
 | **Por pagar** | Gastos previstos de este mes que aún no han llegado. | Hoy |
 | **Sin gastar** | Presupuesto − gastado − por pagar. | Hoy |
 | **A este ritmo ≈** | Estimación de cómo acabará, siguiendo lo que llevas. Siempre con ≈. | Hoy, Año, Análisis |
 | **Saldo** | Lo que hay en tu cuenta principal (nómina y pagos). Se escribe al cerrar y en «Mirar saldo». | Cierre, Mirar saldo |
-| **Mes** | Del día de cobro al día antes del siguiente; se llama por el mes en que termina. | Plan («Tu mes empieza el día») |
+| **Mes** | Del día de cobro al día antes del siguiente; se llama por el mes en que termina. | Ajustes («Tu mes empieza el día») |
 | **Sin detallar** | Lo que el saldo dice que gastaste y no apuntaste. | Análisis |
 
 ## Cómo se calcula
@@ -83,8 +84,23 @@ El ahorro a este ritmo sale de la misma cuenta: objetivo del mes + lo que sobrar
 
 - Huchas o reservas mes a mes: cada gasto cae en su mes.
 - Arrastrar lo que sobra al mes siguiente: lo que sobra es ahorro.
-- «Sacar del ahorro» como movimiento aparte.
 - «Día a día» o «resto de vida»: es «sin presupuestar».
 - Gastos puntuales en el Plan: se apuntan con el +. (Los ingresos puntuales sí.)
 - Logros, retos y rachas.
 - Ajustes sobre «cómo ahorras» o preguntas sobre el ahorro al cerrar: el traspaso al ahorro se apunta como un movimiento más.
+
+## El plan tiene historia
+
+- Cambiar algo del plan vale **desde el mes en curso** (o desde / hasta los meses que elijas). Los meses anteriores conservan lo que tenían y todo cambio queda anotado (Ajustes → Cambios del plan).
+- Un gasto o ingreso **puntual** solo aparece en el año al que pertenece.
+- Los **años** del plan empiezan en el mes que elijas en Ajustes. Se puede mirar hacia delante, nunca hacia atrás; cada pestaña abre en el año en curso.
+- Lo que no tiene día cuenta desde el **primer día** del mes.
+
+## Cerrar y actualizar el saldo
+
+- El cierre pide el saldo **del último día del mes**. Si cierras tarde, usa el de ese día, no el de hoy.
+- Cada «Actualizar saldo» se guarda y se puede borrar. El saldo de inicio solo se cambia en Ajustes.
+
+## Colores de los importes
+
+Ingreso azul («+»), gasto neutro («−»), ahorro e inversión violeta. Rojo y verde solo para veredictos (pasarse o quedarse corto de un plan). Los tipos propios eligen su color de una paleta fija que cumple contraste.
