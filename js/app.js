@@ -31,6 +31,7 @@ const P = {
   plus: 'M12 5v14M5 12h14',
   gear: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
   check: 'M20 6L9 17l-5-5',
+  checksq: 'M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
   x: 'M18 6L6 18M6 6l12 12',
   left: 'M15 18l-6-6 6-6',
   right: 'M9 6l6 6-6 6',
@@ -309,7 +310,7 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
       : `<b class="g-mark" style="left:${w(k.at)}%"></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
 }
-const closeBanner = (due) => (due ? `<button class="card banner" data-act="openclose" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span><span class="btn-dark">${t('Cerrar')}</span></button>` : '');
+const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
 /** The month's budget: the planned income minus the planned saving (planned amounts, so it holds steady all month). */
 const planSpend = (m, ym) => Math.max(0, round2(m.ins.reduce((a, it) => a + (m.occurs(it, ym) ? it.amount : 0), 0) - m.targetOf(ym)));
 
@@ -318,7 +319,9 @@ function home(m) {
   if (!m.items.length) return emptyPlanCard(m);
   const ym = m.curYM, cm = m.mon(ym), pc = pace(m, ym), iso = m.todayISO;
   const tgt = m.targetOf(ym), ps = projSaved(m, pc, ym), vd = ps == null ? null : verdict(ps, tgt, m.target);
-  const due = closeDue(m), pending = m.pendingIn(ym);
+  // everything the plan expected that has already come due and isn't confirmed: one tap to confirm it as planned
+  const openAt = m.mon(ym).openDate || '';
+  const due = closeDue(m), pending = m.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && !(openAt && p.date <= openAt));
   const planned = m.plannedIn(ym), toCome = planned.filter((p) => p.it.kind === 'in' && p.state === 'future');
   const came = planned.filter((p) => p.it.kind === 'in' && p.state !== 'future').sort((a, b) => b.amount - a.amount)[0];
   const dp = m.cycleDay > 1 ? pc.dim - pc.day + 1 : daysTo(m.payday);
@@ -338,12 +341,14 @@ function home(m) {
   const hpNoteFits = hpNote && (hpNote.b - hpNote.a) / Math.max(plan, end, spent, 1) >= 0.3;
   const w = (v) => (plan > 0 ? clamp(v / plan * 100, 0, 100) : 0).toFixed(1);
   const tasks = [
-    ...pending.map((p) => `<button class="trow" data-act="occ" data-id="${esc(p.it.id)}" data-ym="${ym}"><span class="ring"></span><span class="grow">${t('Confirmar {n}', { n: esc(p.it.name.toLowerCase()) })}</span><span class="muted num">${fmt(p.it.amount)}</span>${ic('right')}</button>`),
+    ...pending.map((p) => `<div class="trow"><button type="button" class="okbtn" ${p.it.vary ? `data-act="occ"` : `data-act="qok" data-v="${p.amount}"`} data-id="${esc(p.it.id)}" data-ym="${ym}" aria-label="${t('Confirmar {n}', { n: esc(p.it.name.toLowerCase()) })}"><span class="ring"></span></button>
+      <button type="button" class="tbody" data-act="occ" data-id="${esc(p.it.id)}" data-ym="${ym}"><span class="grow"><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)}${p.it.vary ? ' · ' + t('varía') : ''}</span></span><span class="num ${p.it.kind === 'in' ? 'c-in' : ''}">${p.it.kind === 'in' ? '+' : ''}${fmt(p.amount)}</span>${ic('right')}</button></div>`),
   ];
+  const quick = pending.filter((p) => !p.it.vary);
   return `
+  ${tasks.length ? `<section class="card list notify" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><span class="notify-t"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span></span>${quick.length > 1 ? `<button type="button" class="btn-sec sm" data-act="qokall" data-ym="${ym}">${t('Confirmar todo')}</button>` : ''}</div>${(UI.notifyAll ? tasks : tasks.slice(0, 3)).join('')}${tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore">${UI.notifyAll ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
   ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
   ${closeBanner(due)}
-  ${tasks.length ? `<section class="card list" aria-label="${t('Pendiente')}">${tasks.join('')}</section>` : ''}
   ${setupCard(m, ym)}
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
     <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
@@ -1538,6 +1543,14 @@ document.addEventListener('click', (e) => {
     case 'msel': UI.mesYM = ym; go('mes'); break;
     case 'calmove': UI.mesYM = ymAdd(UI.mesYM, +b.dataset.k); render(true); break;
     case 'occ': openOcc(b.dataset.id, ym); break;
+    case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
+    case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
+    case 'qokall': {
+      const mm = compute(store.data), at = mm.mon(ym).openDate || '';
+      const list = mm.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && !p.it.vary && !(at && p.date <= at));
+      store.update('months', (d) => { const mo = d.months[ym] = { ...(d.months[ym] || {}) }; const o = { ...(mo.real || {}) }; list.forEach((p) => { o[p.it.id] = p.amount; }); mo.real = o; });
+      toast(t('{n} confirmados', { n: list.length })); break;
+    }
     case 'oconfirm': {
       const v = num(val('o-real'));
       if (v == null || v < 0) return invalid('#o-real', t('Escribe un importe'));

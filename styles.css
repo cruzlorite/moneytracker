@@ -964,3 +964,27 @@ svg.bal-chart { touch-action: pan-y; -webkit-user-select: none; user-select: non
 .mcell .mbar { position: static; align-self: stretch; flex: none; margin: 4px 0 0; height: 4px; }
 .mcell:has(.mbar) { padding-bottom: 0; }
 .mcell { height: 86px; }
+/* Hoy: what the plan expected and hasn't been confirmed. The ring confirms it as planned; the row opens the exact amount */
+.taskhead { padding-bottom: 4px; }
+.trow { display: flex; align-items: center; gap: 4px; padding: 0; }
+.trow .okbtn { flex: none; width: 48px; height: 52px; display: grid; place-items: center; background: transparent; border: none; padding: 0; }
+.trow .tbody { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 52px; background: transparent; border: none; padding: 0 2px 0 0; text-align: left; }
+.trow .tbody .grow { display: grid; gap: 1px; }
+.trow .okbtn:active .ring { background: var(--ok); border-color: var(--ok); }
+.trow .okbtn .ring { width: 24px; height: 24px; border-radius: 12px; border: 2px solid var(--muted); }
+/* Hoy: the first thing you see, like a notification inside the app */
+.notify { border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 5%, var(--panel)); }
+.notify-t { display: inline-flex; align-items: center; gap: 10px; }
+.bellwrap { position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); }
+.bellwrap svg { width: 18px; height: 18px; }
+.bellwrap .badge { position: absolute; top: -5px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--spend); color: #fff; font-size: 11px; line-height: 18px; text-align: center; font-weight: 700; border: 2px solid var(--panel); box-sizing: content-box; }
+.notify-t .label { font-size: 15px; font-weight: 700; color: var(--ink); text-transform: none; letter-spacing: 0; }
+.bellwrap { width: 36px; height: 36px; margin-right: 6px; }
+.bellwrap .badge { top: -7px; right: -12px; }
+.notify .center-self { justify-self: center; }
+.bellwrap .badge { top: -6px; right: -7px; min-width: 0; width: 16px; height: 16px; padding: 0; border-radius: 50%; font-size: 10px; line-height: 16px; border-width: 2px; }
+/* "Octubre sin cerrar": the name opens the month, the button closes it */
+.card.banner { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 4px; }
+.bannerlink { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 4px 0 12px; background: transparent; border: none; text-align: left; font-size: 16px; font-weight: 500; }
+.bannerlink .i { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.bellwrap .badge { display: grid; place-items: center; line-height: 1; font-size: 10px; box-sizing: border-box; width: 18px; height: 18px; top: -7px; right: -8px; }
