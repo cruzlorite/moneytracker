@@ -912,3 +912,5 @@ input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1p
 .balrow { align-items: center; }
 .balv { display: grid; gap: 1px; min-width: 0; }
 .balv b { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
+.nowline { margin: 0; font-size: 14px; }
+.nowline b { font-weight: 700; }

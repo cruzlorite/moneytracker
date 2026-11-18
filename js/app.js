@@ -853,6 +853,7 @@ function analisis(m) {
     return { label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: v, now: ym === m.curYM, fill: v == null ? null : scaleOf(v, m.targetOf(ym), m.target).c, mark: m.targetOf(ym),
       tip: `${cap(ymLabel(ym))}: ${v == null ? t('aún no') : t('ahorrado') + ' ' + fmt(v)} · ${t('planificado')} ${fmt(m.targetOf(ym))}` };
   });
+  const nowLine = (html) => (m.pre || m.over ? '' : `<p class="nowline num"><span class="muted">${cap(monthName(m.curYM))}:</span> ${html}</p>`);
   const lastI = left.map((c) => c.value != null).lastIndexOf(true);
   const outOfM = (ym) => (ym === m.curYM ? m.spentAll(ym, toISO(new Date())) : m.spentAll(ym));
   const io = sm.map(({ ym, has }) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), a: m.incomeOf(ym), b: has ? outOfM(ym) : null, now: ym === m.curYM,
@@ -883,12 +884,14 @@ function analisis(m) {
     <h2>${t('Ahorrado cada mes')} ${info('ahorradoMes')}</h2>
     <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span></div>
     ${columns({ cols: left, labels: lastI >= 0 ? [lastI] : [], aria: t('Ahorrado / planificado de cada mes') })}
+    ${nowLine(`${t('ahorrado')} <b>${fmt(m.savedOf(m.curYM))}</b> · ${t('planificado')} <b>${fmt(m.targetOf(m.curYM))}</b>`)}
     ${table([t('Mes'), t('Ahorrado'), t('Planificado')], sm.map(({ ym }, i) => [esc(cap(ymLabel(ym))), left[i].value == null ? '—' : fmt(left[i].value), fmt(m.targetOf(ym))]))}
   </section>
 
   <section class="card" aria-label="${t('Ingresado y gastado')}">
     <div class="row between"><h2>${t('Ingresado y gastado')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span></span></div>
     ${pairs({ cols: io, aria: t('Ingresos y gastos de cada mes') })}
+    ${nowLine(`${t('ingresado')} <b>${fmt(m.incomeOf(m.curYM))}</b> · ${t('gastado')} <b>${fmt(outOfM(m.curYM))}</b>`)}
     ${table([t('Mes'), t('Ingresado'), t('Gastado')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeOf(ym)), has ? fmt(outOfM(ym)) : '—']))}
   </section>`;
 }
