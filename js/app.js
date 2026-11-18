@@ -1432,10 +1432,11 @@ function openClose(ym) {
     <div data-step class="cl-title row between"><h1>${cap(monthName(ym))}</h1><span id="cl-vd"></span></div>
     <div data-step class="stack-sm">
       ${openField(m, ym, 'cl-open')}
-      <label class="field"><span class="label">${t('Saldo de tu cuenta')}</span>
+      <label class="field"><span class="label">${t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) })}</span>
         <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="${curSym}" autocomplete="off">
 </label>
     </div>
+    ${toISO(new Date()) > m.range(ym).to ? `<p class="fine">${t('Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco. Si ya ha entrado algo del mes siguiente, no lo cuentes.')}</p>` : ''}
     <div id="cl-calc" aria-live="polite"></div>
   </div>`;
   openDialog();

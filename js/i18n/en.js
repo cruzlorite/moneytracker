@@ -1,5 +1,7 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco. Si ya ha entrado algo del mes siguiente, no lo cuentes.': "Close with the balance you had on that last day, not today's: check your bank's transactions. If something from next month has already come in, don't count it.",
+  'Saldo de tu cuenta el {d}': 'Your account balance on {d}',
   'Diferencia ≈': 'Difference ≈',
   'Diferencia': 'Difference',
   'Gasto guardado': 'Expense saved',
