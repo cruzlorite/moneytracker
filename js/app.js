@@ -534,7 +534,6 @@ function metas(m) {
     .filter((x) => x.k >= 0).sort((a, b) => a.k - b.k).slice(0, 4);
   const last = m.season[11], ended = m.curYM > last;
   return `
-  ${pageHead(t('Tu año'), `${MES3[+m.season[0].slice(5) - 1]} ${m.season[0].slice(0, 4)} – ${MES3[+last.slice(5) - 1]} ${last.slice(0, 4)}`, t('Ahorro e inversión'))}
   ${yearNav(m)}
   ${closeBanner(due)}
   <section class="card hero" aria-label="${t('Ahorro del año')}">
