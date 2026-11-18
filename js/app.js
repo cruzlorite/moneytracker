@@ -284,7 +284,7 @@ function infoHTML(key) {
       ixRow(IX.k('k-save'), t('Ahorro'), t('cantidad planificada anual.')),
       ixRow(IX.k('k-fix'), t('Gastos planificados'), t('alquiler, recibos, seguros…')),
       ixRow(IX.k('k-bud'), t('Presupuestos'), t('lo que reservas para cada tipo de gasto.')),
-      ixRow(IX.k('k-free'), t('Sin planificar'), t('el resto: comida, salidas…')),
+      ixRow(IX.k('k-free'), t('Sin presupuestar'), t('el resto: comida, salidas…')),
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
       ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
       t('Porcentajes: sobre tus ingresos. Lo que no gastes, también es ahorro.'));
@@ -414,8 +414,9 @@ function trailCard(m) {
 }
 /** The budgets, compact: what you've spent of each. Tap one to log against it. */
 function watchCard(m, ym) {
-  if (!m.budgets.length) return '';
-  return `<section class="card" aria-label="${t('Tus presupuestos')}"><h2>${t('Tus presupuestos')} ${info('limites')}</h2><div class="vlist">${m.budgets.map((b) => {
+  const budgetsNow = m.shown().filter((b) => b.budget && activeIn(b, m.curYM));
+  if (!budgetsNow.length) return '';
+  return `<section class="card" aria-label="${t('Tus presupuestos')}"><h2>${t('Tus presupuestos')} ${info('limites')}</h2><div class="vlist">${budgetsNow.map((b) => {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     return `<button class="vrow" data-act="bud" data-id="${esc(b.id)}">
       <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
@@ -542,7 +543,7 @@ const itemCat = (it) => it.cat || guessCat(it.name);
 function quickCats(m) {
   const ids = [], add = (id) => { if (CAT[id] && !ids.includes(id)) ids.push(id); };
   add(UI.qcat);
-  m.budgets.forEach((b) => add(b.cat));
+  m.shown().filter((b) => b.budget && activeIn(b, m.curYM)).forEach((b) => add(b.cat));
   add(SAVE_CAT);
   const since = toISO(new Date(Date.now() - 90 * 864e5)), n = {};
   for (const e of m.allSpends) if (e.cat && e.date >= since) n[e.cat] = (n[e.cat] || 0) + 1;
@@ -879,15 +880,21 @@ function planVsReal(m) {
     return s + (inc - fx - m.targetOf(ym)) * f;
   }, 0));
   if (live) { ins.due = sumDue(m.ins); sav.due = savDue; outs.due = round2(fixedDue + restDue); }
-  const buds = m.budgets.map((b) => {
-    const spent = b.freq === 'monthly' ? round2(m.season.reduce((s, ym) => s + m.budSpent(b, ym), 0)) : m.budSpentY(b);
-    const plan = b.freq === 'monthly' ? b.amount * 12 : b.amount;
-    const proj = b.freq === 'monthly' ? m.season.reduce((s, ym) => s + m.budUse(b, ym), 0) : Math.max(b.amount, spent);
-    const x = line(b.name, plan, spent, proj, 'bad', catEl(b.cat, 'sm'), 'planificado');
-    // "hoy" by the days gone: a yearly limit spread evenly over the year, like the rest of the spending
-    if (live) x.due = round2(m.season.reduce((s, ym) => s + (b.freq === 'monthly' ? b.amount : b.amount / 12) * frac(ym), 0));
+  // each budget once, whatever versions it has had: month by month the amount in force, what was spent against it
+  const budIds = [...new Set(m.budgets.map((b) => b.id))];
+  const buds = budIds.map((id) => {
+    const segs = m.budgets.filter((b) => b.id === id), at = (ym) => segs.find((b) => activeIn(b, ym));
+    const last = [...m.season].reverse().map(at).find(Boolean);
+    if (!last) return null;
+    const monthly = last.freq === 'monthly';
+    const spent = monthly ? round2(segs.reduce((s, b) => s + m.season.reduce((a, ym) => a + m.budSpent(b, ym), 0), 0)) : round2(segs.reduce((s, b) => s + m.budSpentY(b), 0));
+    const plan = monthly ? m.season.reduce((s, ym) => s + (at(ym)?.amount || 0), 0) : last.amount;
+    const proj = monthly ? segs.reduce((s, b) => s + m.season.reduce((a, ym) => a + m.budUse(b, ym), 0), 0) : Math.max(last.amount, spent);
+    const x = line(last.name, plan, spent, proj, 'bad', catEl(last.cat, 'sm'), 'planificado');
+    // "hoy" by the days gone: a yearly budget spread evenly over the year, like the rest of the spending
+    if (live) x.due = round2(m.season.reduce((s, ym) => s + (at(ym) ? (monthly ? at(ym).amount : last.amount / 12) * frac(ym) : 0), 0));
     return x;
-  });
+  }).filter(Boolean);
   return { ins, outs, buds, sav };
 }
 /**
@@ -1051,7 +1058,7 @@ function plan(m) {
     </button>
     <span class="label">${t('Reparto de tus ingresos')}</span>
     <div class="stackbar" aria-hidden="true"><i class="k-save" data-bar="${w(m.target)}" data-key="sb-save"></i><i class="k-fix" data-bar="${w(avgOut)}" data-key="sb-out"></i><i class="k-bud" data-bar="${w(budM)}" data-key="sb-bud"></i><i class="${free >= 0 ? 'k-free' : 'k-neg'}" data-bar="${w(Math.abs(free))}" data-key="sb-free"></i></div>
-    <div class="legend num">${[['k-save', t('ahorro'), m.target], ['k-fix', t('gastos planificados'), avgOut], ['k-bud', t('presupuestos'), budM], [free >= 0 ? 'k-free' : 'k-neg', free >= 0 ? t('sin planificar') : t('falta'), Math.abs(free)]]
+    <div class="legend num">${[['k-save', t('ahorro'), m.target], ['k-fix', t('gastos planificados'), avgOut], ['k-bud', t('presupuestos'), budM], [free >= 0 ? 'k-free' : 'k-neg', free >= 0 ? t('sin presupuestar') : t('falta'), Math.abs(free)]]
       .filter(([, , v]) => v > 0.5).map(([k, l, v]) => `<span><i class="dot ${k}"></i>${l} <b>${avgIn ? Math.round(v / avgIn * 100) : 0} %</b></span>`).join('')}</div>
     <div class="sum">
       <span>${t('Ingresos planificados')}</span><b>${fmt(m.incomeY)}</b>
@@ -1059,7 +1066,7 @@ function plan(m) {
       <span class="tot">${t('Gasto total planificado')}</span><span class="tot">${fmt(m.incomeY - m.goal)}</span>
       <span class="sub">${t('Gastos planificados')}</span><span>${fmt(m.outY)}</span>
       ${sBuds.length ? `<span class="sub">${t('Presupuestos')}</span><span>${fmt(budY)}</span>` : ''}
-      <span class="sub">${t('Sin planificar')}</span><span class="${free < 0 ? 'c-spend' : ''}">${free < 0 ? '−' : ''}${fmt(Math.abs(free * 12))}</span>
+      <span class="sub">${t('Sin presupuestar')}</span><span class="${free < 0 ? 'c-spend' : ''}">${free < 0 ? '−' : ''}${fmt(Math.abs(free * 12))}</span>
     </div>
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
         <div class="row"><button class="small" data-act="goalfit" data-v="${Math.max(0, Math.floor((m.possible - Math.max(0, m.possible) * 0.4) / 100) * 100)}">${t('Ajustar a una cifra viable')}</button></div></div>`

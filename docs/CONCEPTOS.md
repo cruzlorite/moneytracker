@@ -10,7 +10,7 @@ Ingresos previstos (2.000 €)
 └── Presupuesto (1.700 €)     lo que planeas gastar
     ├── Gastos previstos (900 €)   alquiler, recibos, seguros…
     ├── Presupuestos (250 €)       tabaco, viajes… (lo que reservas por tipo)
-    └── Sin planificar (550 €)     comida, salidas, lo demás
+    └── Sin presupuestar (550 €)     comida, salidas, lo demás
 ```
 
 Lo que no gastes del presupuesto acaba siendo ahorro. Lo que gastes de más sale del ahorro de ese mes.
@@ -23,7 +23,7 @@ Lo que no gastes del presupuesto acaba siendo ahorro. Lo que gastes de más sale
 | **Objetivo** | Lo que planeas ahorrar. Uno al año y uno por mes; los doce del mes suman el del año. | Plan, Hoy, Año, cierre |
 | **Presupuesto** | Lo que planeas gastar en un mes: ingresos previstos − objetivo del mes. Siempre el total, nunca una categoría. | Hoy, cada mes, cierre, Plan |
 | **Presupuesto** | Una cantidad que reservas para un tipo de gasto (tabaco, viajes…), al mes o al año. Solo esos gastos se apuntan. | Plan, Hoy («Tus presupuestos») |
-| **Sin planificar** | La parte del presupuesto que no es gasto previsto ni presupuesto. Igual todos los meses. | Plan |
+| **Sin presupuestar** | La parte del gasto planificado que no es gasto previsto ni presupuesto. Igual todos los meses. | Plan |
 | **Ingresado** | Lo que ha entrado en tu cuenta este mes. | Hoy, cada mes, cierre, Análisis |
 | **Gastado** | Todo lo que ha salido de tu cuenta menos lo que pasaste al ahorro. Sale del saldo. | Hoy, cada mes, cierre, Análisis |
 | **Ahorrado** | Lo que pasaste al ahorro + lo que sobró al cerrar (o − lo que faltó). Nada pasa al mes siguiente. | Hoy, Año, cada mes, cierre |
@@ -41,7 +41,7 @@ Lo que no gastes del presupuesto acaba siendo ahorro. Lo que gastes de más sale
 
 - **Gastado** = saldo al empezar + ingresado − lo movido al ahorro (tipo «Ahorro e inversión») − saldo ahora.
 - **Ahorrado** = lo movido al ahorro + (saldo al cerrar − saldo al empezar) = ingresado − gastado. Lo que sobra y se queda en la cuenta ya es ahorro de ese mes; si después lo pasas a otra cuenta, solo cambia de sitio.
-- **Objetivo de cada mes** = lo que deja el plan ese mes (ingresos previstos − gastos previstos − presupuestos mensuales − presupuestos anuales / 12) − lo mismo sin planificar cada mes, elegido para que los doce sumen el objetivo del año. Un mes con paga extra apunta más alto; uno con el seguro, más bajo, incluso por debajo de cero.
+- **Objetivo de cada mes** = lo que deja el plan ese mes (ingresos previstos − gastos previstos − presupuestos mensuales − presupuestos anuales / 12) − lo mismo sin presupuestar cada mes, elegido para que los doce sumen el objetivo del año. Un mes con paga extra apunta más alto; uno con el seguro, más bajo, incluso por debajo de cero.
 - **Presupuesto del mes** = ingresos previstos − objetivo del mes, con cifras del plan: no se mueve aunque la nómina real varíe.
 - **Cada gasto, en su mes.** El mes del seguro es un mes caro. Los presupuestos anuales cuentan en el mes en que gastas.
 
@@ -84,7 +84,7 @@ El ahorro a este ritmo sale de la misma cuenta: objetivo del mes + lo que sobrar
 - Huchas o reservas mes a mes: cada gasto cae en su mes.
 - Arrastrar lo que sobra al mes siguiente: lo que sobra es ahorro.
 - «Sacar del ahorro» como movimiento aparte.
-- «Día a día» o «resto de vida»: es «sin planificar».
+- «Día a día» o «resto de vida»: es «sin presupuestar».
 - Gastos puntuales en el Plan: se apuntan con el +. (Los ingresos puntuales sí.)
 - Logros, retos y rachas.
 - Ajustes sobre «cómo ahorras» o preguntas sobre el ahorro al cerrar: el traspaso al ahorro se apunta como un movimiento más.

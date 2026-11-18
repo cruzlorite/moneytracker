@@ -435,3 +435,34 @@ test('the type search finds types by name, by loosely related words, with typos 
   assert.deepEqual(searchCats(''), []);
   assert.ok(!searchCats('cine').includes('farmacia'), 'a short word does not match unrelated types by typo');
 });
+
+test('budgets over time: each month uses the budget in force, its spends count against it, and the year adds up version by version', () => {
+  const tab = { id: 'b', kind: 'out', name: 'Tabaco', amount: 50, freq: 'monthly', budget: true, cat: 'tabaco' };
+  let items = [normItem(tab)];
+  items = planEdit(items, 'b', { ...tab, amount: 80 }, '2027-07');             // a raise from July
+  items = planEdit(items, 'b', { ...tab, amount: 20 }, '2027-10', '2027-11');  // a temporary cut, then back to 80
+  const spends = [{ id: 'g1', date: '2027-03-10', amount: 30, note: '', cat: 'tabaco' }, { id: 'g2', date: '2027-08-10', amount: 90, note: '', cat: 'tabaco' }];
+  const m = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends }, new Date(2027, 11, 20));
+  const inForce = (ym) => items.find((i) => i.cat === 'tabaco' && (!i.from || ym >= i.from) && (!i.to || ym <= i.to)).amount;
+  assert.deepEqual(['2027-02', '2027-07', '2027-10', '2027-12'].map(inForce), [50, 80, 20, 80]);
+  // the months already over use what was spent; the current one (December) uses the budget in force
+  assert.equal(m.budOf('2027-03'), 30, 'a past month: what was spent against the budget of that month');
+  assert.equal(m.budOf('2027-08'), 90, 'spent more than the budget then (80): what was spent');
+  assert.equal(m.budOf('2027-12'), 80, 'this month: the version in force');
+  // the plan's savings target takes each month's budget: the same goal, spread over different budgets
+  const net = (ym) => m.targetOf(ym);
+  assert.equal(m.budByCat.get('tabaco').amount, 80, 'today the budget of that type is the one in force this month');
+  assert.equal(m.budFor('tabaco', '2027-02').amount, 50);
+  assert.equal(m.budFor('tabaco', '2027-10').amount, 20);
+  assert.equal(m.budFor('tabaco', '2028-01').amount, 80, 'after the temporary cut it is back');
+  void net;
+  // one version per budget for the screens
+  assert.equal(m.shown('2027-02').filter((i) => i.budget).length, 1);
+  assert.equal(m.shown('2027-10')[0].amount, 20);
+  // ended: spends of that type no longer count against a budget (they go to the day to day)
+  const ended = planDelete(items, 'b', '2027-09');
+  const m2 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: ended, months: {}, spends }, new Date(2027, 11, 20));
+  assert.equal(m2.budFor('tabaco', '2027-08').amount, 80);
+  assert.equal(m2.budFor('tabaco', '2027-09'), undefined);
+  assert.equal(m2.shown('2027-12').length, 0, 'an ended budget is not shown any more');
+});
