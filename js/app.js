@@ -402,11 +402,11 @@ function metas(m) {
   const cells = m.season.map((ym) => {
     const mm = MES3[+ym.slice(5) - 1], d = m.mon(ym);
     const tg = m.targetOf(ym), obj = `<small class="num">/ ${shortMoney(tg).replace('+', '')}</small>`;
-    if (ym < m.curYM && d.close) return `<button class="mcell" style="${savedScale(m, ym).style}" data-act="msel" data-ym="${ym}" data-tip="${esc(`${cap(ymLabel(ym))}: ${t('ahorrado')} ${fmt(m.savedOf(ym))} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm}</span><b class="num">${shortMoney(m.savedOf(ym))}</b>${obj}</button>`;
+    if (ym < m.curYM && d.close) return `<button class="mcell" style="${savedScale(m, ym).style}" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('ahorrado')} ${fmt(m.savedOf(ym))} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm}</span><b class="num">${shortMoney(m.savedOf(ym))}</b>${obj}</button>`;
     if (ym < m.curYM) return `<button class="mcell due" data-act="msel" data-ym="${ym}"><span>${mm}</span><b>${t('por cerrar')}</b>${obj}</button>`;
-    if (ym === m.curYM) return `<button class="mcell now" data-act="msel" data-ym="${ym}" data-tip="${esc(`${cap(ymLabel(ym))}: ${t('proyección')} ${ps == null ? '—' : fmt(ps)} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm} · ${t('hoy')}</span><b class="num muted">${ps == null ? '' : '≈ ' + shortMoney(ps).replace('+', '')}</b>${obj}<i style="width:${pct(pc.day, pc.dim).toFixed(0)}%"></i></button>`;
+    if (ym === m.curYM) return `<button class="mcell now" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('proyección')} ${ps == null ? '—' : fmt(ps)} · ${t('planificado')} ${fmt(tg)}`)}"><span>${mm} · ${t('hoy')}</span><b class="num muted">${ps == null ? '' : '≈ ' + shortMoney(ps).replace('+', '')}</b>${obj}<i style="width:${pct(pc.day, pc.dim).toFixed(0)}%"></i></button>`;
     const b = big(ym);
-    return `<button class="mcell fut" data-act="msel" data-ym="${ym}" data-tip="${esc(`${cap(ymLabel(ym))}: ${t('planificado')} ${fmt(tg)}${b ? ` · ${b.name} ${fmt(b.amount)}` : ''}`)}"><span>${mm}</span><b class="num">${shortMoney(tg).replace('+', '')}</b><small>${b ? esc(b.name.length > 13 ? b.name.slice(0, 12) + '…' : b.name) : t('planificado')}</small></button>`;
+    return `<button class="mcell fut" data-act="msel" data-ym="${ym}" aria-label="${esc(`${cap(ymLabel(ym))}: ${t('planificado')} ${fmt(tg)}${b ? ` · ${b.name} ${fmt(b.amount)}` : ''}`)}"><span>${mm}</span><b class="num">${shortMoney(tg).replace('+', '')}</b><small>${b ? esc(b.name.length > 13 ? b.name.slice(0, 12) + '…' : b.name) : t('planificado')}</small></button>`;
   }).join('');
   const nexts = m.outs.filter((i) => i.freq !== 'monthly' && !i.budget).map((i) => ({ i, k: m.season.findIndex((s, ix) => ix >= m.curIdx && m.occurs(i, s)) }))
     .filter((x) => x.k >= 0).sort((a, b) => a.k - b.k).slice(0, 4);
