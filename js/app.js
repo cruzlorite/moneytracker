@@ -594,7 +594,7 @@ function mes(m) {
 function openQuick(keep = {}) {
   const m = compute(store.data), today = toISO(new Date());
   const date = keep.date || UI.quickDate || today;
-  dlg.innerHTML = `<div class="sheet quick" id="quick-sheet">
+  dlg.innerHTML = `<div class="sheet quick${UI.kmore ? ' more' : ''}" id="quick-sheet">
     <div class="row between"><h2>${UI.editSpend ? t('Editar gasto') : t('Apuntar un gasto')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
     <div class="seg qdir" id="k-dir" role="group" aria-label="${t('Ahorro e inversión')}" ${UI.qcat === SAVE_CAT ? '' : 'hidden'}><button type="button" data-act="qdir" data-v="in" aria-pressed="${UI.qdir !== 'out'}">${t('Aportar')}</button><button type="button" data-act="qdir" data-v="out" aria-pressed="${UI.qdir === 'out'}">${t('Retirar')}</button></div>
@@ -610,7 +610,7 @@ function openQuick(keep = {}) {
     <button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Un ingreso puntual? Añádelo al plan')}</button>`}
   </div>`;
   openDialog();
-  if (!keep.stay) setTimeout(() => $('#k-amt')?.focus(), 60);
+  // no automatic focus: the keyboard opens only when you tap the amount
 }
 const quickKeep = () => ({ amt: $('#k-amt')?.value, note: $('#k-note')?.value, date: $('#k-date')?.value, stay: true });
 

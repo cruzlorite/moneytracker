@@ -1220,3 +1220,8 @@ nav.tabs .in { grid-template-columns: repeat(5, 1fr); }
 .plusbtn.fab svg { width: 24px; height: 24px; }
 .plusbtn.fab:disabled { opacity: .5; }
 .plusbtn.fab:active { transform: scale(.94); }
+
+/* logging a spend: the sheet shows everything at once, no scrolling (the full list of types is the exception) */
+.sheet.quick:not(.more) { overflow-y: visible; max-height: none; }
+dialog:has(.sheet.quick:not(.more)) { max-height: none; overflow: visible; }
+.sheet.quick { overscroll-behavior: contain; }
