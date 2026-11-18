@@ -1099,3 +1099,9 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .notify-tog .chev.open { transform: rotate(90deg); }
 /* Confirmar / Indicar: same size and colour */
 .notify .trow .okbtn, .notify .trow .okbtn[data-act="occ"] { min-width: 84px; justify-content: center; border-color: var(--ok); color: var(--ok); }
+
+/* the card folds and unfolds in place */
+.notify.fold .trow, .notify.fold .center-self { display: none; }
+.notify:not(.all) .trow.x { display: none; }
+.notify-tog .chev { transform: rotate(90deg); }
+.notify.fold .notify-tog .chev { transform: none; }

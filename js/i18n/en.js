@@ -1,5 +1,6 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Mostrar u ocultar': 'Show or hide',
   'Confirmar': 'Confirm',
   'Indicar': 'Enter',
   'Ocultar': 'Hide',

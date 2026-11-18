@@ -15,6 +15,7 @@ import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, 
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app'), dlg = $('#modal'), toastEl = $('#toast');
+const notifyOn = (k) => !!lsGet('hucha:n' + k);
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* ignore */ } };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -407,7 +408,7 @@ function home(m) {
   ];
   const quick = pending.filter((p) => !p.it.vary);
   return `
-  ${tasks.length ? `<section class="card list notify" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><button type="button" class="notify-t notify-tog" data-act="notifyfold" aria-expanded="${UI.notifyFold ? 'false' : 'true'}" aria-label="${UI.notifyFold ? t('Mostrar') : t('Ocultar')}"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span><span class="chev ${UI.notifyFold ? '' : 'open'}" aria-hidden="true">${ic('right')}</span></button>${quick.length > 1 ? `<button type="button" class="btn-sec sm" data-act="qokall" data-ym="${ym}">${t('Confirmar todo')}</button>` : ''}</div>${UI.notifyFold ? '' : (UI.notifyAll ? tasks : tasks.slice(0, 3)).join('')}${!UI.notifyFold && tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore">${UI.notifyAll ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
+  ${tasks.length ? `<section class="card list notify${notifyOn('fold') ? ' fold' : ''}${notifyOn('all') ? ' all' : ''}" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><button type="button" class="notify-t notify-tog" data-act="notifyfold" aria-expanded="${notifyOn('fold') ? 'false' : 'true'}" aria-label="${t('Mostrar u ocultar')}"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span><span class="chev" aria-hidden="true">${ic('right')}</span></button>${quick.length > 1 ? `<button type="button" class="btn-sec sm" data-act="qokall" data-ym="${ym}">${t('Confirmar todo')}</button>` : ''}</div>${tasks.map((h, k) => (k >= 3 ? h.replace('class="trow', 'class="trow x') : h)).join('')}${tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore" data-more="${t('Ver {n} más', { n: tasks.length - 3 })}" data-less="${t('Ver menos')}">${notifyOn('all') ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
   ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
   ${closeBanner(due)}
   ${setupCard(m, ym)}
@@ -1741,8 +1742,16 @@ document.addEventListener('click', (e) => {
     case 'doneall': UI.doneAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'yearnow': UI.yearOff = 0; render(true); break;
-    case 'notifyfold': UI.notifyFold = !UI.notifyFold; render(true); break;
-    case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
+    case 'notifyfold': case 'notifymore': {
+      // only the card changes (no redraw of the page), and the choice is kept for the next time
+      const box = b.closest('.notify'), key = b.dataset.act === 'notifyfold' ? 'fold' : 'all';
+      if (!box) break;
+      const on = box.classList.toggle(key);
+      lsSet('hucha:n' + key, on ? '1' : '');
+      if (key === 'fold') b.setAttribute('aria-expanded', on ? 'false' : 'true');
+      else b.textContent = on ? b.dataset.less : b.dataset.more;
+      break;
+    }
     case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
     case 'qokall': {
       const mm = compute(store.data), at = mm.openAfter(ym);
