@@ -1259,18 +1259,19 @@ dialog { max-height: var(--vvh, 92dvh); }
 dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(--vvh, 70dvh)); }
 .g-note { pointer-events: none; }
 
-/* what you are touching: the rest dims, it gets its colour intensified and a soft silhouette (a ring in the page colour inside bars that clip, a halo of its own hue elsewhere) */
-.g-bars:has(> i.tipon) > i:not(.tipon) { opacity: .3; }
+/* what you are touching: the rest fades and loses colour, it gets bolder colour and a clear silhouette (a ring in the page colour inside bars that clip, a halo of its own hue elsewhere) */
+.g-bars:has(> i.tipon) > i:not(.tipon) { opacity: .2; filter: grayscale(.6); }
 .g-bars > i { transition: opacity .15s ease, filter .15s ease; }
-.g-bars > i.tipon { filter: saturate(1.35) brightness(1.04); box-shadow: inset 0 0 0 2px var(--panel), inset 0 0 0 3px color-mix(in srgb, var(--ink) 35%, transparent); }
-.ranked:has(.rk.tipon) .rk:not(.tipon) { opacity: .35; }
-.rk { transition: opacity .15s ease; }
-.rk.tipon .rk-bar i { filter: saturate(1.35) brightness(1.04); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--out), 0 4px 10px -2px color-mix(in srgb, var(--out) 55%, transparent); }
-.rk.tipon .rk-bar b, .rk.tipon .rk-l { font-weight: 700; }
-.segbar:has(.seg.tipon) .seg:not(.tipon) { opacity: .35; }
-.segbar .seg.tipon { filter: saturate(1.35); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); z-index: 1; }
-.chart:has(.ch-band.tipon) .ch-band:not(.tipon) .ch-col { opacity: .3; }
-.ch-band.tipon .ch-col { filter: saturate(1.35) brightness(1.04); stroke: var(--ink); stroke-opacity: .55; stroke-width: 2; paint-order: stroke; }
+.g-bars > i.tipon { filter: saturate(1.7) brightness(1.08); box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4.5px color-mix(in srgb, var(--ink) 55%, transparent); }
+.ranked:has(.rk.tipon) .rk:not(.tipon) { opacity: .22; filter: grayscale(.6); }
+.rk { transition: opacity .15s ease, filter .15s ease; }
+.rk.tipon { background: color-mix(in srgb, var(--out) 10%, var(--panel)); box-shadow: 0 0 0 5px color-mix(in srgb, var(--out) 10%, var(--panel)); }
+.rk.tipon .rk-bar i { filter: saturate(1.7) brightness(1.08); transform: scaleY(1.45); transform-origin: left center; box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--out), 0 5px 12px -2px color-mix(in srgb, var(--out) 70%, transparent); }
+.rk.tipon .rk-bar b, .rk.tipon .rk-l { font-weight: 800; }
+.vlist:has(.vrow.tipon) .vrow:not(.tipon) { opacity: .22; filter: grayscale(.6); }
+.vrow { transition: opacity .15s ease, filter .15s ease; cursor: default; }
+.segbar:has(.seg.tipon) .seg:not(.tipon) { opacity: .25; filter: grayscale(.6); }
+.segbar .seg.tipon { filter: saturate(1.7) brightness(1.06); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px color-mix(in srgb, var(--ink) 65%, transparent); z-index: 1; }
+.chart:has(.ch-band.tipon) .ch-band:not(.tipon) .ch-col { opacity: .22; filter: grayscale(.6); }
+.ch-band.tipon .ch-col { filter: saturate(1.7) brightness(1.08); stroke: var(--ink); stroke-opacity: .7; stroke-width: 2.5; paint-order: stroke; }
 .ch-band.tipon .ch-hit { fill: transparent; }
-.vlist:has(.vrow.tipon) .vrow:not(.tipon) { opacity: .35; }
-.vrow { transition: opacity .15s ease; cursor: default; }
