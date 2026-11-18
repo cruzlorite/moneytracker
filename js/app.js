@@ -256,11 +256,11 @@ function infoHTML(key) {
       ...scaleRows()], t('Color: ahorrado frente a planificado.'));
     case 'plan': return card(t('Ahorro e inversión planificados'), [
       ixRow(IX.k('k-save'), t('Ahorro'), t('cantidad planificada anual.')),
-      ixRow(IX.k('k-fix'), t('Gastos fijos'), t('alquiler, recibos, seguros…')),
-      ixRow(IX.k('k-bud'), t('Límites'), t('topes de lo que vigilas.')),
+      ixRow(IX.k('k-fix'), t('Gastos planificados'), t('alquiler, recibos, seguros…')),
+      ixRow(IX.k('k-bud'), t('Límites de gasto'), t('topes de lo que vigilas.')),
       ixRow(IX.k('k-free'), t('Sin planificar'), t('el resto: comida, salidas…')),
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
-      ixRow('', t('Gasto planificado'), t('ingresos − ahorro.'))],
+      ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
       t('Porcentajes: sobre tus ingresos. Lo que no gastes, también es ahorro.'));
     case 'cierre': return card(t('Cierre del mes'), [
       ixRow('', t('Saldo'), t('lo que hay hoy en tu cuenta.')),
@@ -940,14 +940,14 @@ function plan(m) {
     </button>
     <span class="label">${t('Reparto de tus ingresos')}</span>
     <div class="stackbar" aria-hidden="true"><i class="k-save" data-bar="${w(m.target)}" data-key="sb-save"></i><i class="k-fix" data-bar="${w(avgOut)}" data-key="sb-out"></i><i class="k-bud" data-bar="${w(budM)}" data-key="sb-bud"></i><i class="${free >= 0 ? 'k-free' : 'k-neg'}" data-bar="${w(Math.abs(free))}" data-key="sb-free"></i></div>
-    <div class="legend num">${[['k-save', t('ahorro'), m.target], ['k-fix', t('gastos fijos'), avgOut], ['k-bud', t('límites'), budM], [free >= 0 ? 'k-free' : 'k-neg', free >= 0 ? t('sin planificar') : t('falta'), Math.abs(free)]]
+    <div class="legend num">${[['k-save', t('ahorro'), m.target], ['k-fix', t('gastos planificados'), avgOut], ['k-bud', t('límites de gasto'), budM], [free >= 0 ? 'k-free' : 'k-neg', free >= 0 ? t('sin planificar') : t('falta'), Math.abs(free)]]
       .filter(([, , v]) => v > 0.5).map(([k, l, v]) => `<span><i class="dot ${k}"></i>${l} <b>${avgIn ? Math.round(v / avgIn * 100) : 0} %</b></span>`).join('')}</div>
     <div class="sum">
-      <span>${t('Ingresos')}</span><b>${fmt(m.incomeY)}</b>
+      <span>${t('Ingresos planificados')}</span><b>${fmt(m.incomeY)}</b>
       <span>${t('Ahorro planificado')}</span><span>−${fmt(m.goal)}</span>
-      <span class="tot">${t('Gasto planificado')}</span><span class="tot">${fmt(m.incomeY - m.goal)}</span>
-      <span class="sub">${t('Gastos fijos')}</span><span>${fmt(m.outY)}</span>
-      ${m.budgets.length ? `<span class="sub">${t('Límites')}</span><span>${fmt(budY)}</span>` : ''}
+      <span class="tot">${t('Gasto total planificado')}</span><span class="tot">${fmt(m.incomeY - m.goal)}</span>
+      <span class="sub">${t('Gastos planificados')}</span><span>${fmt(m.outY)}</span>
+      ${m.budgets.length ? `<span class="sub">${t('Límites de gasto')}</span><span>${fmt(budY)}</span>` : ''}
       <span class="sub">${t('Sin planificar')}</span><span class="${free < 0 ? 'c-spend' : ''}">${free < 0 ? '−' : ''}${fmt(Math.abs(free * 12))}</span>
     </div>
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
@@ -956,9 +956,9 @@ function plan(m) {
     <label class="field inline-field"><span class="label">${t('El año empieza en')}</span><input type="month" id="p-start" value="${esc(m.start)}"></label>
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${m.cycleDay}" style="max-width: 80px"></label>
   </section>
-  ${group(t('Ingresos'), '', m.ins, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'))}
-  ${group(t('Gastos fijos'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto fijo'), outs.length ? fmt(outM) + t('/mes') : null)}
-  ${group(t('Límites'), '', m.budgets, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), m.budgets.length ? fmt(budY / 12) + t('/mes') : null)}`;
+  ${group(t('Ingresos planificados'), '', m.ins, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'))}
+  ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null)}
+  ${group(t('Límites de gasto'), '', m.budgets, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), m.budgets.length ? fmt(budY / 12) + t('/mes') : null)}`;
 }
 const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 0h3v3H6zM0 6h3v3H0zM6 6h3v3H6zM0 12h3v3H0zM6 12h3v3H6z"/></svg>';
 function planRow(it, m, movable) {
@@ -1041,7 +1041,7 @@ function renderForm() {
   const bud = sec === 'bud';
   const monthSel = (allowNone) => `<select id="f-month">${allowNone ? `<option value="0" ${!f.month ? 'selected' : ''}>Sin fecha fija</option>` : ''}${MES.map((n, i) => `<option value="${i + 1}" ${+f.month === i + 1 ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
   dlg.innerHTML = `<form method="dialog" class="sheet" id="item-form">
-    <div class="row between"><h2>${f._edit ? (sec === 'in' ? t('Editar ingreso') : bud ? t('Editar límite') : t('Editar gasto fijo')) : (sec === 'in' ? t('Nuevo ingreso') : bud ? t('Nuevo límite') : t('Nuevo gasto fijo'))}</h2><button type="button" class="iconbtn" data-act="fclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="row between"><h2>${f._edit ? (sec === 'in' ? t('Editar ingreso') : bud ? t('Editar límite') : t('Editar gasto')) : (sec === 'in' ? t('Nuevo ingreso') : bud ? t('Nuevo límite') : t('Nuevo gasto'))}</h2><button type="button" class="iconbtn" data-act="fclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     ${f._copy ? `<p class="fine">${t('Copia de «{n}». Cambia lo que haga falta y pulsa Añadir.', { n: esc(f._copy) })}</p>` : ''}
     <div class="fields2">
       <label class="field"><span class="label">${t('Nombre')}</span><input id="f-name" value="${esc(f.name)}" placeholder="${sec === 'in' ? t('Nómina') : bud ? t('Viajes') : t('Alquiler')}" autocomplete="off"></label>
