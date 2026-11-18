@@ -1292,5 +1292,14 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 
 /* selected segment keeps its size: the ring is drawn outside it */
 .g-bars:has(> i.tipon) { overflow: visible; }
-.g-bars > i.tipon { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); position: relative; z-index: 2; }
+.g-bars > i.tipon { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); z-index: 2; }
 .rk.tipon .rk-bar i { transform: none; }
+
+/* the + always above the bottom bar (it sits on the bar's real height, set from the script) */
+.plusbtn.fab { z-index: 30; bottom: calc(var(--navh, var(--nav-h)) + 16px); }
+
+/* a tapped part inside a row: the row stays, the other rows fade (the tip sits on the part, not on the row) */
+.vlist:has(.tipon) .vrow:not(.tipon):not(:has(.tipon)) { opacity: .22; filter: grayscale(.6); }
+
+/* a selected row dims every other row of the card (budgets and the rest are one list) */
+section.card:has(.vrow.tipon) .vrow:not(.tipon) { opacity: .22; filter: grayscale(.6); }
