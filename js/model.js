@@ -338,7 +338,7 @@ export function compute(data, today = new Date()) {
       ev[at(e.date)].push({ label: e.note || CAT[e.cat]?.name || t('Gasto'), amount: -e.amount, kind: e.cat === SAVE_CAT ? 'save' : 'spend' });
     }
     const daily = -(r.cash - logged) / dim;
-    const pts = [{ day: 0, y: 0, events: [] }];
+    const pts = [{ day: 0, date: isoAdd(cycleDate(ym, 1, D), -1), y: 0, events: [] }]; // the balance at the start of the month's first day
     let y = 0;
     for (let d = 1; d <= dim; d++) { y += ev[d].reduce((s, e) => s + e.amount, 0) + daily; pts.push({ day: d, date: cycleDate(ym, d, D), y: round2(y), events: ev[d] }); }
     pts[dim].y = round2(bal - r.start); // no rounding drift: the month ends where the balance says
@@ -379,7 +379,7 @@ export function compute(data, today = new Date()) {
     if (extra) ev[a].push({ label: t('Ingreso sin apuntar'), amount: extra, kind: 'in' });
     const y = (d) => (extra ? (d < a ? E[d] : ya + (E[d] - E[a])) : d <= a ? E[d] + daily * (d - d0) : ya + (E[d] - E[a]) + daily * (d - a));
     const pts = [];
-    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : '', y: round2(d <= d0 ? 0 : y(d)), events: d > d0 ? ev[d] : [] });
+    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : isoAdd(cycleDate(ym, 1, D), -1), y: round2(d <= d0 ? 0 : y(d)), events: d > d0 ? ev[d] : [] });
     return { pts, daily: round2(daily), extra, start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0 };
   };
   /**
@@ -394,13 +394,19 @@ export function compute(data, today = new Date()) {
       if (ym < curYM) {
         if (m.bal == null) continue;
         const cv = curveOf(ym, +m.bal);
-        if (cv) for (const p of cv.pts) if (p.day >= 1) out.push({ date: p.date, bal: round2(st + p.y), proj: false });
+        if (cv) for (const p of cv.pts) out.push({ date: p.date, bal: round2(st + p.y), proj: false });
       } else {
         const cv = curveNow(ym);
-        if (cv) for (const p of cv.pts) if (p.day >= Math.max(1, cv.d0)) out.push({ date: p.date, bal: round2(st + p.y), proj: p.day >= cv.fromDay });
+        if (cv) for (const p of cv.pts) out.push({ date: p.date, bal: round2(st + p.y), proj: p.day >= cv.fromDay });
       }
     }
-    return out.filter((p) => p.date >= first);
+    // one point per day: where one month ends the next one starts, at the same balance
+    const seen = new Set();
+    const pts = out.filter((p) => p.date >= first && !seen.has(p.date) && seen.add(p.date)).sort((a, b) => a.date.localeCompare(b.date));
+    // a month that was never closed leaves a hole: only the latest unbroken stretch is a line worth drawing
+    let from = 0;
+    for (let i = 1; i < pts.length; i++) if (isoDays(pts[i].date) - isoDays(pts[i - 1].date) > 1) from = i;
+    return pts.slice(from);
   };
   /** Where a month's spending comes from: 'bal' (closed with a balance), 'check' (a look mid-month) or 'log' (logged spends). */
   const spentSrc = (ym) => {

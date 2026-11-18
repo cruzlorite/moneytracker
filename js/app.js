@@ -917,17 +917,17 @@ function analisis(m) {
   const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM]
     : m.season.filter((ym) => ym <= m.curYM);
   const inPer = (e) => yms.includes(m.monthOf(e.date));
-  const sp = m.allSpends.filter((e) => inPer(e) && e.cat !== SAVE_CAT);
+  const sp = m.allSpends.filter((e) => inPer(e) && e.cat !== SAVE_CAT && !(m.openAfter(m.monthOf(e.date)) && e.date <= m.openAfter(m.monthOf(e.date))));
   const by = {};
   for (const e of sp) by[e.cat || ''] = (by[e.cat || ''] || 0) + e.amount;
   // the plan's expected expenses that already came (rent, bills…), by type: so the total is everything spent
   for (const ym of yms) for (const p of m.plannedIn(ym)) {
-    if (p.it.kind !== 'out' || p.save || p.state === 'future') continue;
+    if (p.it.kind !== 'out' || p.save || p.state === 'future' || (m.openAfter(ym) && p.date <= m.openAfter(ym))) continue; // before the start balance's day: already in it
     const c = itemCat(p.it) || 'otros';
     by[c] = (by[c] || 0) + p.amount;
   }
   // what your balance says you spent beyond what you logged
-  const dia = round2(yms.reduce((s, ym) => s + (m.spentSrc(ym) !== 'log' ? Math.max(0, m.spentOf(ym) - m.loggedRest(ym)) : 0), 0));
+  const dia = round2(yms.reduce((s, ym) => s + (m.spentSrc(ym) !== 'log' ? Math.max(0, m.spentOf(ym) - m.loggedRest(ym, m.openAfter(ym))) : 0), 0));
   if (dia > 0.5) by[DIA] = dia;
   const tot = Object.values(by).reduce((s, v) => s + v, 0), n = Math.max(1, yms.length);
   const rows = Object.entries(by).sort((a, b) => b[1] - a[1]);
@@ -945,8 +945,8 @@ function analisis(m) {
   const nowLine = (html) => (m.pre || m.over ? '' : `<p class="nowline num"><span class="muted">${cap(monthName(m.curYM))}:</span> ${html}</p>`);
   const lastI = left.map((c) => c.value != null).lastIndexOf(true);
   const outOfM = (ym) => (ym === m.curYM ? m.spentAll(ym, toISO(new Date())) : m.spentAll(ym));
-  const io = sm.map(({ ym, has }) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), a: m.incomeOf(ym), b: has ? outOfM(ym) : null, now: ym === m.curYM,
-    tip: `${cap(ymLabel(ym))}: ${t('ingresado')} ${fmt(m.incomeOf(ym))}${has ? ` · ${t('gastado')} ${fmt(outOfM(ym))}` : ` (${t('planificado')})`}` }));
+  const io = sm.map(({ ym, has }) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), a: m.incomeTo(ym), b: has ? outOfM(ym) : null, now: ym === m.curYM,
+    tip: `${cap(ymLabel(ym))}: ${t('ingresado')} ${fmt(m.incomeTo(ym))}${has ? ` · ${t('gastado')} ${fmt(outOfM(ym))}` : ` (${t('planificado')})`}` }));
 
   return `
   ${planCard(m)}
@@ -980,8 +980,8 @@ function analisis(m) {
   <section class="card" aria-label="${t('Ingresado y gastado')}">
     <div class="row between"><h2>${t('Ingresado y gastado')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span></span></div>
     ${pairs({ cols: io, aria: t('Ingresos y gastos de cada mes') })}
-    ${nowLine(`${t('ingresado')} <b>${fmt(m.incomeOf(m.curYM))}</b> · ${t('gastado')} <b>${fmt(outOfM(m.curYM))}</b>`)}
-    ${table([t('Mes'), t('Ingresado'), t('Gastado')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeOf(ym)), has ? fmt(outOfM(ym)) : '—']))}
+    ${nowLine(`${t('ingresado')} <b>${fmt(m.incomeTo(m.curYM, m.todayISO))}</b> · ${t('gastado')} <b>${fmt(outOfM(m.curYM))}</b>`)}
+    ${table([t('Mes'), t('Ingresado'), t('Gastado')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—']))}
   </section>`;
 }
 const compactMoney = (v) => (v < 10000 ? fmt(v) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
@@ -996,15 +996,32 @@ function plan(m) {
   const budY = m.budY;
   const outM = outs.filter((i) => !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
   const maxGoal = Math.max(0, Math.floor(m.possible / 100) * 100), share = m.incomeY ? Math.round(m.goal / m.incomeY * 100) : 0;
-  // one-off items whose day has passed are done: they leave the list and wait, folded, under "Cumplidos"
-  const todayISO = toISO(new Date());
-  const isDone = (it) => { const d = it.freq === 'once' && !it.budget && it.year ? m.onceDate(it) : null; return d != null && d <= todayISO; };
-  const group = (title, sub, all, preset, addLabel, total) => { const list = all.filter((it) => !isDone(it)), done = all.filter(isDone);
+  // "Cumplidos", newest first, only what belongs to each section: the incomes you confirmed, the expenses you confirmed
+  // (recurring or one-off), and, under the limits, the spends you logged in those categories. A confirmed one-off
+  // no longer sits in the list above.
+  const confirmedIds = new Set(Object.values(store.data.months).flatMap((mo) => Object.keys(mo.real || {})));
+  const isDone = (it) => it.freq === 'once' && !it.budget && confirmedIds.has(it.id);
+  const doneList = (kind) => {
+    const rows = [];
+    for (const [ym, mo] of Object.entries(store.data.months)) for (const [id, amount] of Object.entries(mo.real || {})) {
+      const it = m.items.find((i) => i.id === id);
+      if (!it || it.kind !== kind || it.budget) continue;
+      const date = m.dateOf(it, ym);
+      rows.push({ date, html: flowRow(ym, m.openAfter(ym))({ it, date, day: +date.slice(8), amount, state: 'real' }) });
+    }
+    // under the limits: the spends you logged in the categories that have a limit
+    if (kind === 'bud') for (const e of m.allSpends) if (m.budByCat.has(e.cat)) rows.push({ date: e.date, html: spendRow(e) });
+    return rows.sort((a, b) => b.date.localeCompare(a.date));
+  };
+  const DONE_MAX = 40;
+  const group = (title, sub, all, preset, addLabel, total, kind) => { const list = all.filter((it) => !isDone(it)), done = doneList(kind), more = done.length > DONE_MAX && !UI.doneAll;
     return `<section class="card">
     <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div>${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}</div>
     <div class="plist">${list.map((it) => planRow(it, m, list.length > 1)).join('') || '<p class="fine">' + t('Nada todavía.') + '</p>'}</div>
     <button data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>+ ${addLabel}</button>
-    ${done.length ? `<details class="tview donelist"><summary>${t('Cumplidos')} (${done.length})</summary><div class="plist">${done.map((it) => planRow(it, m, false)).join('')}</div></details>` : ''}</section>`; };
+    ${done.length ? `<details class="tview donelist" ${UI.doneOpen?.[kind] ? 'open' : ''} data-done="${kind}"><summary>${t('Cumplidos')} (${done.length})</summary>
+      <div class="flows">${(more ? done.slice(0, DONE_MAX) : done).map((r) => r.html).join('')}</div>
+      ${more ? `<button type="button" class="ghost small center-self" data-act="doneall">${t('Ver los {n}', { n: done.length })}</button>` : ''}</details>` : ''}</section>`; };
   return `<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
     <div class="row between"><h2>${t('Ahorro e inversión planificados')} ${info('plan')}</h2></div>
     <button type="button" class="goalbtn" data-act="goaledit" aria-label="Cambiar el ahorro planificado: ${esc(fmt(s.goal))} al año">
@@ -1031,9 +1048,9 @@ function plan(m) {
       <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +m.start.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +m.start.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${m.cycleDay}" style="max-width: 80px"></label>
   </section>
-  ${group(t('Ingresos planificados'), '', m.ins, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'))}
-  ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null)}
-  ${group(t('Límites de gasto'), '', m.budgets, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), m.budgets.length ? fmt(budY / 12) + t('/mes') : null)}`;
+  ${group(t('Ingresos planificados'), '', m.ins, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
+  ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null, 'out')}
+  ${group(t('Límites de gasto'), '', m.budgets, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), m.budgets.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}`;
 }
 const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 0h3v3H6zM0 6h3v3H0zM6 6h3v3H6zM0 12h3v3H0zM6 12h3v3H6z"/></svg>';
 function planRow(it, m, movable) {
@@ -1589,6 +1606,7 @@ document.addEventListener('click', (e) => {
     case 'calmove': UI.mesYM = ymAdd(UI.mesYM, +b.dataset.k); render(true); break;
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
+    case 'doneall': UI.doneAll = true; render(true); break;
     case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
     case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
     case 'qokall': {
@@ -1671,6 +1689,7 @@ document.addEventListener('keydown', (e) => {
   scope.querySelector(`[data-act="${act}"]`)?.click();
 });
 // the close and the look at the balance work out the month as you type
+document.addEventListener('toggle', (e) => { const d = e.target; if (d?.dataset?.done) { UI.doneOpen = { ...(UI.doneOpen || {}), [d.dataset.done]: d.open }; } }, true);
 document.addEventListener('input', (e) => {
   const id = e.target.id;
   if (id === 'cl-bal' || id === 'cl-open') closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
