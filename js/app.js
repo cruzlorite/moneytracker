@@ -922,10 +922,15 @@ function plan(m) {
   const budY = m.budY;
   const outM = outs.filter((i) => !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
   const maxGoal = Math.max(0, Math.floor(m.possible / 100) * 100), share = m.incomeY ? Math.round(m.goal / m.incomeY * 100) : 0;
-  const group = (title, sub, list, preset, addLabel, total) => `<section class="card">
+  // one-off items whose day has passed are done: they leave the list and wait, folded, under "Cumplidos"
+  const todayISO = toISO(new Date());
+  const isDone = (it) => it.freq === 'once' && !it.budget && it.year && m.dateOf(it, `${it.year}-${String(it.month || 1).padStart(2, '0')}`) <= todayISO;
+  const group = (title, sub, all, preset, addLabel, total) => { const list = all.filter((it) => !isDone(it)), done = all.filter(isDone);
+    return `<section class="card">
     <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div>${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}</div>
     <div class="plist">${list.map((it) => planRow(it, m, list.length > 1)).join('') || '<p class="fine">' + t('Nada todavía.') + '</p>'}</div>
-    <button data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>+ ${addLabel}</button></section>`;
+    <button data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>+ ${addLabel}</button>
+    ${done.length ? `<details class="tview donelist"><summary>${t('Cumplidos')} (${done.length})</summary><div class="plist">${done.map((it) => planRow(it, m, false)).join('')}</div></details>` : ''}</section>`; };
   return `<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
     <div class="row between"><h2>${t('Ahorro e inversión planificados')} ${info('plan')}</h2></div>
     <button type="button" class="goalbtn" data-act="goaledit" aria-label="Cambiar el ahorro planificado: ${esc(fmt(s.goal))} al año">

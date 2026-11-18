@@ -924,3 +924,4 @@ input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1p
 .steps li.done .st-t b { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .steps .st-t { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .steps button { flex: none; }
+.donelist .plist { margin-top: 8px; opacity: .8; }
