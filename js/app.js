@@ -128,7 +128,15 @@ checkUpdate();
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 
 // ---------- theme ----------
-function applyTheme(t) { if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  // the system bar takes the app's colour: the one you chose, or the device's (each meta has its own scheme)
+  const bg = { light: '#f4f5f7', dark: '#0b0d12' };
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    const scheme = /dark/.test(m.getAttribute('media') || '') ? 'dark' : 'light';
+    m.setAttribute('content', bg[t === 'light' || t === 'dark' ? t : scheme]);
+  });
+}
 applyTheme(lsGet('hucha:theme'));
 
 // ---------- frame ----------
