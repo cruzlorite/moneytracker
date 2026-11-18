@@ -1060,3 +1060,15 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .notify-tog { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-align: left; }
 .notify-tog .chev { margin-left: 6px; color: var(--muted, inherit); }
 .ncount { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 8px; border-radius: 10px; background: var(--line, #ddd); color: inherit; font-size: 12px; font-weight: 700; box-sizing: border-box; }
+
+/* pending items: one soft tile each (type, name, amount) with its own confirm pill */
+.notify .trow { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-top: 8px; min-height: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.notify .trow + .trow { border-top: 1px solid var(--line); }
+.notify .trow .tbody { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0; background: transparent; border: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.notify .trow .tico { flex: none; display: grid; place-items: center; }
+.notify .trow .tbody .grow { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.notify .trow .tbody .num { flex: none; font-weight: 700; }
+.notify .trow .okbtn { flex: none; width: auto; height: 36px; padding: 0 14px; border-radius: 18px; border: 1.5px solid var(--ok); background: transparent; color: var(--ok); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; }
+.notify .trow .okbtn:active { background: var(--ok); color: var(--panel); }
+.notify .trow .okbtn[data-act="occ"] { border-color: var(--line); color: var(--ink); }
+@media (max-width: 360px) { .notify .trow { flex-wrap: wrap; } .notify .trow .okbtn { margin-left: auto; } }
