@@ -16,6 +16,28 @@ export const lang = detect();
 export const locale = lang === 'en' ? 'en-GB' : 'es-ES';
 if (typeof document !== 'undefined') document.documentElement.lang = lang;
 
+// Currency: its own choice, apart from the language (euros in English, dollars in Spanish...). Per device, like the language.
+export const CURRENCIES = ['EUR', 'USD', 'GBP', 'MXN', 'ARS', 'COP', 'CLP', 'PEN', 'BRL', 'CHF', 'CAD', 'AUD', 'JPY'];
+const NO_DECIMALS = ['JPY', 'CLP'];
+const CKEY = 'hucha:cur';
+function detectCur() {
+  if (typeof window === 'undefined') return 'EUR';
+  try { const s = localStorage.getItem(CKEY); if (CURRENCIES.includes(s)) return s; } catch { /* storage blocked */ }
+  const region = (navigator.language || '').split('-')[1]?.toUpperCase();
+  const byRegion = { US: 'USD', GB: 'GBP', MX: 'MXN', AR: 'ARS', CO: 'COP', CL: 'CLP', PE: 'PEN', BR: 'BRL', CH: 'CHF', CA: 'CAD', AU: 'AUD', JP: 'JPY' };
+  return byRegion[region] || 'EUR';
+}
+export const cur = detectCur();
+export const curDecimals = NO_DECIMALS.includes(cur) ? 0 : 1;
+/** The symbol alone ("€", "$", "£"). */
+export const curSym = new Intl.NumberFormat(locale, { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value || cur;
+export const curName = (c) => { try { return new Intl.DisplayNames([locale], { type: 'currency' }).of(c); } catch { return c; } };
+export function setCurrency(c) {
+  if (!CURRENCIES.includes(c) || c === cur) return;
+  try { localStorage.setItem(CKEY, c); } catch { /* storage blocked */ }
+  location.reload();
+}
+
 export function setLang(l) {
   if (!LANGS[l] || l === lang) return;
   try { localStorage.setItem(KEY, l); } catch { /* storage blocked */ }

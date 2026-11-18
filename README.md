@@ -63,6 +63,7 @@ js/play.js            the month's pace and which month needs closing
 js/fx.js              animations
 js/sort.js            drag to reorder lists
 js/cats.js            spending types: names, groups, icons, guessing a type from a name
+js/icons-extra.js     112 more icons to pick for your own spending types (Pixelarticons, MIT)
 js/charts.js          small SVG charts (columns, pairs, split bar, ranked bars) and their tables
 js/demo.js            made-up demo data
 js/i18n.js            languages: t() and the chosen language
@@ -76,6 +77,8 @@ tests/                node --test
 Spanish and English. The app follows the browser's language and can be changed in Settings.
 
 Every visible text goes through `t()`, with the Spanish text as the key: `t('Este mes')`, or `t('Saldo del {d}', { d })` when it carries a value. A missing translation shows the Spanish text instead of breaking. Dates and numbers follow the language (`1.567 €` / `€1,567`).
+
+Currency is a separate choice (EUR, USD, GBP, MXN, ARS, COP, CLP, PEN, BRL, CHF, CAD, AUD, JPY): any language with any currency, both set in Settings and kept on the device. Amounts are only shown in that currency; there is no conversion.
 
 To add a language: copy `js/i18n/en.js`, translate the values, and list it in `LANGS` and `DICT` in `js/i18n.js`.
 

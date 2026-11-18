@@ -1,7 +1,7 @@
 // Everything that talks to Google: sign-in, Drive and Sheets. There is no server: the browser
 // calls Google's APIs with the user's own token, and the data lives in a sheet in their Drive.
 import { CONFIG } from '../config.js';
-import { t } from './i18n.js';
+import { t, lang } from './i18n.js';
 import { normItem, normMonth, normSettings, normSpend, num, isYM, pad } from './model.js';
 
 const SCOPE_FILE = 'https://www.googleapis.com/auth/drive.file';
@@ -187,7 +187,7 @@ export class SheetStore {
   async create(data) {
     const ss = await api(SHEETS, {
       method: 'POST',
-      body: { properties: { title: 'MoneyTracker', locale: 'es_ES' }, sheets: Object.values(TABS).map((t) => ({ properties: { title: t.title, gridProperties: { frozenRowCount: 1 } } })) },
+      body: { properties: { title: 'MoneyTracker', locale: lang === 'en' ? 'en_GB' : 'es_ES' }, sheets: Object.values(TABS).map((t) => ({ properties: { title: t.title, gridProperties: { frozenRowCount: 1 } } })) },
     });
     const id = ss.spreadsheetId;
     await api(`${DRIVE}/${id}`, { method: 'PATCH', body: { appProperties: { app: CONFIG.APP_TAG, schema: SCHEMA } } });

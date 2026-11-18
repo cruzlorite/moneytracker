@@ -1,6 +1,6 @@
 // Pure calculations: no DOM, no storage. Everything the views show comes from compute().
 import { CAT, guessCat, isCustomCat, SAVE_CAT } from './cats.js';
-import { t, lang, locale } from './i18n.js';
+import { t, lang, locale, cur, curDecimals } from './i18n.js';
 
 // month and day names in the chosen language
 const monthsIn = (month) => Array.from({ length: 12 }, (_, i) => new Date(2024, i, 15).toLocaleDateString(locale, { month }).replace('.', ''));
@@ -22,11 +22,13 @@ export function num(v) {
   return Number.isFinite(n) ? round2(n) : null;
 }
 // Amounts with one decimal when there is one (1.680,6 €; 1.900 €), thousands always grouped so figures line up
-const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: 1, useGrouping: 'always' });
+const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: curDecimals, useGrouping: 'always' });
+const money = new Intl.NumberFormat(locale, { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', minimumFractionDigits: 0, maximumFractionDigits: curDecimals, useGrouping: 'always' });
 /** The number alone (1.680,6 / 1,680.6), for "980 / 1.660 €" where the unit goes once. */
-export const fmtN = (n) => nf.format(Math.round((+n || 0) * 10) / 10);
-/** Money: "1.680,6 €" in Spanish, "€1,680.6" in English. */
-export const fmt = (n) => { const v = Math.round((+n || 0) * 10) / 10; return lang === 'en' ? (v < 0 ? '-' : '') + '€' + nf.format(Math.abs(v)) : nf.format(v) + ' €'; };
+const rnd = (n) => (curDecimals ? Math.round((+n || 0) * 10) / 10 : Math.round(+n || 0));
+export const fmtN = (n) => nf.format(rnd(n));
+/** Money in the chosen currency and the language's way of writing it: "1.680,6 €", "€1,680.6", "$1,680.6". */
+export const fmt = (n) => money.format(rnd(n)).replace(/\u00a0/g, ' ');
 export const fmtSigned = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const uid = (p = 'x') => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

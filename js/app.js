@@ -8,9 +8,9 @@ import {
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
 import { columns, pairs, segbar, ranked, table, line } from './charts.js';
-import { CAT, CATS, GROUPS, STARTERS, BASE, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
+import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
-import { t, tn, lang, locale, LANGS, setLang } from './i18n.js';
+import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app'), dlg = $('#modal'), toastEl = $('#toast');
@@ -321,7 +321,7 @@ function home(m) {
   ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
   ${closeBanner(due)}
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Para empezar')}</h2>
-    <label class="field"><span class="label">${t('¿Cuánto tienes hoy en tu cuenta?')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="€" autocomplete="off"></label>
+    <label class="field"><span class="label">${t('¿Cuánto tienes hoy en tu cuenta?')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="${curSym}" autocomplete="off"></label>
     <button class="btn-dark" data-act="startbal" data-ym="${ym}">Empezar</button></section>` : ''}
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
     <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
@@ -422,7 +422,7 @@ function openQuick(keep = {}) {
   const date = keep.date || UI.quickDate || today;
   dlg.innerHTML = `<div class="sheet quick" id="quick-sheet">
     <div class="row between"><h2>${t('Apuntar un gasto')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
-    <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>€</span></label>
+    <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
     ${catRow(m, true)}
     ${UI.kmore ? catGrid(UI.qcat, 'kpick', true) : ''}
     <div class="fields2">
@@ -493,7 +493,7 @@ function renderNewCat() {
     <div class="row between"><h2>${n.id ? t('Editar tipo') : t('Nuevo tipo')}</h2><button type="button" class="iconbtn" data-act="ncback" aria-label="${t('Volver')}">${ic('x')}</button></div>
     <label class="field"><span class="label">${t('Nombre')}</span><input id="nc-name" value="${esc(n.name)}" maxlength="24" placeholder="${t('La moto, el pádel, caprichos…')}" autocomplete="off"></label>
     <div class="field"><span class="label">${t('Icono')}</span>
-      <div class="icongrid" role="group" aria-label="${t('Icono')}">${BASE.map((c) => `<button type="button" class="iconpick" data-act="ncicon" data-icon="${c.id}" aria-pressed="${n.icon === c.id}" aria-label="${esc(c.name)}" title="${esc(c.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${c.d}"/></svg></button>`).join('')}</div></div>
+      <div class="icongrid" role="group" aria-label="${t('Icono')}">${[...BASE, ...EXTRA_ICONS].map((c) => `<button type="button" class="iconpick" data-act="ncicon" data-icon="${c.id}" aria-pressed="${n.icon === c.id}" aria-label="${esc(c.name)}" title="${esc(c.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${c.d}"/></svg></button>`).join('')}</div></div>
     <div class="formbtns"><button type="button" class="primary" data-act="ncsave">${n.id ? t('Guardar') : t('Crear')}</button>
       ${n.id ? `<button type="button" class="danger" data-act="ncdel">${n.confirm ? t('Confirmar borrado') : t('Borrar')}</button>` : ''}</div>
   </div>`;
@@ -558,7 +558,7 @@ function openBudget(id) {
     <div class="row between"><h2 class="withic">${catEl(b.cat)}${esc(b.name)}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div class="row between bottom"><span class="bud-big num ${over ? 'c-spend' : ''}">${over ? '−' + fmt(-x.left) : fmt(x.left)}</span><span class="muted num">${over ? t('de más') : t('quedan')} · ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></div>
     ${budBar(x, 'budsheet-' + id)}
-    <div class="chips">${[5, 10, 20, 50].map((v) => `<button data-act="bspend" data-id="${esc(id)}" data-cat="${b.cat}" data-v="${v}" data-date="${today}">+${v} €</button>`).join('')}</div>
+    <div class="chips">${[5, 10, 20, 50].map((v) => `<button data-act="bspend" data-id="${esc(id)}" data-cat="${b.cat}" data-v="${v}" data-date="${today}">+${fmt(v)}</button>`).join('')}</div>
     <div class="inline three"><input type="text" inputmode="decimal" id="b-amt" aria-label="${t('Importe')}" placeholder="${t('Importe')}" autocomplete="off">
       <input type="text" id="b-note" aria-label="${t('Nota')}" placeholder="${t('Nota')}" autocomplete="off">
       <button data-act="bspendc" data-id="${esc(id)}" data-cat="${b.cat}" data-date="${today}">Apuntar</button></div>
@@ -889,7 +889,7 @@ function analisis(m) {
     ${table([t('Mes'), t('Ingresado'), t('Gastado')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeOf(ym)), has ? fmt(outOfM(ym)) : '—']))}
   </section>`;
 }
-const compactMoney = (v) => { if (v < 10000) return fmt(v); const k = (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'; return lang === 'en' ? '€' + k : k + ' €'; };
+const compactMoney = (v) => (v < 10000 ? fmt(v) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
 
 // ---------- Plan ----------
 // Plan once: the yearly goal, what comes in, what you know will go out, and budgets for what you want to keep an eye on.
@@ -979,6 +979,9 @@ function settings() {
   <section class="card"><h2>${t('Idioma')}</h2>
     <div class="seg" role="group" aria-label="${t('Idioma')}">${Object.entries(LANGS).map(([k, l]) => `<button data-act="lang" data-v="${k}" aria-pressed="${lang === k}" lang="${k}">${l}</button>`).join('')}</div>
   </section>
+  <section class="card"><h2>${t('Moneda')}</h2>
+    <select id="p-cur" aria-label="${t('Moneda')}">${CURRENCIES.map((c) => `<option value="${c}" ${c === cur ? 'selected' : ''}>${c} · ${new Intl.NumberFormat(locale, { style: 'currency', currency: c, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value} · ${esc(curName(c))}</option>`).join('')}</select>
+  </section>
   <section class="card"><h2>${t('Tema')}</h2>
     <div class="seg" role="group" aria-label="${t('Tema')}">${[['auto', t('Automático')], ['light', t('Claro')], ['dark', t('Oscuro')]].map(([k, l]) => `<button data-act="theme" data-v="${k}" aria-pressed="${theme === k}">${l}</button>`).join('')}</div>
   </section>
@@ -1016,7 +1019,7 @@ function renderForm() {
     ${f._copy ? `<p class="fine">${t('Copia de «{n}». Cambia lo que haga falta y pulsa Añadir.', { n: esc(f._copy) })}</p>` : ''}
     <div class="fields2">
       <label class="field"><span class="label">${t('Nombre')}</span><input id="f-name" value="${esc(f.name)}" placeholder="${sec === 'in' ? t('Nómina') : bud ? t('Viajes') : t('Alquiler')}" autocomplete="off"></label>
-      <label class="field"><span class="label">${t('Importe €')}</span><input type="text" inputmode="decimal" id="f-amount" value="${esc(f.amount)}" placeholder="0" autocomplete="off"></label>
+      <label class="field"><span class="label">${t('Importe')} ${curSym}</span><input type="text" inputmode="decimal" id="f-amount" value="${esc(f.amount)}" placeholder="0" autocomplete="off"></label>
     </div>
     ${bud ? `<div class="seg" role="group" aria-label="${t('Periodo')}">${Object.entries(freqs).map(([k, v]) => `<button type="button" data-act="ffreq" data-v="${k}" aria-pressed="${f.freq === k}">${v}</button>`).join('')}</div>`
       : `<label class="field"><span class="label">${t('Cuándo')}</span><select id="f-freq">${Object.entries(freqs).map(([k, v]) => `<option value="${k}" ${f.freq === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>`}
@@ -1079,7 +1082,7 @@ function openOcc(id, ym) {
   dlg.innerHTML = `<div class="sheet" id="occ-form">
     <div class="row between"><h2>${esc(it.name)}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <p class="fine num">${cap(ymLabel(ym))}${day} · ${t('planificado')} ${fmt(it.amount)}</p>
-    <label class="field"><span class="label">${t('Importe de este mes €')}</span>
+    <label class="field"><span class="label">${t('Importe de este mes')} ${curSym}</span>
       <input type="text" inputmode="decimal" id="o-real" value="${esc(r ?? it.amount)}" autocomplete="off"></label>
     <p class="fine">${it.vary ? t('Este importe varía: hasta que lo confirmes, cuenta el importe planificado.') : t('Si no lo tocas, cuenta el importe planificado.')} ${t('Pon 0 si este mes no ha habido.')}</p>
     <div class="formbtns">
@@ -1119,7 +1122,7 @@ function openClose(ym) {
     <div data-step class="stack-sm">
       ${openField(m, ym, 'cl-open')}
       <label class="field"><span class="label">${t('Saldo de tu cuenta')}</span>
-        <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="€" autocomplete="off">
+        <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="${curSym}" autocomplete="off">
 </label>
     </div>
     <div id="cl-calc" aria-live="polite"></div>
@@ -1161,7 +1164,7 @@ function moneyChart(m, ym, bal) {
   if (!cv) return '';
   const dim = cv.pts.length - 1, name = monthName(ym);
   const evText = (e) => `${e.label} ${fmtSigned(e.amount)}`;
-  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 2).map(evText).join(', ') : ''}` : t('Empieza el mes: 0 €') }));
+  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 2).map(evText).join(', ') : ''}` : `${t('Empieza el mes')}: ${fmt(0)}` }));
   const inDay = cv.pts.reduce((b, p) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: p.day, v } : b; }, { i: -1, v: 0 });
   const marks = [...(inDay.i > 0 ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: dim, text: fmtSigned(cv.pts[dim].y) }];
   const rows = cv.pts.filter((p) => p.events.length || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), fmtSigned(p.y)]);
@@ -1501,6 +1504,7 @@ document.addEventListener('change', (e) => {
     readForm();
     if (FORM.freq !== 'monthly' && !FORM.month) FORM.month = new Date().getMonth() + 1;
     renderForm();
+  } else if (el.id === 'p-cur') { setCurrency(el.value);
   } else if (el.id === 'p-cycle') {
     const v = Math.round(num(el.value) ?? 0);
     if (v < 1 || v > 28) { toast(t('Un día del 1 al 28')); return; }

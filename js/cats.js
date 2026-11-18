@@ -3,6 +3,7 @@
 // HackerNoon Pixel Icon Library (MIT, https://github.com/hackernoon/pixel-icon-library); cutlery and fuel pump drawn for MoneyTracker.
 // All on a 24×24 grid, filled with currentColor.
 import { t } from './i18n.js';
+import { EXTRA_ICONS } from './icons-extra.js';
 
 export const GROUPS = {
   comida: 'Comida',
@@ -69,6 +70,8 @@ for (const c of CATS) { c.name = t(c.name); c.short = t(c.short); }
 export const CAT = Object.fromEntries(CATS.map((c) => [c.id, c]));
 /** The built-in types: their icons are the ones you can give your own types. */
 export const BASE = CATS.slice();
+/** Extra icons, only for your own types (see icons-extra.js). */
+export { EXTRA_ICONS };
 
 /**
  * Your own types, from the settings: [{ id: 'c-…', name, icon (id of the built-in type whose icon it uses) }].
@@ -77,7 +80,7 @@ export const BASE = CATS.slice();
 export function setCustomCats(list = []) {
   for (let i = CATS.length - 1; i >= 0; i--) if (CATS[i].group === 'tuyos') { delete CAT[CATS[i].id]; CATS.splice(i, 1); }
   for (const c of list) {
-    const base = CAT[c.icon] || CAT.otros;
+    const base = CAT[c.icon] || EXTRA_ICONS.find((x) => x.id === c.icon) || CAT.otros;
     const x = { id: c.id, name: c.name, short: c.name, group: 'tuyos', d: base.d, icon: base.id };
     CATS.push(x); CAT[c.id] = x;
   }
