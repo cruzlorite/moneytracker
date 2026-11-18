@@ -1302,7 +1302,7 @@ function moneyChart(m, ym, bal) {
   const first = cv.pts[0].day, dim = cv.pts[cv.pts.length - 1].day, name = monthName(ym), last = cv.pts.length - 1;
   const projFrom = live && cv.fromDay <= dim ? cv.fromDay - first : null;
   const evText = (e) => `${e.label} ${fmtSigned(e.amount)}`;
-  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${live && p.day >= cv.fromDay ? '≈ ' : ''}${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 2).map(evText).join(', ') : ''}` : `${t('Empieza el mes')}: ${fmt(0)}` }));
+  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${live && p.day >= cv.fromDay ? '≈ ' : ''}${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 1).map((e) => `${e.label.length > 16 ? e.label.slice(0, 15) + '…' : e.label} ${fmtSigned(e.amount)}`).join('') : ''}` : `${t('Empieza el mes')}: ${fmt(0)}` }));
   const inDay = cv.pts.reduce((b, p, ix) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: ix, v } : b; }, { i: -1, v: 0 });
   const marks = [...(inDay.i > 0 && inDay.i !== last ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: last, text: (projFrom != null ? '≈ ' : '') + fmtSigned(cv.pts[last].y) }];
   const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmtSigned(p.y)]);

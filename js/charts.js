@@ -134,8 +134,10 @@ export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFro
   const ticks = [hi, 0, ...(lo < 0 ? [lo] : [])].filter((t, i, a) => a.indexOf(t) === i);
   const grid = ticks.map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
-  const band = (W - padL - padR) / n;
-  const hits = pts.map((p, i) => `<rect class="ch-hit ch-band" x="${(X(i) - band / 2).toFixed(1)}" y="0" width="${band.toFixed(1)}" height="${h}" tabindex="-1" data-tip="${esc(p.tip || '')}"/>`).join('');
+  // touching or dragging over it shows a guide, a dot and the figure inside the chart (see bindBalance)
+  const geo = { w: W, x: px.map((v) => +v.toFixed(1)), y: py.map((v) => +v.toFixed(1)), l: pts.map((p) => p.tip || ''), top: padT, bottom: h - padB };
+  const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
+    <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${h - padB}"/><circle class="bl-dot" r="5"/><g class="bl-label"><rect rx="6"/><text/></g></g>`;
   const placed = [];
   const lab = marks.map(({ i, text }) => {
     const x = clamp(X(i), padL + 24, W - padR - 24), y = Y(pts[i].y);
@@ -149,7 +151,7 @@ export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFro
   const k = projFrom != null && projFrom > 0 && projFrom <= n ? projFrom : null;
   const dSolid = k == null ? d : curve(px, py, tg, 0, k - 1);
   const dProj = k == null ? '' : curve(px, py, tg, k - 1, n);
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${dSolid}"/>${dProj ? `<path class="ch-line ch-proj" d="${dProj}"/>` : ''}${lab}${xs}${hits}</svg>`;
+  return `<svg class="chart bal-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${dSolid}"/>${dProj ? `<path class="ch-line ch-proj" d="${dProj}"/>` : ''}${lab}${xs}${hits}</svg>`;
 }
 
 /**
