@@ -126,17 +126,16 @@ function ensureFrame() {
   if ($('#view')) return;
   const tab = (t, l, i) => `<button data-act="tab" data-tab="${t}">${ic(i)}<span>${l}</span></button>`;
   app.innerHTML = `
-    <header class="top"><div class="in">
+    <header class="top" id="top" hidden><div class="in">
       <button class="backbtn" id="backbtn" data-act="back" hidden>${ic('left')}<span>${t('Atrás')}</span></button>
-      <span class="grow"></span>
-      <button class="sync" id="sync" data-act="sync"></button>
-      <button class="iconbtn" id="gear" data-act="tab" data-tab="settings" aria-label="${t('Ajustes')}">${ic('gear')}</button>
     </div></header>
+    <div class="syncbar" id="syncbar" role="status" hidden></div>
     <main id="view" class="wrap"></main>
     <nav class="tabs" aria-label="${t('Secciones')}"><div class="in">
       ${tab('home', t('Hoy'), 'home')}${tab('metas', t('Año'), 'year')}
       <div class="navplus"><button class="plusbtn" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}">${ic('plus')}</button></div>
       ${tab('ana', t('Análisis'), 'chart')}${tab('plan', t('Plan'), 'plan')}
+      <button data-act="tab" data-tab="settings" id="navset">${ic('gear')}<i class="navdot" id="navdot" hidden></i><span>${t('Ajustes')}</span></button>
     </div></nav>`;
 }
 
@@ -190,8 +189,8 @@ function render(force) {
   }
   const navTab = UI.tab === 'mes' ? 'metas' : UI.tab;
   document.querySelectorAll('nav.tabs button[data-tab]').forEach((b) => b.setAttribute('aria-current', b.dataset.tab === navTab ? 'page' : 'false'));
-  const sub = UI.tab === 'settings' || UI.tab === 'mes';
-  $('#backbtn').hidden = !sub; $('#gear').hidden = UI.tab === 'settings';
+  const sub = UI.tab === 'mes'; // only a month opens on top of a tab; the top bar exists just for its back button
+  $('#backbtn').hidden = !sub; $('#top').hidden = !sub; view.classList.toggle('nohead', !sub);
   $('#fab').disabled = !m.items.length;
   hideTip();
   animateNumbers(view); animateBars(view);
@@ -210,14 +209,30 @@ function afterRender(m) {
   }
 }
 
+const SAVE_TXT = { idle: 'Guardado', saved: 'Guardado', pending: 'Sin guardar', saving: 'Guardando…', offline: 'Sin conexión', auth: 'Conectar', error: 'Error al guardar' };
+let lastStatus = '';
+/** The save state, with no room of its own: a dot on the Ajustes tab (nothing when all is well) and a line in Ajustes. */
 function renderStatus() {
-  const el = $('#sync'); if (!el) return;
-  const s = store.mode === 'demo' ? ['demo', 'Demo'] : store.mode === 'local' ? ['local', t('En este dispositivo')] : ({
-    idle: ['ok', t('Guardado')], saved: ['ok', t('Guardado')], pending: ['busy', t('Sin guardar')], saving: ['busy', 'Guardando…'],
-    offline: ['warn', t('Sin conexión')], auth: ['warn', t('Conectar')], error: ['bad', t('Error al guardar')],
-  })[store.status] || ['ok', ''];
-  el.className = 'sync ' + s[0]; el.textContent = s[1];
-  el.title = store.status === 'error' ? store.error : store.status === 'offline' ? t('Se guardará en tu hoja al volver la conexión') : '';
+  const dot = $('#navdot'); if (!dot) return;
+  const g = store.mode === 'google', st = store.status;
+  const tone = !g ? (store.mode === 'demo' ? 'demo' : '') : st === 'error' ? 'bad' : st === 'offline' || st === 'auth' ? 'warn' : st === 'pending' || st === 'saving' ? 'busy' : '';
+  dot.hidden = !tone; dot.className = 'navdot ' + tone;
+  const txt = store.mode === 'demo' ? t('Demo') : store.mode === 'local' ? t('En este dispositivo') : t(SAVE_TXT[st] || 'Guardado');
+  $('#navset')?.setAttribute('aria-label', `${t('Ajustes')} · ${txt}`);
+  const line = $('#savestate'); if (line) { line.textContent = txt; line.className = 'savestate ' + (tone || 'ok'); }
+  // when saving isn't working, a slim bar offers the way out (and takes no room otherwise)
+  const bar = $('#syncbar');
+  if (bar) {
+    const need = g && (st === 'auth' || st === 'error' || st === 'offline');
+    bar.hidden = !need;
+    if (need) bar.innerHTML = st === 'auth' ? `<span>${t('Tus cambios no se están guardando en Google.')}</span><button type="button" data-act="reauth">${t('Volver a conectar')}</button>`
+      : st === 'error' ? `<span>${t('Error al guardar')}</span><button type="button" data-act="retrysave">${t('Reintentar')}</button>`
+      : `<span>${t('Sin conexión: se guardará al volver')}</span>`;
+    bar.className = 'syncbar ' + (st === 'error' ? 'bad' : 'warn');
+  }
+  // a problem is said once, with words, when it starts
+  if (g && st !== lastStatus && st === 'error') toast(`${t('Error al guardar')}: ${store.error}`, 4500);
+  lastStatus = st;
 }
 
 // ---------- welcome ----------
@@ -1232,6 +1247,7 @@ function settings() {
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${cd}" style="max-width: 80px"></label>
   </section>`;
   return `${startCard}${calendar}<section class="card"><h2>${t('Dónde se guarda')}</h2>
+    <p class="savestate ok" id="savestate" aria-live="polite"></p>
     ${mode === 'google' ? `<p>${t('En la hoja')} <b>${t('MoneyTracker')}</b> ${t('de tu Google Drive')}${savedHint() ? ` (${esc(savedHint())})` : ''}. ${t('Este dispositivo guarda una copia para abrir rápido y funcionar sin conexión.')}</p>
       <div class="row wrap-row"><a class="btn" href="${sheetUrl(store.sheetId)}" target="_blank" rel="noopener">${t('Abrir la hoja')}</a>
       ${tokenValid() ? '<button data-act="refresh">' + t('Recargar desde la hoja') + '</button>' : '<button class="primary" data-act="reauth">' + t('Volver a conectar') + '</button>'}
@@ -1634,6 +1650,7 @@ document.addEventListener('click', (e) => {
     case 'tab': go(b.dataset.tab); break;
     case 'back': goBack(); break;
     case 'connect': connect(); break;
+    case 'retrysave': store.sync(); break;
     case 'reauth': case 'sync':
       if (act === 'sync' && store.status === 'error') { toast(store.error, 4000); store.sync(); break; }
       if (act === 'sync' && store.status !== 'auth') break;
@@ -1958,7 +1975,7 @@ function go(tab) {
   if (!ROUTES[tab]) return;
   if (tab === UI.tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const depth = history.state?.depth || 0;
-  const subTab = (t) => t === 'settings' || t === 'mes'; // pages opened on top of a tab: back returns to it
+  const subTab = (t) => t === 'mes'; // a page opened on top of a tab: back returns to it
   if (subTab(UI.tab) && !subTab(tab) && depth > 0) { NAV.then = tab; history.back(); return; } // leave it first, then go
   if (tab === 'home' && depth > 0) { history.go(-depth); return; } // Hoy is the root
   if (subTab(tab) || UI.tab === 'home') history.pushState({ tab, depth: depth + 1 }, '', '#' + ROUTES[tab]);

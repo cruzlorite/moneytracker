@@ -535,7 +535,7 @@ details.adjust[open] > summary { margin-bottom: 8px; }
 .goalmini .gm-v { font-size: 26px; font-weight: 700; color: var(--save); }
 
 /* Análisis */
-.period { position: sticky; top: calc(var(--safe-t) + 52px); z-index: 10; background: var(--panel); }
+.period { position: sticky; top: calc(var(--safe-t) + 8px); z-index: 10; background: var(--panel); }
 .ranked { display: grid; gap: 8px; }
 .rk { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; border-radius: 8px; outline-offset: 2px; }
 .rk-main { display: grid; gap: 4px; min-width: 0; }
@@ -1196,3 +1196,21 @@ details.tview td:first-child { white-space: normal; }
 .tiles.t2 .tile { padding: 12px 16px; }
 .section-h { padding-left: 2px; }
 #ana-per > .section-h { padding-left: 2px; }
+
+/* Ajustes lives in the bottom bar: six slots, a dot on it says how saving is going; no top bar except for a month's back button */
+nav.tabs .in, nav.tabs .in { grid-template-columns: repeat(6, 1fr); }
+#navset { position: relative; }
+.navdot { position: absolute; top: 2px; left: calc(50% + 6px); width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--panel); box-sizing: content-box; }
+.navdot.busy { background: var(--muted); animation: navpulse 1s ease-in-out infinite; }
+.navdot.warn { background: var(--warn); } .navdot.bad { background: var(--spend); } .navdot.demo { background: var(--accent); }
+@keyframes navpulse { 50% { opacity: .35; } }
+.savestate { font-size: 13px; font-weight: 700; margin: 0; } .savestate.ok { color: var(--ok); } .savestate.busy { color: var(--muted); } .savestate.warn { color: var(--warn); } .savestate.bad { color: var(--spend); } .savestate.demo { color: var(--muted); }
+#view.nohead { padding-top: calc(var(--safe-t) + 14px); }
+.top[hidden] { display: none; }
+nav.tabs button span { white-space: nowrap; }
+
+.syncbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: calc(var(--safe-t) + 8px) 14px 8px; font-size: 13px; font-weight: 600; }
+.syncbar[hidden] { display: none; }
+.syncbar.warn { background: var(--warn-bg); color: var(--ink); } .syncbar.bad { background: var(--spend-bg); color: var(--ink); }
+.syncbar button { flex: none; border: 0; border-radius: 999px; padding: 6px 14px; background: var(--ink); color: var(--bg); font: inherit; font-weight: 700; cursor: pointer; }
+.syncbar:not([hidden]) ~ #view.nohead { padding-top: 14px; }
