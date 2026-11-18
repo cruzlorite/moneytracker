@@ -320,7 +320,7 @@ function home(m) {
   const ym = m.curYM, cm = m.mon(ym), pc = pace(m, ym), iso = m.todayISO;
   const tgt = m.targetOf(ym), ps = projSaved(m, pc, ym), vd = ps == null ? null : verdict(ps, tgt, m.target);
   // everything the plan expected that has already come due and isn't confirmed: one tap to confirm it as planned
-  const openAt = m.mon(ym).openDate || '';
+  const openAt = m.openAfter(ym);
   const due = closeDue(m), pending = m.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && !(openAt && p.date <= openAt));
   const planned = m.plannedIn(ym), toCome = planned.filter((p) => p.it.kind === 'in' && p.state === 'future');
   const came = planned.filter((p) => p.it.kind === 'in' && p.state !== 'future').sort((a, b) => b.amount - a.amount)[0];
@@ -353,7 +353,7 @@ function home(m) {
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
     <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
     <label class="field"><span class="label">${t('Saldo')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="${curSym}" autocomplete="off"></label>
-    <label class="field"><span class="label">${t('El día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label>
+    <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label>
     <button class="btn-dark" data-act="startbal" data-ym="${ym}">${t('Guardar')}</button></section>` : ''}
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
     <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
@@ -725,7 +725,7 @@ const ofPlan = (v, plan, cap, { approx = false, signed = false, cls = '', tone =
  */
 function projSpent(m, ym) {
   if (ym !== m.curYM) return null;
-  const pc = pace(m, ym), after = m.mon(ym).openDate || '';
+  const pc = pace(m, ym), after = m.openAfter(ym);
   // a first month counts from the day you started: before it, nothing (it's already in your balance)
   const from = after ? m.dayOf(after, ym) : 0, days = pc.day - from, total = pc.dim - from;
   if (days < 3) return null;
@@ -1188,7 +1188,7 @@ const withMonth = (ym, patch) => compute({ ...store.data, months: { ...store.dat
 // the month's start balance: asked when there is none, and editable while it was typed by hand (the balance just before payday)
 const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<div class="fields2"><label class="field"><span class="label">${t('Saldo de tu cuenta')} · ${t('inicio')}</span>
   <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off"></label>
-  <label class="field"><span class="label">${t('El día')}</span><input type="date" id="${id}-date" value="${esc(m.mon(ym).openDate || m.range(ym).from)}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label></div>`;
+  <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="${id}-date" value="${esc(m.mon(ym).openDate || m.range(ym).from)}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label></div>`;
 /** One line of the money summary: label, signed amount. */
 const sumLine = (l, v, cls = '') => `<span>${l}</span><span class="num ${cls}">${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}</span>`;
 
@@ -1546,7 +1546,7 @@ document.addEventListener('click', (e) => {
     case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
     case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
     case 'qokall': {
-      const mm = compute(store.data), at = mm.mon(ym).openDate || '';
+      const mm = compute(store.data), at = mm.openAfter(ym);
       const list = mm.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && !p.it.vary && !(at && p.date <= at));
       store.update('months', (d) => { const mo = d.months[ym] = { ...(d.months[ym] || {}) }; const o = { ...(mo.real || {}) }; list.forEach((p) => { o[p.it.id] = p.amount; }); mo.real = o; });
       toast(t('{n} confirmados', { n: list.length })); break;

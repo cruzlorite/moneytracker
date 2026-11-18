@@ -347,7 +347,7 @@ export default {
   'Olvidar el del {d}': 'Forget the one from the {d}',
   'Olvidado': 'Forgotten',
   'Saldo al empezar el mes': 'Balance at the start of the month',
-  'El día': 'On day',
+  'Al empezar el día': 'At the start of day',
   'inicio': 'start',
   'Una fecha de este mes, hasta hoy': 'A date in this month, up to today',
   'Saldo guardado': 'Balance saved',

@@ -261,6 +261,8 @@ export function compute(data, today = new Date()) {
 
   // ---------- the account: balances and what left it ----------
   const endISO = (ym) => range(ym).to;
+  /** The start balance is the one at the start of `openDate`: the day before it is the last that is already in it. */
+  const openAfter = (ym) => (mon(ym).openDate ? isoAdd(mon(ym).openDate, -1) : '');
   /** Balance when the month began: entered by hand, or the previous month's closing balance. */
   const balStart = (ym) => {
     const m = mon(ym);
@@ -272,7 +274,7 @@ export function compute(data, today = new Date()) {
    *  (paid from the month or from a fund), and what you logged against budgets. */
   const flowTo = (ym, upto) => {
     let inc = 0, out = 0, bud = 0, save = 0;
-    const after = mon(ym).openDate || ''; // you started on that day: what came before is already in your balance
+    const after = openAfter(ym); // the balance is the one at the start of its day: what came before is already in it
     for (const it of items) {
       if (it.budget) continue;
       const r = realOf(it, ym);
@@ -345,7 +347,7 @@ export function compute(data, today = new Date()) {
   const curveNow = (ym) => {
     const s = balStart(ym);
     if (s == null) return null;
-    const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), after = m.openDate || '';
+    const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), after = openAfter(ym);
     const d0 = after ? clamp(at(after), 0, dim) : 0, ev = Array.from({ length: dim + 1 }, () => []);
     for (const it of items) {
       if (it.budget) continue;
@@ -400,7 +402,7 @@ export function compute(data, today = new Date()) {
     const m = mon(ym), src = spentSrc(ym);
     if (src === 'bal') return fromBalance(ym, +m.bal).rest;
     if (src === 'check') return round2(fromBalance(ym, +m.check.bal, m.check.date).rest + loggedRest(ym, m.check.date));
-    return loggedRest(ym, m.openDate || '');
+    return loggedRest(ym, openAfter(ym));
   };
   /** Everything spent in a month up to a date (default: all of it): expected expenses already due, what you logged
    *  against budgets, and the rest (from the balance, or what you logged). What you put aside isn't spending. */
@@ -444,7 +446,7 @@ export function compute(data, today = new Date()) {
     incomeY, outY, possible, payday, idx, pre, over, curIdx, cur, curYM, mon, status, spentOf, saved, streak, cleared,
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
     cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: (iso, ym) => dayOfCycle(iso, ym, D),
-    balStart, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
+    balStart, openAfter, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
     budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, byCat,
   };
 }

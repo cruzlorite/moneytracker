@@ -312,7 +312,7 @@ test('the current month before closing: a line from the start balance, estimated
   const m = compute(d, new Date(2027, 0, 20));
   const cv = m.curveNow('2027-01');
   assert.ok(cv, 'there is a curve with a start balance');
-  assert.equal(cv.pts[0].day, 10, 'it starts the day the balance refers to, not on day 1');
+  assert.equal(cv.pts[0].day, 9, 'it starts at the beginning of the day the balance refers to (the end of the day before), not on day 1');
   assert.equal(cv.pts[0].y, 0);
   assert.equal(cv.pts.find((p) => p.day === 15).y, -200, 'on the day of the look it matches the balance you gave');
   assert.equal(cv.fromDay, 21, 'what comes after today is an estimate');
@@ -320,4 +320,12 @@ test('the current month before closing: a line from the start balance, estimated
   assert.ok(trail.length > 5 && trail.some((p) => p.proj) && trail.some((p) => !p.proj));
   assert.equal(trail.find((p) => p.date === '2027-01-15').bal, 700);
   assert.equal(compute(plan([salary]), new Date(2027, 0, 20)).curveNow('2027-01'), null, 'no start balance, no curve');
+});
+
+test('a start balance counts as the balance at the start of its day: that day\'s pay is added on top', () => {
+  const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 26 };
+  const mk = (openDate) => plan([salary], { settings: { goal: 0, start: '2027-01', cycleDay: 26 }, months: { '2027-02': { open: 900, openDate } } });
+  // the month called February runs from 26 Jan to 25 Feb
+  assert.equal(compute(mk('2027-01-26'), new Date(2027, 0, 28)).incomeTo('2027-02', '2027-01-28'), 2000, 'the pay on the start day is counted');
+  assert.equal(compute(mk('2027-01-27'), new Date(2027, 0, 28)).incomeTo('2027-02', '2027-01-28'), 0, 'a start the day after has the pay already in it');
 });
