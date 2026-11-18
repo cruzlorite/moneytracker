@@ -483,6 +483,9 @@ function monthTypes(m, ym) {
   const nm = (c) => (c === DIA ? t('Sin detallar') : catName(c));
   const list = [...top.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: nm(c), value: v, tip: `${nm(c)}: ${fmt(v)}` })),
     ...(rest > 0.5 ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), value: rest, tip: `${t('Otros tipos')}: ${fmt(rest)}` }] : [])];
+  // the types with no budget look just like the ones that have one: name and amount, then a bar (against the biggest, since there is no limit)
+  const top1 = Math.max(1, ...list.map((r) => r.value));
+  const plainRows = list.map((r, i) => `<div class="vrow" tabindex="0" data-tip="${esc(r.tip)}"><span class="row between"><span class="vname">${r.icon}${esc(r.label)}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale: top1, tone: 'var(--out)', thin: true, key: `pt-${ym}-${i}`, label: r.tip })}</div>`).join('');
   const budRows = buds.map((b) => {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     const tip = `${b.name}: ${fmt(x.spent)} ${t('de')} ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')} · ${x.left < -0.5 ? t('superado en {x}', { x: fmt(-x.left) }) : t('quedan {x}', { x: fmt(x.left) })}`;
@@ -493,7 +496,7 @@ function monthTypes(m, ym) {
   }).join('');
   return `<section class="card" aria-label="${t('Gasto por tipo')}"><div class="row between"><h2>${t('Gasto por tipo')} ${info('limites')}</h2><span class="fine num">${fmt(tot)}</span></div>
     ${buds.length ? `<span class="label">${t('Presupuestos')}</span><div class="vlist">${budRows}</div>` : ''}
-    ${list.length ? `${buds.length ? `<span class="label">${t('Sin presupuestar')}</span>` : ''}${ranked(list)}` : ''}
+    ${list.length ? `${buds.length ? `<span class="label">${t('Sin presupuestar')}</span>` : ''}<div class="vlist">${plainRows}</div>` : ''}
   </section>`;
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */

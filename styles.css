@@ -1289,3 +1289,8 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 .moves:has(.move:active) .move:not(:active), .flows:has(.flow:active) .flow:not(:active), .spends:has(.spend:active) .spend:not(:active) { opacity: .35; }
 .move:active, .flow:active, .spend.editable:active { background: color-mix(in srgb, var(--ink) 9%, transparent); border-radius: 10px; }
 .move, .flow, .spend { transition: opacity .15s ease, background .15s ease; }
+
+/* selected segment keeps its size: the ring is drawn outside it */
+.g-bars:has(> i.tipon) { overflow: visible; }
+.g-bars > i.tipon { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); position: relative; z-index: 2; }
+.rk.tipon .rk-bar i { transform: none; }
