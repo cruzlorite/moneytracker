@@ -1075,7 +1075,7 @@ function openItem(it, preset = {}) {
 }
 const SEC_FREQ = {
   in: FREQ,
-  out: { monthly: t('Cada mes'), quarterly: t('Cada 3 meses'), yearly: t('Una vez al año') },
+  out: { monthly: t('Cada mes'), quarterly: t('Cada 3 meses'), yearly: t('Una vez al año'), once: t('Una sola vez') },
   bud: { yearly: t('Al año'), monthly: t('Al mes') },
 };
 const secOf = (f) => f._sec || (f.kind === 'in' ? 'in' : f.budget ? 'bud' : 'out');
