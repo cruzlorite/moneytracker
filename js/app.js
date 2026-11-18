@@ -90,7 +90,16 @@ function hideTip() { tipEl.hidden = true; document.querySelectorAll('.tipon').fo
 document.addEventListener('pointerover', (e) => { if (e.pointerType === 'mouse') { const t = e.target.closest?.('[data-tip],[data-info]'); if (t) showTip(t); } });
 document.addEventListener('pointerout', (e) => { if (e.pointerType === 'mouse' && e.target.closest?.('[data-tip],[data-info]') && !e.relatedTarget?.closest?.('[data-tip],[data-info]')) hideTip(); });
 document.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { const t = e.target.closest?.('[data-tip],[data-info]'); t ? showTip(t) : hideTip(); } });
-document.addEventListener('focusin', (e) => { const t = e.target.closest?.('[data-tip],[data-info]'); if (t && t.matches(':focus-visible')) showTip(t); });
+// any field in any sheet: once the keyboard is up, bring it into view (the type search goes to the top of its sheet)
+document.addEventListener('focusin', (e) => {
+  const el = e.target, sh = el?.closest?.('dialog .sheet');
+  if (!sh || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+  const go = () => {
+    if (el.id === 'cat-search') sh.scrollTop = Math.max(0, el.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - 8);
+    else el.scrollIntoView?.({ block: 'center' });
+  };
+  setTimeout(go, 50); setTimeout(go, 350); // again once the keyboard has finished opening
+});
 document.addEventListener('scroll', hideTip, { passive: true, capture: true });
 
 bindBalance();
