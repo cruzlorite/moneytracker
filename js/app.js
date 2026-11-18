@@ -179,11 +179,23 @@ function renderWelcome() {
 const bar = (cls, value, key, extra = '') => `<div class="bar ${cls}" role="progressbar" aria-valuenow="${Math.round(value)}" aria-valuemin="0" aria-valuemax="100"><i data-bar="${value.toFixed(1)}" data-key="${key}"></i>${extra}</div>`;
 const money = (v, key, cls = '') => `<span class="num ${cls}" data-count="${Math.round(v * 10) / 10}" data-key="${key}">${fmt(v)}</span>`;
 
-function emptyPlanCard() {
-  return `<section class="card"><h2>${t('Tu plan está vacío')}</h2>
-    <p class="muted">${t('Añade tu nómina y tus gastos en Plan, o importa un plan que ya tengas.')}</p>
-    <div class="row wrap-row"><button class="primary" data-act="tab" data-tab="plan">${t('Ir a Plan')}</button>
-    <label class="filebtn">${t('Importar plan')}<input type="file" accept="application/json,.json" id="import-file" hidden></label></div></section>`;
+/** First steps, ticked off by themselves: the plan, the saving goal and the account balance. Gone when all three are done. */
+function setupCard(m, ym) {
+  const steps = [
+    { done: m.items.length > 0, n: t('Tus ingresos y gastos fijos'), d: t('Nómina, alquiler, recibos… en Plan'), go: 'plan' },
+    { done: (store.data.settings.goal || 0) > 0, n: t('Tu ahorro planificado'), d: t('Cuánto quieres ahorrar al año, en Plan'), go: 'plan' },
+    { done: m.balStart(ym) != null, n: t('El saldo de tu cuenta'), d: t('Una sola vez, en Hoy. Después, al cerrar cada mes'), go: m.items.length ? 'home' : '' },
+  ];
+  if (steps.every((x) => x.done)) return '';
+  const next = steps.findIndex((x) => !x.done);
+  return `<section class="card setup" aria-label="${t('Primeros pasos')}"><h2>${t('Primeros pasos')}</h2>
+    <ol class="steps">${steps.map((x, i) => `<li class="${x.done ? 'done' : i === next ? 'now' : ''}"><span class="sn" aria-hidden="true">${x.done ? ic('check') : i + 1}</span>
+      <span class="st-t"><b>${x.n}</b><span class="fine">${x.d}</span></span>${!x.done && x.go === 'plan' ? `<button type="button" class="btn-sec sm" data-act="tab" data-tab="plan">${t('Ir a Plan')}</button>` : ''}</li>`).join('')}</ol>
+    <p class="fine">${t('Cada mes lo cierras con el saldo de tu cuenta y la app calcula cuánto gastaste y cuánto ahorraste.')}</p></section>`;
+}
+function emptyPlanCard(m) {
+  return `${setupCard(m || compute(store.data), (m || compute(store.data)).curYM)}<section class="card"><h2>${t('¿Ya tienes un plan?')}</h2>
+    <label class="filebtn">${t('Importar plan')}<input type="file" accept="application/json,.json" id="import-file" hidden></label></section>`;
 }
 
 // ---------- page bits ----------
@@ -292,7 +304,7 @@ const planSpend = (m, ym) => Math.max(0, round2(m.ins.reduce((a, it) => a + (m.o
 
 // ---------- Hoy ----------
 function home(m) {
-  if (!m.items.length) return emptyPlanCard();
+  if (!m.items.length) return emptyPlanCard(m);
   const ym = m.curYM, cm = m.mon(ym), pc = pace(m, ym), iso = m.todayISO;
   const tgt = m.targetOf(ym), ps = projSaved(m, pc, ym), vd = ps == null ? null : verdict(ps, tgt, m.target);
   const due = closeDue(m), pending = m.pendingIn(ym);
@@ -320,9 +332,12 @@ function home(m) {
   return `
   ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
   ${closeBanner(due)}
-  ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Para empezar')}</h2>
-    <label class="field"><span class="label">${t('¿Cuánto tienes hoy en tu cuenta?')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="${curSym}" autocomplete="off"></label>
-    <button class="btn-dark" data-act="startbal" data-ym="${ym}">Empezar</button></section>` : ''}
+  ${setupCard(m, ym)}
+  ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
+    <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
+    <label class="field"><span class="label">${t('Saldo')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="${curSym}" autocomplete="off"></label>
+    <label class="field"><span class="label">${t('El día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label>
+    <button class="btn-dark" data-act="startbal" data-ym="${ym}">${t('Guardar')}</button></section>` : ''}
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
     <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
@@ -355,7 +370,7 @@ function watchCard(m, ym) {
 
 // ---------- Año ----------
 function metas(m) {
-  if (!m.items.length) return emptyPlanCard();
+  if (!m.items.length) return emptyPlanCard(m);
   const due = closeDue(m), inSeason = m.season.includes(m.curYM), pc = inSeason ? pace(m, m.curYM) : null;
   const ps = pc ? projSaved(m, pc, m.curYM) : null;
   const proj0 = planVsReal(m).sav.proj;
@@ -397,7 +412,7 @@ function metas(m) {
 
 // ---------- one month ----------
 function mes(m) {
-  if (!m.items.length) return emptyPlanCard();
+  if (!m.items.length) return emptyPlanCard(m);
   const ym = UI.mesYM ||= m.curYM, d = m.mon(ym), cur = ym === m.curYM, past = ym < m.curYM;
   const tgt = m.targetOf(ym), pc = cur ? pace(m, ym) : null, ps = pc ? projSaved(m, pc, ym) : null;
   const inc = past ? m.incomeTo(ym) : cur ? m.incomeTo(ym, m.todayISO) : m.incomeOf(ym);
@@ -823,7 +838,7 @@ function planCard(m) {
 }
 const PERIODS = { mes: t('Este mes'), '3m': t('3 meses'), ano: t('Todo el plan') };
 function analisis(m) {
-  if (!m.items.length) return emptyPlanCard();
+  if (!m.items.length) return emptyPlanCard(m);
   const per = PERIODS[UI.anaPer] ? UI.anaPer : 'mes';
   const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM]
     : m.season.filter((ym) => ym <= m.curYM);
@@ -1114,9 +1129,9 @@ function setReal(id, ym, v) {
 /** compute() as if the month had these figures (for previews while you type). */
 const withMonth = (ym, patch) => compute({ ...store.data, months: { ...store.data.months, [ym]: { ...(store.data.months[ym] || {}), ...patch } } });
 // the month's start balance: asked when there is none, and editable while it was typed by hand (the balance just before payday)
-const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<label class="field"><span class="label">${t('Saldo al empezar {m}', { m: monthName(ym) })} · ${t('antes de cobrar')}</span>
-  <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off">
-</label>`;
+const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<div class="fields2"><label class="field"><span class="label">${t('Saldo de tu cuenta')} · ${t('inicio')}</span>
+  <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off"></label>
+  <label class="field"><span class="label">${t('El día')}</span><input type="date" id="${id}-date" value="${esc(m.mon(ym).openDate || m.range(ym).from)}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label></div>`;
 /** One line of the money summary: label, signed amount. */
 const sumLine = (l, v, cls = '') => `<span>${l}</span><span class="num ${cls}">${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}</span>`;
 
@@ -1143,7 +1158,7 @@ function openClose(ym) {
 function closePatch() {
   const bal = num(dlg.querySelector('#cl-bal')?.value), op = dlg.querySelector('#cl-open');
   const patch = { bal: bal ?? undefined };
-  if (op) { patch.open = num(op.value) ?? undefined; if (patch.open != null && patch.open !== store.data.months[dlg.querySelector('#close-sheet')?.dataset.ym]?.open) patch.openDate = ''; }
+  if (op) { patch.open = num(op.value) ?? undefined; const d = dlg.querySelector('#cl-open-date')?.value; if (patch.open != null && d) patch.openDate = d; }
   return { bal, patch };
 }
 function closeCalc() {
@@ -1232,7 +1247,7 @@ function openCheck(ym) {
 function checkPatch() {
   const bal = num(dlg.querySelector('#ck-bal')?.value), op = dlg.querySelector('#ck-open');
   const patch = { check: bal == null ? undefined : { date: toISO(new Date()), bal } };
-  if (op) { patch.open = num(op.value) ?? undefined; if (patch.open != null && patch.open !== store.data.months[dlg.querySelector('#check-sheet')?.dataset.ym]?.open) patch.openDate = ''; }
+  if (op) { patch.open = num(op.value) ?? undefined; const d = dlg.querySelector('#ck-open-date')?.value; if (patch.open != null && d) patch.openDate = d; }
   return { bal, patch };
 }
 function checkCalc() {
@@ -1353,7 +1368,9 @@ document.addEventListener('click', (e) => {
       // the balance on the day you start: this month counts from today, what came before is already in it
       const v = num(val('h-start'));
       if (v == null) { invalid('#h-start', t('Escribe tu saldo')); return; }
-      setMonth(ym, { open: v, openDate: toISO(new Date()) });
+      const d = val('h-start-date') || toISO(new Date()), lo = compute(store.data).range(ym).from, hi = toISO(new Date());
+      if (d < lo || d > hi) { invalid('#h-start-date', t('Una fecha de este mes, hasta hoy')); return; }
+      setMonth(ym, { open: v, openDate: d });
       toast(t('Saldo guardado: el mes cuenta desde hoy'));
       break;
     }
@@ -1367,7 +1384,7 @@ document.addEventListener('click', (e) => {
       const done = celebrate(() => store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), bal, close };
         if (patch.open != null) mo.open = patch.open;
-        if (patch.openDate === '') delete mo.openDate;
+        if (patch.openDate) mo.openDate = patch.openDate;
         // the balance a month closes with is where the next one starts: a start typed by hand before gives way
         const nx = d.months[ymAdd(ym, 1)];
         if (nx && nx.open != null) delete nx.open;
@@ -1398,7 +1415,7 @@ document.addEventListener('click', (e) => {
       store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), check: patch.check };
         if (patch.open != null) mo.open = patch.open;
-        if (patch.openDate === '') delete mo.openDate; // a new start balance is the one before payday: the month counts from its first day
+        if (patch.openDate) mo.openDate = patch.openDate;
       });
       toast(t('Saldo guardado'));
       break;

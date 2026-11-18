@@ -914,3 +914,13 @@ input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1p
 .balv b { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }
 .nowline { margin: 0; font-size: 14px; }
 .nowline b { font-weight: 700; }
+/* First steps */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.steps li { display: flex; align-items: center; gap: 12px; }
+.steps .sn { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; background: var(--panel-2); color: var(--muted); border: 1.5px solid var(--line); }
+.steps .sn svg { width: 16px; height: 16px; }
+.steps li.now .sn { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.steps li.done .sn { background: var(--ok); color: #fff; border-color: var(--ok); }
+.steps li.done .st-t b { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.steps .st-t { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.steps button { flex: none; }
