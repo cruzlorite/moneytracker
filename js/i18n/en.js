@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Dif.': 'Diff.',
+  'Dif. ≈': 'Diff. ≈',
+  'Proy.': 'Proj.',
   'Sin conexión: se guardará al volver': 'Offline: it will be saved when you are back',
   'Reintentar': 'Retry',
   'Tus cambios no se están guardando en Google.': 'Your changes are not being saved to Google.',

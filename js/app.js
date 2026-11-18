@@ -1029,7 +1029,7 @@ function planCard(m) {
     ${m.over ? `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('Actual')}</span><span><i class="lg-mark"></i>${t('planificado')}</span></div>` : `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('hasta hoy')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('proyección')}</span><span class="lg-group">${t('planificado:')}<span><i class="lg-mark"></i>${t('año')}</span><span><i class="lg-today"></i>${t('a hoy')}</span></span></div>`}
     ${[c.ins, c.outs, c.sav].map((x, i) => cmpRow(m, x, 'm' + i)).join('')}
     ${c.buds.length ? `<span class="label">${t('Tus presupuestos')}</span>${c.buds.map((x, i) => cmpRow(m, x, 'b' + i)).join('')}` : ''}
-    ${m.over ? table(['', t('Planificado'), t('Actual'), t('Diferencia')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), diffCell(x.real, x.plan, x.more)])) : table(['', t('Planificado'), t('Hasta hoy'), t('Proyección'), t('Diferencia ≈')], rows.map((x) => [esc(x.label), fmtN(Math.round(x.plan)), fmtN(Math.round(x.real)), fmtN(Math.round(x.proj)), diffCell(x.proj, x.plan, x.more)]))}
+    ${m.over ? table(['', t('Plan'), t('Actual'), t('Dif.')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), diffCell(x.real, x.plan, x.more)])) : table(['', t('Plan'), t('Hoy'), t('Proy.'), t('Dif. ≈')], rows.map((x) => [esc(x.label), fmtN(Math.round(x.plan)), fmtN(Math.round(x.real)), fmtN(Math.round(x.proj)), diffCell(x.proj, x.plan, x.more)]))}
   </section>`;
 }
 const PERIODS = { mes: t('Este mes'), '3m': t('3 meses'), ano: t('Todo el plan') };
