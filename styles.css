@@ -654,7 +654,6 @@ nav.tabs button[aria-current="page"] svg { transform: none; }
 .navplus { display: flex; justify-content: center; }
 .plusbtn { width: 52px; height: 52px; border-radius: 26px; padding: 0; border: none; background: var(--accent); color: var(--accent-ink); box-shadow: 0 4px 14px rgb(17 24 39 / .18); }
 .plusbtn svg { width: 24px; height: 24px; fill: none; stroke-width: 2.2; }
-.fab { display: none !important; }
 
 /* page header: a small line, the title, its dates */
 .phead { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 4px 4px 4px; }
@@ -1214,3 +1213,10 @@ nav.tabs button span { white-space: nowrap; }
 .syncbar.warn { background: var(--warn-bg); color: var(--ink); } .syncbar.bad { background: var(--spend-bg); color: var(--ink); }
 .syncbar button { flex: none; border: 0; border-radius: 999px; padding: 6px 14px; background: var(--ink); color: var(--bg); font: inherit; font-weight: 700; cursor: pointer; }
 .syncbar:not([hidden]) ~ #view.nohead { padding-top: 14px; }
+
+/* the "+" floats above the bar, bottom right; the five tabs share the bar evenly */
+nav.tabs .in { grid-template-columns: repeat(5, 1fr); }
+.plusbtn.fab { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: calc(var(--nav-h) + var(--safe-b) + 22px); z-index: 19; width: 52px; height: 52px; border-radius: 26px; padding: 0; border: none; background: var(--accent); color: var(--accent-ink); box-shadow: 0 6px 16px -4px rgb(0 0 0 / .35); display: grid !important; place-items: center; animation: none; }
+.plusbtn.fab svg { width: 24px; height: 24px; }
+.plusbtn.fab:disabled { opacity: .5; }
+.plusbtn.fab:active { transform: scale(.94); }

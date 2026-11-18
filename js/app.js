@@ -133,10 +133,10 @@ function ensureFrame() {
     <main id="view" class="wrap"></main>
     <nav class="tabs" aria-label="${t('Secciones')}"><div class="in">
       ${tab('home', t('Hoy'), 'home')}${tab('metas', t('Año'), 'year')}
-      <div class="navplus"><button class="plusbtn" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}">${ic('plus')}</button></div>
       ${tab('ana', t('Análisis'), 'chart')}${tab('plan', t('Plan'), 'plan')}
       <button data-act="tab" data-tab="settings" id="navset">${ic('gear')}<i class="navdot" id="navdot" hidden></i><span>${t('Ajustes')}</span></button>
-    </div></nav>`;
+    </div></nav>
+    <button class="plusbtn fab" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}">${ic('plus')}</button>`;
 }
 
 // ---------- years: the plan year you are looking at (0 = the one in progress) ----------
