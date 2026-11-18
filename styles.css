@@ -1226,3 +1226,9 @@ nav.tabs .in { grid-template-columns: repeat(5, 1fr); }
 dialog:has(.sheet.quick:not(.more)) { max-height: none; overflow: visible; }
 .sheet.quick { overscroll-behavior: contain; }
 .plusbtn.fab[hidden] { display: none !important; }
+
+/* Aportar (green) / Retirar (red) when logging savings */
+#k-dir button[data-v="in"] { color: var(--ok); }
+#k-dir button[data-v="out"] { color: var(--spend); }
+#k-dir button[data-v="in"][aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); box-shadow: inset 0 0 0 2px var(--ok); font-weight: 700; }
+#k-dir button[data-v="out"][aria-pressed="true"] { background: var(--spend-bg); color: var(--spend); box-shadow: inset 0 0 0 2px var(--spend); font-weight: 700; }
