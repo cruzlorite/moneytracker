@@ -354,3 +354,26 @@ test('a one-off item is placed in its payday-to-payday month, whatever its calen
   assert.equal(m.onceDate(m.items.find((i) => i.id === 'b')), '2026-11-28', 'the 28th is in the month that starts on the 26th');
   assert.equal(m.onceDate(m.items.find((i) => i.id === 'c')), '2026-11-25', 'no day: the last day of its month');
 });
+
+test('a balance higher than the plan explains is an unlogged income, not money coming in every day', () => {
+  const d = plan([], { settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: -2000, openDate: '2026-12-31', check: { date: '2027-01-15', bal: 500 } } } });
+  const cv = compute(d, new Date(2027, 0, 20)).curveNow('2027-01');
+  assert.equal(cv.extra, 2500, 'the surplus is reported');
+  assert.equal(cv.daily, 0, 'and is not spread as a daily gain');
+  const ys = cv.pts.map((p) => p.y);
+  assert.ok(ys.slice(0, 14).every((y) => y === 0), 'flat until the day it showed up');
+  assert.equal(cv.pts.find((p) => p.day === 15).y, 2500);
+  assert.ok(ys.slice(15).every((y) => y === 2500), 'and flat after it: no invented gains');
+});
+
+test('the month chart counts the pay on the first day when the start balance is from the day before (or that very day)', () => {
+  const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 26 };
+  for (const openDate of ['2026-10-25', '2026-10-26']) {
+    const d = plan([salary], { settings: { goal: 0, start: '2026-07', cycleDay: 26 }, months: { '2026-11': { open: -100, openDate, check: { date: '2026-11-10', bal: 1500 } } } });
+    const m = compute(d, new Date(2026, 10, 12)), cv = m.curveNow('2026-11');
+    assert.equal(cv.extra, 0, `${openDate}: nothing unexplained once the pay is counted`);
+    const y1 = cv.pts.find((p) => p.day === 1).y;
+    assert.ok(y1 > 1900 && y1 <= 2000, `${openDate}: the pay lands on the first day (${y1})`);
+    assert.ok(cv.daily < 0 && cv.daily > -100, `${openDate}: the rest is a small daily spend, never a gain`);
+  }
+});

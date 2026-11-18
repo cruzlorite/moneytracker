@@ -355,7 +355,8 @@ export function compute(data, today = new Date()) {
     const s = balStart(ym);
     if (s == null) return null;
     const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), after = openAfter(ym);
-    const d0 = after ? clamp(at(after), 0, dim) : 0, ev = Array.from({ length: dim + 1 }, () => []);
+    // the last day already inside the start balance, as a day of the month (0 = the balance is from before the month's first day)
+    const d0 = after && after >= range(ym).from ? clamp(at(after), 0, dim) : 0, ev = Array.from({ length: dim + 1 }, () => []);
     for (const it of items) {
       if (it.budget) continue;
       const real = realOf(it, ym);
@@ -371,11 +372,15 @@ export function compute(data, today = new Date()) {
     const E = Array(dim + 1).fill(0);
     for (let d = Math.max(1, d0 + 1); d <= dim; d++) E[d] = E[d - 1] + ev[d].reduce((a, e) => a + e.amount, 0);
     const chk = m.check, a = chk ? clamp(at(chk.date), d0, dim) : d0;
-    const ya = chk ? +chk.bal - s : 0, daily = chk && a > d0 ? (ya - E[a]) / (a - d0) : 0;
-    const y = (d) => (d <= a ? E[d] + daily * (d - d0) : ya + (E[d] - E[a]) + daily * (d - a));
+    // what the balance you gave says beyond the plan and what you logged: a shortfall is spending nobody logged, spread
+    // evenly up to that day and carried on; a surplus is money that came in unexplained (never a daily gain): it lands on that day
+    const ya = chk ? +chk.bal - s : 0, gap = chk && a > d0 ? ya - E[a] : 0;
+    const extra = gap > 0.5 ? round2(gap) : 0, daily = chk && a > d0 && !extra ? gap / (a - d0) : 0;
+    if (extra) ev[a].push({ label: t('Ingreso sin apuntar'), amount: extra, kind: 'in' });
+    const y = (d) => (extra ? (d < a ? E[d] : ya + (E[d] - E[a])) : d <= a ? E[d] + daily * (d - d0) : ya + (E[d] - E[a]) + daily * (d - a));
     const pts = [];
     for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : '', y: round2(d <= d0 ? 0 : y(d)), events: d > d0 ? ev[d] : [] });
-    return { pts, daily: round2(daily), start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0 };
+    return { pts, daily: round2(daily), extra, start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0 };
   };
   /**
    * The balance of the main account over the last `back` days and, for the current month, on to its end: a line of

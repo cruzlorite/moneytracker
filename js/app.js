@@ -406,6 +406,7 @@ function trailCard(m) {
       <div class="seg trail" role="group" aria-label="${t('Periodo')}">${[30, 60, 90].map((d) => `<button data-act="trail" data-v="${d}" aria-pressed="${d === days}">${d} ${t('días')}</button>`).join('')}</div></div>
     ${balanceLine({ pts, aria: t('Saldo de tu cuenta en los últimos {n} días y estimación hasta fin de mes', { n: days }) })}
     <div class="legend"><span><i class="sw" style="background: var(--s1)"></i>${t('saldo')}</span><span><i class="lg-proj" style="--pc: var(--s1)"></i>${t('estimado')}</span></div>
+    ${(() => { const x = m.curveNow(m.curYM)?.extra; return x ? `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.', { x: fmt(x) })}</p>` : ''; })()}
   </section>`;
 }
 /** The budgets, compact: what you've spent of each. Tap one to log against it. */
