@@ -14,7 +14,7 @@ const SCHEMA = '1';
 export const TABS = {
   settings: { title: '_hucha', head: ['key', 'value'] },
   items: { title: 'items', head: ['id', 'kind', 'name', 'amount', 'freq', 'month', 'year', 'day', 'pot', 'vary', 'note', 'real', 'budget', 'cat'] },
-  months: { title: 'meses', head: ['ym', 'saved', 'pots', 'pot_spent', 'real', 'close', 'challenge', 'bal', 'open', 'check', 'open_date'] },
+  months: { title: 'meses', head: ['ym', 'saved', 'pots', 'pot_spent', 'real', 'close', 'challenge', 'bal', 'open', 'check', 'open_date', 'dates'] },
   spends: { title: 'gastos', head: ['id', 'date', 'amount', 'note', 'cat'] },
 };
 
@@ -148,7 +148,7 @@ export function parseSheet(valueRanges) {
     if (!isYM(ym)) continue;
     const json = (v) => { try { return v ? JSON.parse(v) : {}; } catch { return {}; } };
     months[ym] = normMonth({ saved: r.saved === '' ? null : r.saved, pots: r.pots, potSpent: json(r.pot_spent), real: json(r.real), close: json(r.close), challenge: json(r.challenge),
-      bal: r.bal, open: r.open, check: json(r.check), openDate: cellDate(r.open_date) });
+      bal: r.bal, open: r.open, check: json(r.check), openDate: cellDate(r.open_date), dates: json(r.dates) });
   }
   const spends = rowsToObjects(get('spends'), TABS.spends.head)
     .map((r) => normSpend({ ...r, date: cellDate(r.date) })).filter(Boolean);
@@ -168,7 +168,7 @@ export function toRows(data) {
     months: [TABS.months.head, ...Object.keys(data.months).sort().map((ym) => {
       const m = data.months[ym];
       const j = (o) => (o && Object.keys(o).length ? JSON.stringify(o) : '');
-      return [ym, m.saved ?? '', b(m.pots), j(m.potSpent), j(m.real), j(m.close), j(m.challenge), m.bal ?? '', m.open ?? '', j(m.check), m.openDate || ''];
+      return [ym, m.saved ?? '', b(m.pots), j(m.potSpent), j(m.real), j(m.close), j(m.challenge), m.bal ?? '', m.open ?? '', j(m.check), m.openDate || '', j(m.dates)];
     })],
     spends: [TABS.spends.head, ...[...data.spends].sort((a, b2) => a.date.localeCompare(b2.date)).map((e) => [e.id, e.date, e.amount, e.note || '', e.cat || ''])],
   };

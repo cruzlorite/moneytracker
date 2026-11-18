@@ -52,6 +52,8 @@ export default {
   'Cómo se calcula': 'How it is calculated',
   'Ver como tabla': 'View as table',
   'Idioma': 'Language',
+  'Fecha': 'Date',
+  'Una fecha de este mes': 'A date in this month',
   'Ver menos': 'See less',
   'Ver {n} más': 'See {n} more',
   'Por confirmar': 'To confirm',

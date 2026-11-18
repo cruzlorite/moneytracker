@@ -41,10 +41,11 @@ test('month close: what is left over counts as saved, nothing carries over', () 
 });
 
 test('closeDue: last month of the plan, until it is closed', () => {
-  const t = new Date(2027, 2, 2);
-  assert.equal(closeDue(compute(base(), t), t), '2027-02'); // the close is how the month gets its figures
-  assert.equal(closeDue(compute(base(), new Date(2027, 0, 20)), new Date(2027, 0, 20)), null); // December isn't in the plan
-  assert.equal(closeDue(compute(base({ months: { '2027-02': { saved: 100 } } }), t), t), '2027-02');
-  assert.equal(closeDue(compute(base({ months: { '2027-02': { saved: 100, close: { to: 'save', amount: 0 } } } }), t), t), null);
+  const t = new Date(2027, 2, 2), open = { open: 500 };
+  assert.equal(closeDue(compute(base({ months: { '2027-02': open } }), t), t), '2027-02'); // the close is how the month gets its figures
+  assert.equal(closeDue(compute(base(), t), t), null, 'a month with no start balance behind it is not asked to close');
+  assert.equal(closeDue(compute(base({ months: { '2027-02': open } }), new Date(2027, 0, 20)), new Date(2027, 0, 20)), null); // December isn't in the plan
+  assert.equal(closeDue(compute(base({ months: { '2027-02': { ...open, saved: 100 } } }), t), t), '2027-02');
+  assert.equal(closeDue(compute(base({ months: { '2027-02': { ...open, saved: 100, close: { to: 'save', amount: 0 } } } }), t), t), null);
 });
 

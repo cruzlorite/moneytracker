@@ -1,7 +1,7 @@
 // node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compute, normItem, occurs, num, daysTo, monthGrid, parsePlanFile, ymAdd, ymDiff, timesIn, cycleRange, cycleOf, cycleDayOf } from '../js/model.js';
+import { compute, normMonth, normItem, occurs, num, daysTo, monthGrid, parsePlanFile, ymAdd, ymDiff, timesIn, cycleRange, cycleOf, cycleDayOf } from '../js/model.js';
 import { parseSheet, toRows, TABS } from '../js/google.js';
 
 const plan = (items, extra = {}) => ({ settings: { goal: 1200, start: '2027-01', cycleDay: 1 }, items: items.map(normItem), months: {}, spends: [], ...extra });
@@ -328,4 +328,23 @@ test('a start balance counts as the balance at the start of its day: that day\'s
   // the month called February runs from 26 Jan to 25 Feb
   assert.equal(compute(mk('2027-01-26'), new Date(2027, 0, 28)).incomeTo('2027-02', '2027-01-28'), 2000, 'the pay on the start day is counted');
   assert.equal(compute(mk('2027-01-27'), new Date(2027, 0, 28)).incomeTo('2027-02', '2027-01-28'), 0, 'a start the day after has the pay already in it');
+});
+
+test('a planned item can be confirmed on another day: it moves, and survives the sheet', () => {
+  const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 26 };
+  const base = plan([salary], { settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, openDate: '2026-12-31', bal: 100 } } });
+  const m0 = compute(base, new Date(2027, 0, 30));
+  assert.equal(m0.dateOf(m0.items[0], '2027-01'), '2027-01-26');
+  const moved = plan([salary], { settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, openDate: '2026-12-31', real: { s: 2000 }, dates: { s: '2027-01-28' } } } });
+  const m1 = compute(moved, new Date(2027, 0, 30));
+  assert.equal(m1.dateOf(m1.items[0], '2027-01'), '2027-01-28', 'the day it really arrived');
+  assert.equal(m1.incomeTo('2027-01', '2027-01-27'), 0, 'not before that day');
+  assert.equal(m1.incomeTo('2027-01', '2027-01-28'), 2000, 'and from that day on');
+  const rows = toRows({ ...moved, items: m1.items });
+  const back = parseSheet(Object.entries(rows).map(([k, values]) => ({ range: `'${TABS[k].title}'!A1:Z`, values })));
+  assert.deepEqual(back.months['2027-01'].dates, { s: '2027-01-28' });
+});
+
+test('only real dates are kept for a moved item', () => {
+  assert.deepEqual(normMonth({ dates: { a: '2027-01-28', b: 'no-date', c: '' } }).dates, { a: '2027-01-28' });
 });

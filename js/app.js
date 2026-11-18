@@ -353,7 +353,7 @@ function home(m) {
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
     <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
     <label class="field"><span class="label">${t('Saldo')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="${curSym}" autocomplete="off"></label>
-    <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label>
+    <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${dayBefore(m.range(ym).from)}" max="${toISO(new Date())}"></label>
     <button class="btn-dark" data-act="startbal" data-ym="${ym}">${t('Guardar')}</button></section>` : ''}
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
     <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
@@ -1160,8 +1160,9 @@ function openOcc(id, ym) {
   dlg.innerHTML = `<div class="sheet" id="occ-form">
     <div class="row between"><h2>${esc(it.name)}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <p class="fine num">${cap(ymLabel(ym))}${day} · ${t('planificado')} ${fmt(it.amount)}</p>
-    <label class="field"><span class="label">${t('Importe de este mes')} ${curSym}</span>
+    <div class="fields2"><label class="field"><span class="label">${t('Importe de este mes')} ${curSym}</span>
       <input type="text" inputmode="decimal" id="o-real" value="${esc(r ?? it.amount)}" autocomplete="off"></label>
+      <label class="field"><span class="label">${t('Fecha')}</span><input type="date" id="o-date" value="${m.dateOf(it, ym)}" min="${m.range(ym).from}" max="${m.range(ym).to}"></label></div>
     <p class="fine">${it.vary ? t('Este importe varía: hasta que lo confirmes, cuenta el importe planificado.') : t('Si no lo tocas, cuenta el importe planificado.')} ${t('Pon 0 si este mes no ha habido.')}</p>
     <div class="formbtns">
       <button type="button" class="primary" data-act="oconfirm" data-id="${esc(id)}" data-ym="${ym}">Confirmar</button>
@@ -1171,7 +1172,11 @@ function openOcc(id, ym) {
   openDialog();
   const inp = dlg.querySelector('#o-real'); inp.focus(); inp.select();
 }
-function setReal(id, ym, v) {
+/** The day before an ISO date. */
+const dayBefore = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - 1); return toISO(d); };
+/** The date the plan puts an item on in a month (ignoring a date you moved it to). */
+const plannedDate = (it, ym) => compute({ ...store.data, months: { ...store.data.months, [ym]: { ...(store.data.months[ym] || {}), dates: undefined } } }).dateOf(it, ym);
+function setReal(id, ym, v, date) {
   const it = store.data.items.find((i) => i.id === id);
   const key = 'real';
   store.update('months', (d) => {
@@ -1179,6 +1184,10 @@ function setReal(id, ym, v) {
     const o = { ...(mo[key] || {}) };
     if (v == null) delete o[id]; else o[id] = v;
     if (Object.keys(o).length) mo[key] = o; else delete mo[key];
+    // the day it really happened, when it isn't the planned one (cleared with the amount)
+    const dt = { ...(mo.dates || {}) };
+    if (v == null || !date) delete dt[id]; else dt[id] = date;
+    if (Object.keys(dt).length) mo.dates = dt; else delete mo.dates;
   });
 }
 
@@ -1188,7 +1197,7 @@ const withMonth = (ym, patch) => compute({ ...store.data, months: { ...store.dat
 // the month's start balance: asked when there is none, and editable while it was typed by hand (the balance just before payday)
 const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<div class="fields2"><label class="field"><span class="label">${t('Saldo de tu cuenta')} · ${t('inicio')}</span>
   <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off"></label>
-  <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="${id}-date" value="${esc(m.mon(ym).openDate || m.range(ym).from)}" min="${m.range(ym).from}" max="${toISO(new Date())}"></label></div>`;
+  <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="${id}-date" value="${esc(m.mon(ym).openDate || m.range(ym).from)}" min="${dayBefore(m.range(ym).from)}" max="${toISO(new Date())}"></label></div>`;
 /** One line of the money summary: label, signed amount. */
 const sumLine = (l, v, cls = '') => `<span>${l}</span><span class="num ${cls}">${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v))}</span>`;
 
@@ -1426,7 +1435,7 @@ document.addEventListener('click', (e) => {
       // the balance on the day you start: this month counts from today, what came before is already in it
       const v = num(val('h-start'));
       if (v == null) { invalid('#h-start', t('Escribe tu saldo')); return; }
-      const d = val('h-start-date') || toISO(new Date()), lo = compute(store.data).range(ym).from, hi = toISO(new Date());
+      const d = val('h-start-date') || toISO(new Date()), lo = dayBefore(compute(store.data).range(ym).from), hi = toISO(new Date());
       if (d < lo || d > hi) { invalid('#h-start-date', t('Una fecha de este mes, hasta hoy')); return; }
       setMonth(ym, { open: v, openDate: d });
       toast(t('Saldo guardado: el mes cuenta desde hoy'));
@@ -1554,8 +1563,10 @@ document.addEventListener('click', (e) => {
     case 'oconfirm': {
       const v = num(val('o-real'));
       if (v == null || v < 0) return invalid('#o-real', t('Escribe un importe'));
+      const od = val('o-date'), mm = compute(store.data), it = store.data.items.find((i) => i.id === b.dataset.id);
+      if (od && (od < mm.range(ym).from || od > mm.range(ym).to)) return invalid('#o-date', t('Una fecha de este mes'));
       dlg.close();
-      if (!celebrate(() => setReal(b.dataset.id, ym, v), null)) toast(`Confirmado: ${fmt(v)}`);
+      if (!celebrate(() => setReal(b.dataset.id, ym, v, od && od !== plannedDate(it, ym) ? od : ''), null)) toast(`Confirmado: ${fmt(v)}`);
       break;
     }
     case 'oclear': setReal(b.dataset.id, ym, null); dlg.close(); toast(t('Cuenta el importe planificado')); break;

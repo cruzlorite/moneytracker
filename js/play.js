@@ -28,5 +28,6 @@ export function pace(m, ym) {
 export function closeDue(m) {
   const prev = ymAdd(m.curYM, -1);
   if (!m.season.includes(prev)) return null;
+  if (m.balStart(prev) == null) return null; // nothing to close from: a new plan has no balance behind it yet
   return m.mon(prev).close ? null : prev;
 }

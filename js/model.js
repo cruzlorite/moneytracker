@@ -219,7 +219,7 @@ export function compute(data, today = new Date()) {
     return v == null ? null : +v;
   };
   /** The date an item falls on in a month; without a day, the last day of the month. */
-  const dateOf = (it, ym) => dateIn(it, ym) || range(ym).to;
+  const dateOf = (it, ym) => (mon(ym).dates || {})[it.id] || dateIn(it, ym) || range(ym).to;
   /** future: not due yet · auto: due, taken as planned · pending: due, variable, not confirmed · real: exact amount entered */
   const stateOf = (it, ym) => realOf(it, ym) != null ? 'real' : dateOf(it, ym) > todayISO ? 'future' : it.vary ? 'pending' : 'auto';
   /** Best figure for one occurrence: the exact amount if entered, otherwise the planned one. */
@@ -280,7 +280,8 @@ export function compute(data, today = new Date()) {
       const r = realOf(it, ym);
       if (r == null && !occ(it, ym)) continue;
       if (after && dateOf(it, ym) <= after) continue;
-      const v = r != null ? r : dateOf(it, ym) <= upto ? it.amount : 0;
+      const moved = (mon(ym).dates || {})[it.id]; // a confirmed amount counts from the day you said it happened
+      const v = r != null ? (moved && moved > upto ? 0 : r) : dateOf(it, ym) <= upto ? it.amount : 0;
       if (it.kind === 'in') inc += v; else if (isSave(it)) save += v; else out += v;
     }
     for (const e of allSpends) {
@@ -514,6 +515,10 @@ export function normMonth(m) {
   const re = {};
   for (const [k, v] of Object.entries(m?.real || {})) { const n = num(v); if (n != null) re[k] = n; }
   if (Object.keys(re).length) o.real = re;
+  // the day something planned really happened, when it wasn't the planned one: { itemId: 'YYYY-MM-DD' }
+  const dt = {};
+  for (const [k, v] of Object.entries(m?.dates || {})) if (isISO(v)) dt[k] = v;
+  if (Object.keys(dt).length) o.dates = dt;
   // month close: what was left over (or missing), which counts as saved
   const ca = num(m?.close?.amount);
   if (m?.close && ca != null) o.close = { amount: ca };
