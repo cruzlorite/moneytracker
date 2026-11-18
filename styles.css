@@ -8,7 +8,7 @@
   --ok-ink: #166534; --warn-ink: #92400e; --spend-ink: #b91c1c; --mixk: 45%;
   --accent: #111827; --accent-ink: #ffffff; --link: #1d4ed8;
   --in: #2563eb; --out: #ea580c; --sav: #7c3aed; /* what things are: income blue, spending orange, savings and investment violet */
-  --ok: #15803d; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7; --spend: #dc2626; --spend-bg: #fee2e2;
+  --ok: #166534; --ok-bg: #dcfce7; --warn: #b45309; --warn-bg: #fef3c7; --spend: #dc2626; --spend-bg: #fee2e2;
   --save: #15803d; --save-fill: #f59e0b; --pot: #0e7490; --sv-lite: #4ade80; --sv-deep: #15803d;
   --s1: #2563eb; --s2: #ea580c; --s3: #0d9488; --s4: #d97706; --s5: #db2777; --s-neg: #dc2626;
   --g-comida: #c2410c; --g-casa: #0e7490; --g-transporte: #1d4ed8; --g-salud: #b91c1c; --g-ocio: #6d28d9; --g-compras: #be185d; --g-personas: #15803d; --g-dinero: #4b5563;
@@ -1155,3 +1155,12 @@ details.tview td:first-child { white-space: normal; }
 .typeleg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; }
 .typeleg span { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 .typeleg .dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+/* movements: every line alike */
+.moves { display: grid; }
+.move { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 0; background: transparent; border: 0; border-radius: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.move + .move { border-top: 1px solid var(--line); }
+.move .grow { flex: 1; min-width: 0; display: grid; gap: 0; line-height: 1.25; }
+.move .grow b { font-size: 14px; font-weight: 600; }
+.move .grow .fine { font-size: 12px; }
+.move .num { flex: none; font-weight: 700; font-size: 14px; white-space: nowrap; }

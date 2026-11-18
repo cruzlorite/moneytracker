@@ -455,17 +455,22 @@ function monthTypes(m, ym) {
     <div class="typeleg">${parts.map((p, i) => `<span><i class="dot" style="background:${shade(i)}"></i>${esc(nm(p.c))} <b class="num">${Math.round(p.v / tot * 100)} %</b></span>`).join('')}</div>
   </section>`;
 }
+/** One line per movement, all alike: type icon, name, date (and what it is), amount. */
+const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + esc(sub) : ''}</span></span><span class="num ${kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
 /** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
-  for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) rows.push({ date: e.date, html: spendRow(e) });
-  const fr = flowRow(ym, after);
-  for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) rows.push({ date: p.date, html: fr(p) });
+  for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) {
+    rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: e.amount, kind: 'out' }) });
+  }
+  for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) {
+    rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real' }) });
+  }
   if (!rows.length) return '';
   rows.sort((a, b) => b.date.localeCompare(a.date));
   const more = rows.length > 10 && !UI.movesAll;
   return `<section class="card" aria-label="${t('Movimientos')}"><div class="row between"><h2>${t('Movimientos')}</h2><span class="fine">${rows.length}</span></div>
-    <div class="flows">${(more ? rows.slice(0, 10) : rows).map((r) => r.html).join('')}</div>
+    <div class="moves">${(more ? rows.slice(0, 10) : rows).map((r) => r.html).join('')}</div>
     ${more ? `<button type="button" class="ghost small center-self" data-act="movesall">${t('Ver los {n}', { n: rows.length })}</button>` : ''}</section>`;
 }
 /** The account balance over the last 30, 60 or 90 days, and on to the end of the month (an estimate). */
