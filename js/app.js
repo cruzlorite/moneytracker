@@ -342,7 +342,7 @@ function home(m) {
   const w = (v) => (plan > 0 ? clamp(v / plan * 100, 0, 100) : 0).toFixed(1);
   const tasks = [
     ...pending.map((p) => `<div class="trow"><button type="button" class="okbtn" ${p.it.vary ? `data-act="occ"` : `data-act="qok" data-v="${p.amount}"`} data-id="${esc(p.it.id)}" data-ym="${ym}" aria-label="${t('Confirmar {n}', { n: esc(p.it.name.toLowerCase()) })}"><span class="ring"></span></button>
-      <button type="button" class="tbody" data-act="occ" data-id="${esc(p.it.id)}" data-ym="${ym}"><span class="grow"><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)}${p.it.vary ? ' · ' + t('varía') : ''}</span></span><span class="num ${p.it.kind === 'in' ? 'c-in' : ''}">${p.it.kind === 'in' ? '+' : ''}${fmt(p.amount)}</span>${ic('right')}</button></div>`),
+      <button type="button" class="tbody" data-act="occ" data-id="${esc(p.it.id)}" data-ym="${ym}"><span class="grow"><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)}</span></span><span class="num ${p.it.kind === 'in' ? 'c-in' : ''}">${p.it.vary ? '≈ ' : ''}${p.it.kind === 'in' ? '+' : ''}${fmt(p.amount)}</span>${ic('right')}</button></div>`),
   ];
   const quick = pending.filter((p) => !p.it.vary);
   return `
@@ -641,7 +641,7 @@ const flowRow = (ym) => ({ it, date, day, amount, state }) => {
   return `<button class="flow" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}">
   <span class="d">${day ? `<b>${day}</b>${MES3[+date.slice(5, 7) - 1]}` : '<b>—</b>' + t('mes')}</span>
   <span class="grow"><b>${esc(it.name)}</b><br><span class="fine"><span class="st ${cls}">${txt}</span>${state === 'real' && diff ? ` <span class="num">(${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})</span>` : ''}</span></span>
-  <span class="num ${it.kind === 'in' ? 'amt-in' : 'amt-out'}">${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+  <span class="num ${it.kind === 'in' ? 'amt-in' : 'amt-out'}">${it.vary && state !== 'real' ? '≈ ' : ''}${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
 };
 
 // ---------- Mes ----------
@@ -1015,8 +1015,8 @@ function planRow(it, m, movable) {
     if (it.kind === 'out' && it.real - it.amount > it.real * 0.05) real += `<span class="c-warn">${t('planificas {x} menos', { x: fmt(it.real - it.amount) })}</span>`;
   }
   return `<div class="pitem" data-id="${esc(it.id)}">${movable ? `<button type="button" class="grip" aria-label="Mover ${esc(it.name)} (flechas arriba y abajo)" title="${t('Arrastra para ordenar')}">${GRIP}</button>` : ''}<button class="prow" data-act="edit" data-id="${esc(it.id)}">
-    <span class="n">${it.kind === 'out' && CAT[itemCat(it)] ? catEl(itemCat(it), 'sm') : ''}${esc(it.name)}</span><span class="a ${it.kind === 'in' ? 'c-in' : ''}">${it.kind === 'in' ? '+' : ''}${fmt(it.amount)}<small>${unit(it)}</small></span>
-    <span class="sub"><span>${it.budget ? (it.freq === 'monthly' ? t('al mes') : t('al año')) : esc(freqText(it))}</span>${m.isSave(it) ? '<span class="c-sav">' + t('ahorro · no es gasto') + '</span>' : ''}${it.vary ? '<span class="c-warn">' + t('varía') + '</span>' : ''}${real}</span>
+    <span class="n">${it.kind === 'out' && CAT[itemCat(it)] ? catEl(itemCat(it), 'sm') : ''}${esc(it.name)}</span><span class="a ${it.kind === 'in' ? 'c-in' : ''}">${it.vary ? '≈ ' : ''}${it.kind === 'in' ? '+' : ''}${fmt(it.amount)}<small>${unit(it)}</small></span>
+    <span class="sub"><span>${it.budget ? (it.freq === 'monthly' ? t('al mes') : t('al año')) : esc(freqText(it))}</span>${m.isSave(it) ? '<span class="c-sav">' + t('ahorro · no es gasto') + '</span>' : ''}${real}</span>
   </button></div>`;
 }
 /** A Plan list was reordered: put its items in that order, in the slots they already held among all items. */

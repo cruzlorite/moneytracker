@@ -990,3 +990,20 @@ svg.bal-chart { touch-action: pan-y; -webkit-user-select: none; user-select: non
 .bellwrap .badge { display: grid; place-items: center; line-height: 1; font-size: 10px; box-sizing: border-box; width: 18px; height: 18px; top: -7px; right: -8px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bellwrap .badge { color: #1b0b0b; } }
 :root[data-theme="dark"] .bellwrap .badge { color: #1b0b0b; }
+.goalbtn, .goalbtn .fine { white-space: normal; }
+.goalbtn { min-width: 0; padding-right: 84px; }
+/* long names and notes wrap instead of pushing the page sideways */
+#app, dialog { overflow-wrap: anywhere; }
+.trow .tbody b, .trow .tbody .fine, .flow b, .flow .fine, .spend .grow, .prow .n { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+.trow .tbody { min-width: 0; }
+.trow .tbody .num { flex: none; white-space: nowrap; }
+details.tview table { width: 100%; table-layout: auto; }
+details.tview td, details.tview th { overflow-wrap: anywhere; word-break: break-word; }
+details.tview td:first-child { white-space: nowrap; }
+.tiles3 > *, .tiles > *, .stat { min-width: 0; }
+.ofp, .ofp-c { flex-wrap: wrap; overflow-wrap: anywhere; }
+.ofp-d { white-space: normal; }
+.taskhead { flex-wrap: wrap; gap: 8px; }
+.notify .taskhead .notify-t { min-width: 0; }
+details.tview th, details.tview td:last-child, details.tview td:first-child { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+details.tview td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; }
