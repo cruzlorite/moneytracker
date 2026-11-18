@@ -1113,7 +1113,8 @@ function setReal(id, ym, v) {
 // ---------- the balance: the figure everything else comes from ----------
 /** compute() as if the month had these figures (for previews while you type). */
 const withMonth = (ym, patch) => compute({ ...store.data, months: { ...store.data.months, [ym]: { ...(store.data.months[ym] || {}), ...patch } } });
-const openField = (m, ym, id) => m.balStart(ym) != null ? '' : `<label class="field"><span class="label">${t('Saldo al empezar {m}', { m: monthName(ym) })}</span>
+// the month's start balance: asked when there is none, and editable while it was typed by hand (the balance just before payday)
+const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<label class="field"><span class="label">${t('Saldo al empezar {m}', { m: monthName(ym) })} · ${t('antes de cobrar')}</span>
   <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off">
 </label>`;
 /** One line of the money summary: label, signed amount. */
@@ -1142,7 +1143,7 @@ function openClose(ym) {
 function closePatch() {
   const bal = num(dlg.querySelector('#cl-bal')?.value), op = dlg.querySelector('#cl-open');
   const patch = { bal: bal ?? undefined };
-  if (op) patch.open = num(op.value) ?? undefined;
+  if (op) { patch.open = num(op.value) ?? undefined; if (patch.open != null && patch.open !== store.data.months[dlg.querySelector('#close-sheet')?.dataset.ym]?.open) patch.openDate = ''; }
   return { bal, patch };
 }
 function closeCalc() {
@@ -1231,7 +1232,7 @@ function openCheck(ym) {
 function checkPatch() {
   const bal = num(dlg.querySelector('#ck-bal')?.value), op = dlg.querySelector('#ck-open');
   const patch = { check: bal == null ? undefined : { date: toISO(new Date()), bal } };
-  if (op) patch.open = num(op.value) ?? undefined;
+  if (op) { patch.open = num(op.value) ?? undefined; if (patch.open != null && patch.open !== store.data.months[dlg.querySelector('#check-sheet')?.dataset.ym]?.open) patch.openDate = ''; }
   return { bal, patch };
 }
 function checkCalc() {
@@ -1366,6 +1367,7 @@ document.addEventListener('click', (e) => {
       const done = celebrate(() => store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), bal, close };
         if (patch.open != null) mo.open = patch.open;
+        if (patch.openDate === '') delete mo.openDate;
         // the balance a month closes with is where the next one starts: a start typed by hand before gives way
         const nx = d.months[ymAdd(ym, 1)];
         if (nx && nx.open != null) delete nx.open;
@@ -1396,6 +1398,7 @@ document.addEventListener('click', (e) => {
       store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), check: patch.check };
         if (patch.open != null) mo.open = patch.open;
+        if (patch.openDate === '') delete mo.openDate; // a new start balance is the one before payday: the month counts from its first day
       });
       toast(t('Saldo guardado'));
       break;

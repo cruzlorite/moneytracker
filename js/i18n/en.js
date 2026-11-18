@@ -311,6 +311,7 @@ export default {
   'Olvidar el del {d}': 'Forget the one from the {d}',
   'Olvidado': 'Forgotten',
   'Saldo al empezar el mes': 'Balance at the start of the month',
+  'antes de cobrar': 'before payday',
   'Saldo guardado': 'Balance saved',
   'Saldo guardado: el mes cuenta desde hoy': 'Balance saved: the month counts from today',
 
