@@ -1264,3 +1264,8 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 .plusbtn.fab { z-index: 30; bottom: calc(var(--navh, var(--nav-h)) + 16px); }
 .move:active, .flow:active, .spend.editable:active { background: color-mix(in srgb, var(--ink) 9%, transparent); border-radius: 10px; }
 .rk-pct { color: var(--muted); font-weight: 500; }
+
+/* column charts (Ahorrado cada mes, Ingresado y gastado): the original selection, a light band behind the month and a brighter column */
+.ch-band:focus-visible .ch-hit, .ch-band:hover .ch-hit, .ch-band.tipon .ch-hit { fill: color-mix(in srgb, var(--ink) 5%, transparent); }
+.ch-col { transition: filter .15s ease; }
+.ch-band:hover .ch-col, .ch-band.tipon .ch-col { filter: brightness(1.15); }
