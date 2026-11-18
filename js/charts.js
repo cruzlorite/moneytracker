@@ -192,6 +192,7 @@ export function bindBalance() {
     const hv = svg.querySelector('.bl-hover'), line = hv.querySelector('.bl-guide'), dot = hv.querySelector('.bl-dot'), lab = hv.querySelector('.bl-label');
     const tx = lab.querySelector('text'), bg = lab.querySelector('rect');
     line.setAttribute('x1', g.x[k]); line.setAttribute('x2', g.x[k]); dot.setAttribute('cx', g.x[k]); dot.setAttribute('cy', g.y[k]);
+    const d2 = hv.querySelector('.bl-dot2'); if (d2) { if (g.y2) { d2.setAttribute('cx', g.x[k]); d2.setAttribute('cy', g.y2[k]); d2.removeAttribute('hidden'); } else d2.setAttribute('hidden', ''); }
     tx.textContent = g.l[k]; hv.removeAttribute('hidden');
     const bb = tx.getBBox(), w = bb.width + 14, hgt = bb.height + 8, lx = Math.max(2, Math.min(g.w - w - 2, g.x[k] - w / 2));
     bg.setAttribute('x', lx); bg.setAttribute('y', 2); bg.setAttribute('width', w); bg.setAttribute('height', hgt);
@@ -208,7 +209,7 @@ export function bindBalance() {
  * Two cumulative lines over the months of the plan: the plan (reference) and what is saved, dashed from `projFrom` on
  * (the estimate). plan, real: arrays of the same length; labels: one per point (shown for a few).
  */
-export function cumLines({ plan, real, projFrom = null, labels = [], aria = '', h = 170 }) {
+export function cumLines({ plan, real, projFrom = null, labels = [], tips = [], aria = '', h = 170 }) {
   const W = 340, padL = 44, padR = 50, padT = 22, padB = 22, n = plan.length - 1;
   const all = [...plan, ...real, 0], mx = Math.max(...all), mn = Math.min(...all), span = mx - mn || 1, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / span * ph;
@@ -222,8 +223,11 @@ export function cumLines({ plan, real, projFrom = null, labels = [], aria = '', 
   // the two end figures sit to the right of the lines, pushed apart when they are close
   let yp = pyP[n] + 4, yr = pyR[n] + 4;
   if (Math.abs(yp - yr) < 14) { const mid = (yp + yr) / 2; if (yp <= yr) { yp = mid - 7; yr = mid + 7; } else { yp = mid + 7; yr = mid - 7; } }
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}
+  const geo = { w: W, x: xs.map((v) => +v.toFixed(1)), y: pyR.map((v) => +v.toFixed(1)), y2: pyP.map((v) => +v.toFixed(1)), l: plan.map((_, i) => tips[i] || labels[i] || ''), top: padT, bottom: padT + ph };
+  const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
+    <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${padT + ph}"/><circle class="bl-dot2" r="4"/><circle class="bl-dot cl-dot" r="5"/><g class="bl-label"><rect rx="6"/><text/></g></g>`;
+  return `<svg class="chart bal-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}
     <path class="ch-plan" d="${curve(xs, pyP, tP, 0, n)}"/><path class="ch-line cl-real" d="${solid}"/>${dash ? `<path class="ch-line cl-real ch-proj" d="${dash}"/>` : ''}
     <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yp.toFixed(1)}" style="fill: var(--muted)">${esc(compact(plan[n]))}</text>
-    <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yr.toFixed(1)}">${k != null ? '≈ ' : ''}${esc(compact(real[n]))}</text>${lx}</svg>`;
+    <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yr.toFixed(1)}">${k != null ? '≈ ' : ''}${esc(compact(real[n]))}</text>${lx}${hits}</svg>`;
 }

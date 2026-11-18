@@ -453,7 +453,7 @@ function metas(m) {
     });
     cumCard = `<section class="card" aria-label="${t('Ahorro acumulado')}">
       <div class="row between"><h2>${t('Ahorro acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: planC, real: realC, projFrom: m.curIdx, labels: m.season.map((ym) => MES3[+ym.slice(5) - 1]), aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
+      ${cumLines({ plan: planC, real: realC, projFrom: m.curIdx, labels: m.season.map((ym) => MES3[+ym.slice(5) - 1]), tips: m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`), aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
       ${table([t('Mes'), t('Ahorrado'), t('Planificado')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i])]))}
     </section>`;

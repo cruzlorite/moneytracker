@@ -1029,3 +1029,6 @@ details.tview th:first-child, details.tview td:first-child { padding-left: 0; }
 .unconf { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); padding: 0; }
 .unconf .i { width: 16px; height: 16px; }
 .unconf:hover, .unconf:active { color: var(--spend); border-color: var(--spend); }
+.bl-dot2 { fill: var(--muted); stroke: var(--panel); stroke-width: 2; }
+.bl-dot2[hidden] { display: none; }
+.bl-dot.cl-dot { fill: var(--sav); }
