@@ -681,7 +681,6 @@ function openNewCat(from, id) {
   UI.nc = { from, id: c?.id || null, name: c?.name || '', icon: c?.icon || '', color: c?.color || '', keep: from === 'kpick' ? quickKeep() : null };
   renderNewCat();
   openDialog();
-  setTimeout(() => dlg.querySelector('#nc-name')?.focus(), 60);
 }
 function renderNewCat() {
   const n = UI.nc;
@@ -1411,7 +1410,6 @@ function openOcc(id, ym) {
       <button type="button" class="ghost" data-act="edit" data-id="${esc(id)}">${t('Editar en el plan')}</button>
     </div></div>`;
   openDialog();
-  const inp = dlg.querySelector('#o-real'); inp.focus(); inp.select();
 }
 /** The day before an ISO date. */
 const dayBefore = (iso) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - 1); return toISO(d); };
@@ -1460,7 +1458,6 @@ function openClose(ym) {
   dlg.classList.add('full');
   stagger(dlg.querySelector('.closer'));
   closeCalc();
-  if (d.bal == null) setTimeout(() => (dlg.querySelector('#cl-open') || dlg.querySelector('#cl-bal'))?.focus(), 80);
 }
 function closePatch() {
   const bal = num(dlg.querySelector('#cl-bal')?.value), op = dlg.querySelector('#cl-open');
@@ -1549,7 +1546,6 @@ function openCheck(ym) {
     ${(m.mon(ym).checks || []).length ? `<div class="stack-sm"><span class="label">${t('Actualizaciones de saldo')}</span><div class="moves">${[...m.mon(ym).checks].reverse().map((x) => `<div class="move"><span class="grow"><b class="num">${fmt(x.bal)}</b><span class="fine">${shortDate(x.date)}</span></span><button type="button" class="iconbtn sm" data-act="checkdel" data-ym="${ym}" data-date="${x.date}" aria-label="${t('Borrar actualización del {d}', { d: shortDate(x.date) })}">${ic('x')}</button></div>`).join('')}</div></div>` : ''}`;
   openDialog();
   checkCalc();
-  setTimeout(() => (dlg.querySelector('#ck-open') || dlg.querySelector('#ck-bal'))?.focus(), 80);
 }
 function checkPatch() {
   const bal = num(dlg.querySelector('#ck-bal')?.value), op = dlg.querySelector('#ck-open');
@@ -1892,14 +1888,14 @@ document.addEventListener('click', (e) => {
       dlg.querySelectorAll('[data-act=goalper]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === UI.goalPer)));
       dlg.querySelector('#g-lab').textContent = UI.goalPer === 'y' ? t('Al año') : t('Al mes, de media');
       if (g != null) dlg.querySelector('#g-val').value = String(UI.goalPer === 'y' ? g : round2(g / 12)).replace('.', ',');
-      goalCalc(); dlg.querySelector('#g-val').focus(); break;
+      goalCalc(); break;
     }
     case 'goalset': {
       const g = goalYear(); if (g == null) { invalid('#g-val', t('Escribe una cifra válida')); break; }
       store.update('settings', (d) => { d.settings.goal = g; }); dlg.close(); toast(t('Ahorro planificado: {x} al año', { x: fmt(g) })); render(true); break;
     }
     case 'fsave': saveForm(); break;
-    case 'fdup': { readForm(); const { id, real, _edit, ...rest } = FORM; FORM = { ...rest, _copy: rest.name || t('sin nombre') }; CONFIRM = false; renderForm(); dlg.querySelector('#f-amount')?.focus(); break; }
+    case 'fdup': { readForm(); const { id, real, _edit, ...rest } = FORM; FORM = { ...rest, _copy: rest.name || t('sin nombre') }; CONFIRM = false; renderForm(); break; }
     case 'fdel': {
       if (!CONFIRM) { CONFIRM = true; readForm(); renderForm(); break; }
       readForm();
