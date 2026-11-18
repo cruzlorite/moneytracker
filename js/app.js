@@ -636,9 +636,10 @@ function openBudget(id) {
 
 
 const ST = { future: [t('planificado'), ''], auto: [t('dado por bueno'), 'st-auto'], pending: [t('por confirmar'), 'st-pend'], real: [t('confirmado'), 'st-real'] };
-const flowRow = (ym) => ({ it, date, day, amount, state }) => {
-  const [txt, cls] = ST[state], diff = round2(amount - it.amount);
-  return `<button class="flow" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}">
+const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
+  const inBal = !!after && date <= after; // before the day your start balance refers to: already in it, not added again
+  const [txt, cls] = inBal ? [t('ya en tu saldo inicial'), 'st-inbal'] : ST[state], diff = round2(amount - it.amount);
+  return `<button class="flow ${inBal ? 'inbal' : ''}" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}">
   <span class="d">${day ? `<b>${day}</b>${MES3[+date.slice(5, 7) - 1]}` : '<b>—</b>' + t('mes')}</span>
   <span class="grow"><b>${esc(it.name)}</b><br><span class="fine"><span class="st ${cls}">${txt}</span>${state === 'real' && diff ? ` <span class="num">(${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})</span>` : ''}</span></span>
   <span class="num ${it.kind === 'in' ? 'amt-in' : 'amt-out'}">${it.vary && state !== 'real' ? '≈ ' : ''}${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
@@ -654,14 +655,15 @@ const stPill = (st) => `<span class="pill ${st === 'clear' ? 'c-ok' : st === 'pa
 function expectedCard(m, ym) {
   const planned = m.plannedIn(ym);
   const next = planned.filter((p) => p.state === 'future'), past = planned.filter((p) => p.state !== 'future');
-  const pend = m.pendingIn(ym).length;
-  const sum = (arr, k) => arr.filter((p) => p.it.kind === k).reduce((s, p) => s + p.amount, 0);
+  const after = m.openAfter(ym), counted = (p) => !(after && p.date <= after);
+  const pend = m.pendingIn(ym).filter(counted).length;
+  const sum = (arr, k) => arr.filter((p) => p.it.kind === k && counted(p)).reduce((s, p) => s + p.amount, 0);
   const head = (arr) => { const i = sum(arr, 'in'), o = sum(arr, 'out'); return `<span class="fine num">${i ? ` <span class="c-in">+${fmt(i)}</span> ` : ''}${o ? `−${fmt(o)}` : ''}</span>`; };
   return `<section class="card" aria-label="${t('Planificado este mes')}">
     <div class="row between"><h2>${t('Planificado')}</h2>${pend ? `<span class="pill c-warn">${pend} ${t('por confirmar')}</span>` : ''}</div>
     ${!planned.length ? '<p class="fine">' + t('Nada planificado este mes.') + '</p>' : ''}
-    ${next.length ? `<div class="row between"><span class="label">${t('Próximos')}</span>${head(next)}</div><div class="flows">${next.map(flowRow(ym)).join('')}</div>` : ''}
-    ${past.length ? `<div class="row between"><span class="label">${t('Pasados')}</span>${head(past)}</div><div class="flows">${past.map(flowRow(ym)).join('')}</div>` : ''}
+    ${next.length ? `<div class="row between"><span class="label">${t('Próximos')}</span>${head(next)}</div><div class="flows">${next.map(flowRow(ym, after)).join('')}</div>` : ''}
+    ${past.length ? `<div class="row between"><span class="label">${t('Pasados')}</span>${head(past)}</div><div class="flows">${past.map(flowRow(ym, after)).join('')}</div>` : ''}
     ${planned.length ? '<p class="fine">' + t('Toca uno para poner el importe exacto.') + '</p>' : ''}
   </section>`;
 }
@@ -970,7 +972,7 @@ function plan(m) {
   const maxGoal = Math.max(0, Math.floor(m.possible / 100) * 100), share = m.incomeY ? Math.round(m.goal / m.incomeY * 100) : 0;
   // one-off items whose day has passed are done: they leave the list and wait, folded, under "Cumplidos"
   const todayISO = toISO(new Date());
-  const isDone = (it) => it.freq === 'once' && !it.budget && it.year && m.dateOf(it, `${it.year}-${String(it.month || 1).padStart(2, '0')}`) <= todayISO;
+  const isDone = (it) => { const d = it.freq === 'once' && !it.budget && it.year ? m.onceDate(it) : null; return d != null && d <= todayISO; };
   const group = (title, sub, all, preset, addLabel, total) => { const list = all.filter((it) => !isDone(it)), done = all.filter(isDone);
     return `<section class="card">
     <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div>${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}</div>

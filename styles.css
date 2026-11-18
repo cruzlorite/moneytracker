@@ -1013,3 +1013,7 @@ details.tview th:nth-child(2), details.tview td:nth-child(2) { text-align: left;
 details.tview { overflow-x: auto; }
 details.tview th, details.tview td { padding-left: 8px; }
 details.tview th:first-child, details.tview td:first-child { padding-left: 0; }
+/* before the start balance's day: listed, but not added again */
+.flow.inbal { opacity: .6; }
+.flow.inbal .amt-in, .flow.inbal .amt-out { text-decoration: line-through; text-decoration-thickness: 1px; }
+.st-inbal { color: var(--muted); font-style: italic; }

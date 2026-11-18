@@ -261,6 +261,12 @@ export function compute(data, today = new Date()) {
 
   // ---------- the account: balances and what left it ----------
   const endISO = (ym) => range(ym).to;
+  /** The date of a one-off item, in whichever month (payday to payday) it falls: null when none of them holds it. */
+  const onceDate = (it) => {
+    const base = `${it.year}-${String(it.month || 1).padStart(2, '0')}`;
+    for (const ym of [ymAdd(base, -1), base, ymAdd(base, 1)]) if (occ(it, ym)) return dateOf(it, ym);
+    return null;
+  };
   /** The start balance is the one at the start of `openDate`: the day before it is the last that is already in it. */
   const openAfter = (ym) => (mon(ym).openDate ? isoAdd(mon(ym).openDate, -1) : '');
   /** Balance when the month began: entered by hand, or the previous month's closing balance. */
@@ -447,7 +453,7 @@ export function compute(data, today = new Date()) {
     incomeY, outY, possible, payday, idx, pre, over, curIdx, cur, curYM, mon, status, spentOf, saved, streak, cleared,
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
     cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: (iso, ym) => dayOfCycle(iso, ym, D),
-    balStart, openAfter, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
+    balStart, openAfter, onceDate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
     budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, byCat,
   };
 }

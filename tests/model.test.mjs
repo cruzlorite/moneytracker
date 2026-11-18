@@ -348,3 +348,9 @@ test('a planned item can be confirmed on another day: it moves, and survives the
 test('only real dates are kept for a moved item', () => {
   assert.deepEqual(normMonth({ dates: { a: '2027-01-28', b: 'no-date', c: '' } }).dates, { a: '2027-01-28' });
 });
+
+test('a one-off item is placed in its payday-to-payday month, whatever its calendar month says', () => {
+  const m = compute(plan([{ id: 'b', kind: 'in', name: 'Venta', amount: 150, freq: 'once', month: 11, year: 2026, day: 28 }, { id: 'c', kind: 'in', name: 'Otra', amount: 80, freq: 'once', month: 11, year: 2026 }], { settings: { goal: 0, start: '2026-07', cycleDay: 26 } }), new Date(2026, 10, 30));
+  assert.equal(m.onceDate(m.items.find((i) => i.id === 'b')), '2026-11-28', 'the 28th is in the month that starts on the 26th');
+  assert.equal(m.onceDate(m.items.find((i) => i.id === 'c')), '2026-11-25', 'no day: the last day of its month');
+});
