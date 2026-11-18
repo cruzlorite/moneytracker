@@ -1113,3 +1113,5 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .yrows { display: grid; gap: 6px; }
 .yrow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .yrow[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.spend.editable { cursor: pointer; border-radius: 10px; }
+.spend.editable:active { background: var(--panel-2); }

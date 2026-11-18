@@ -557,7 +557,7 @@ function openQuick(keep = {}) {
   const m = compute(store.data), today = toISO(new Date());
   const date = keep.date || UI.quickDate || today;
   dlg.innerHTML = `<div class="sheet quick" id="quick-sheet">
-    <div class="row between"><h2>${t('Apuntar un gasto')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="row between"><h2>${UI.editSpend ? t('Editar gasto') : t('Apuntar un gasto')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
     ${catRow(m, true)}
     ${UI.kmore ? catGrid(UI.qcat, 'kpick', true) : ''}
@@ -565,8 +565,10 @@ function openQuick(keep = {}) {
       <label class="field"><span class="label">${t('Nota')}</span><input id="k-note" value="${esc(keep.note || '')}" placeholder="${t('Opcional')}" autocomplete="off"></label>
       <label class="field"><span class="label">${t('Día')}</span><input type="date" id="k-date" value="${date}"></label>
     </div>
-    <button type="button" class="primary big" data-act="kgo">${t('Apuntar')}</button>
-    <button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Un ingreso puntual? Añádelo al plan')}</button>
+    ${UI.editSpend ? `<button type="button" class="primary big" data-act="kgo">${t('Guardar')}</button>
+    <button type="button" class="ghost small danger" data-act="delspend" data-id="${esc(UI.editSpend)}">${t('Borrar gasto')}</button>`
+      : `<button type="button" class="primary big" data-act="kgo">${t('Apuntar')}</button>
+    <button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Un ingreso puntual? Añádelo al plan')}</button>`}
   </div>`;
   openDialog();
   if (!keep.stay) setTimeout(() => $('#k-amt')?.focus(), 60);
@@ -736,7 +738,7 @@ const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
 };
 
 // ---------- Mes ----------
-const spendRow = (e) => `<div class="spend">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num c-spend">−${fmt(e.amount)}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
+const spendRow = (e) => `<div class="spend editable" role="button" tabindex="0" data-act="editspend" data-id="${esc(e.id)}" aria-label="${t('Editar gasto')}">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num c-spend">−${fmt(e.amount)}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
 const stPill = (st) => `<span class="pill ${st === 'clear' ? 'c-ok' : st === 'partial' ? 'c-warn' : 'c-acc'}">${st === 'clear' ? t('Cumplido') : st === 'partial' ? t('Parcial') : t('Sin datos')}</span>`;
 
 
@@ -1700,6 +1702,13 @@ document.addEventListener('click', (e) => {
     case 'kgo': {
       const v = num(val('k-amt')), date = val('k-date') || toISO(new Date());
       if (!v || v <= 0) { invalid('#k-amt', t('Escribe un importe')); return; }
+      if (UI.editSpend) {
+        const id = UI.editSpend, cat = UI.qcat || undefined;
+        dlg.close(); UI.qcat = null;
+        store.update('spends', (d) => { const e = d.spends.find((x) => x.id === id); if (e) { e.amount = round2(v); e.date = date; e.note = (val('k-note') || '').trim(); if (cat) e.cat = cat; else delete e.cat; } });
+        toast(t('Gasto guardado'));
+        break;
+      }
       dlg.close();
       addSpend(date, v, (val('k-note') || '').trim(), null, UI.qcat);
       break;
@@ -1739,7 +1748,15 @@ document.addEventListener('click', (e) => {
       store.update('spends', (d) => { d.spends = d.spends.filter((x) => x.id !== id); });
       toast(t('Deshecho')); break;
     }
+    case 'editspend': {
+      const e = store.data.spends.find((x) => x.id === b.dataset.id);
+      if (!e) break;
+      UI.editSpend = e.id; UI.qcat = e.cat || null; UI.kmore = false; UI.quickDate = e.date;
+      openQuick({ amt: String(e.amount).replace('.', ','), note: e.note || '', date: e.date });
+      break;
+    }
     case 'delspend': {
+      if (dlg.open && UI.editSpend) dlg.close();
       store.update('spends', (d) => { d.spends = d.spends.filter((x) => x.id !== b.dataset.id); }); toast(t('Gasto borrado'));
       const sheet = $('#bud-sheet'); if (sheet) openBudget(sheet.dataset.id);
       break;
@@ -1856,7 +1873,7 @@ document.addEventListener('focusout', () => setTimeout(() => {
 }, 0));
 dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
 dlg.addEventListener('close', () => {
-  FORM = null; CONFIRM = false; dlg.classList.remove('full');
+  FORM = null; CONFIRM = false; dlg.classList.remove('full'); UI.editSpend = null;
   if (history.state?.dialog && !NAV.popping) history.back(); // closed with a button: drop its history entry
 });
 
