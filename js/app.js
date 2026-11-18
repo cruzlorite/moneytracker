@@ -157,7 +157,7 @@ const mFor = (ym, data = store.data) => computeYearAt(ymAdd(data.settings.start,
 /** How far back and forward you can go: back to the first year with anything in it, forward a few years to plan ahead. */
 function yearBounds() {
   const s = store.data.settings, firsts = [s.start, ...(s.years || []).map((y) => y.start), ...Object.keys(store.data.months), ...store.data.spends.map((e) => e.date.slice(0, 7))].filter(isYM).sort();
-  return { min: Math.min(0, Math.floor(ymDiff(s.start, firsts[0]) / 12)), max: UI.tab === 'plan' ? 3 : 0 }; // only the Plan looks ahead
+  return { min: 0, max: UI.tab === 'plan' ? 3 : 0 }; // never the past; only the Plan looks ahead
 }
 /** The month the Plan shows its items "as of": this month in the current year, the last of a past year, the first of a year to come. */
 const viewYMOf = (m) => ((UI.yearOff || 0) === 0 ? m.curYM : (UI.yearOff || 0) < 0 ? m.season[11] : m.season[0]);
@@ -167,14 +167,10 @@ const yearWord = (off) => (off === 0 ? t('Año en curso') : off === -1 ? t('Año
 function yearNav(m) {
   const off = UI.yearOff || 0, b = yearBounds();
   if (b.min >= b.max) return ''; // one year only: nothing to choose
-  return `<button type="button" class="yearchip" data-act="yearpick" aria-haspopup="dialog" aria-label="${t('Cambiar de año')}"><b class="num">${yearRange(m)}</b><span class="fine">${yearWord(off)}</span><span class="chev" aria-hidden="true">${ic('right')}</span></button>`;
-}
-/** The list of years to choose from. */
-function openYearPick() {
-  const b = yearBounds(), cur = UI.yearOff || 0, rows = [];
-  for (let o = b.max; o >= b.min; o--) rows.push(`<button type="button" class="yrow" data-act="yearset" data-k="${o}" aria-pressed="${o === cur}"><b class="num">${yearRange(computeYear(o))}</b><span class="fine">${yearWord(o)}</span></button>`);
-  dlg.innerHTML = `<div class="sheet"><div class="row between"><h2>${t('Año')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div><div class="yrows">${rows.join('')}</div></div>`;
-  openDialog();
+  return `<div class="yearnav slim" role="group" aria-label="${t('Año')}">
+    <button type="button" class="iconbtn" data-act="yearmove" data-k="-1" ${off <= b.min ? 'disabled' : ''} aria-label="${t('Año anterior')}">${ic('left')}</button>
+    <span class="yn-t"><b class="num">${yearRange(m)}</b><span class="fine">${yearWord(off)}</span></span>
+    <button type="button" class="iconbtn" data-act="yearmove" data-k="1" ${off >= b.max ? 'disabled' : ''} aria-label="${t('Año siguiente')}">${ic('right')}</button></div>`;
 }
 function render(force) {
   if (!store.mode) { renderWelcome(); return; }
@@ -268,6 +264,8 @@ function emptyPlanCard(m) {
 const shortDate = (iso) => `${+iso.slice(8, 10)} ${MES3[+iso.slice(5, 7) - 1]}`;
 const rangeText = (m, ym) => { const r = m.range(ym); return `${shortDate(r.from)} – ${shortDate(r.to)}`; };
 const pageHead = (title, sub = '', kicker = '', side = '') => `<div class="phead"><div class="phead-t">${kicker ? `<span class="kicker">${kicker}</span>` : ''}<h1>${title}</h1>${sub ? `<span class="psub">${sub}</span>` : ''}</div>${side}</div>`;
+/** Month header: the name with its year in the middle, the dates under it, and arrows to move around the months. */
+const monthHead = (title, sub, kicker, act) => `<div class="mhead"><button type="button" class="iconbtn" data-act="${act}" data-k="-1" aria-label="${t('Mes anterior')}">${ic('left')}</button><div class="mhead-t">${kicker ? `<span class="kicker">${kicker}</span>` : ''}<h1>${title}</h1>${sub ? `<span class="psub">${sub}</span>` : ''}</div><button type="button" class="iconbtn" data-act="${act}" data-k="1" aria-label="${t('Mes siguiente')}">${ic('right')}</button></div>`;
 /** An ⓘ that opens a longer explanation: tap it on a phone, hover or focus it on a computer. */
 // ⓘ: a small card that says, in plain words and with the same marks as the bars, what each thing is and how it's worked out
 const info = (key) => `<button type="button" class="info" data-info="${key}" aria-label="${t('Cómo se calcula')}">i</button>`;
@@ -416,7 +414,7 @@ function home(m) {
   const quick = pending.filter((p) => !p.it.vary);
   return `
   ${tasks.length ? `<section class="card list notify${notifyOn('fold') ? ' fold' : ''}${notifyOn('all') ? ' all' : ''}" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><button type="button" class="notify-t notify-tog" data-act="notifyfold" aria-expanded="${notifyOn('fold') ? 'false' : 'true'}" aria-label="${t('Mostrar u ocultar')}"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span><span class="chev" aria-hidden="true">${ic('right')}</span></button>${quick.length > 1 ? `<button type="button" class="btn-sec sm" data-act="qokall" data-ym="${ym}">${t('Confirmar todo')}</button>` : ''}</div>${tasks.map((h, k) => (k >= 3 ? h.replace('class="trow', 'class="trow x') : h)).join('')}${tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore" data-more="${t('Ver {n} más', { n: tasks.length - 3 })}" data-less="${t('Ver menos')}">${notifyOn('all') ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
-  ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
+  ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`, 'homemonth')}
   ${closeBanner(due)}
   ${setupCard(m, ym)}
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
@@ -502,7 +500,7 @@ function metas(m) {
       <div class="row between"><h2>${t('Ahorro acumulado')} ${info('acumulado')}</h2></div>
       ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`)], aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
-      ${table([t('Mes'), t('Ahorrado'), t('Planificado')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i])]))}
+      ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), i > m.curIdx ? '—' : diffCell(realC[i], planC[i], 'good')]))}
     </section>`;
   }
   const nexts = m.outs.filter((i) => i.freq !== 'monthly' && !i.budget).map((i) => ({ i, k: m.season.findIndex((s, ix) => ix >= m.curIdx && m.occurs(i, s)) }))
@@ -537,9 +535,8 @@ function mes(m) {
   const spent = past ? m.spentAll(ym) : cur ? m.spentAll(ym, m.todayISO) : planSpend(m, ym);
   const saved = past ? (d.close ? m.savedOf(ym) : null) : cur ? ps : tgt;
   const vd = saved == null || (!past && !cur) ? null : verdict(saved, tgt, m.target);
-  const nav = `<span class="mnav"><button class="iconbtn" data-act="calmove" data-k="-1" aria-label="${t('Mes anterior')}">${ic('left')}</button><button class="iconbtn" data-act="calmove" data-k="1" aria-label="${t('Mes siguiente')}">${ic('right')}</button></span>`;
   return `
-  ${pageHead(cap(ymLabel(ym)), rangeText(m, ym), cur ? t('Este mes') : past ? (d.close ? t('Cerrado') : t('Sin cerrar')) : t('Planificado'), nav)}
+  ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), cur ? t('Este mes') : past ? (d.close ? t('Cerrado') : t('Sin cerrar')) : t('Planificado'), 'calmove')}
   <div class="tiles3">
     <div class="card stat"><span class="label"><i class="sdot in"></i>${past || cur ? t('Ingresado') : t('Ingresos planificados')}</span><b class="num">${fmt(inc)}</b></div>
     <div class="card stat"><span class="label"><i class="sdot out"></i>${past || cur ? t('Gastado') : t('Gasto planificado')}</span>${past || cur ? ofPlan(spent, planSpend(m, ym), t('gastado / planificado'), { tone: spent > planSpend(m, ym) + 0.5 ? 'var(--spend)' : null }) : `<b class="num">${fmt(spent)}</b>`}</div>
@@ -897,6 +894,12 @@ const DIA = '__dia';
  * up to today) and proj (how the year ends if the rest goes as planned: what happened, plus the plan for what's left).
  * more: 'good' if going over the plan is good news (income, savings), 'bad' if it isn't (spending).
  */
+/** A "difference" cell for the tables: signed, with a colour for whether it went well. `more` says what a higher number means. */
+const diffCell = (real, plan, more = 'good') => {
+  const d = round2(real - plan);
+  if (Math.abs(d) < 0.5) return { v: '0', tone: '' };
+  return { v: fmtSigned(Math.round(d)), tone: (d > 0) === (more === 'good') ? 'ok' : 'bad' };
+};
 function planVsReal(m) {
   const today = new Date(), todayISO = toISO(today), done = (it, ym) => m.stateOf(it, ym) !== 'future';
   const sumItems = (list, fn) => round2(m.season.reduce((s, ym) => s + list.reduce((a, it) => a + (occurs(it, ym) ? fn(it, ym) : 0), 0), 0));
@@ -981,7 +984,7 @@ function planCard(m) {
     ${m.over ? `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('Actual')}</span><span><i class="lg-mark"></i>${t('planificado')}</span></div>` : `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('hasta hoy')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('proyección')}</span><span class="lg-group">${t('planificado:')}<span><i class="lg-mark"></i>${t('año')}</span><span><i class="lg-today"></i>${t('a hoy')}</span></span></div>`}
     ${[c.ins, c.outs, c.sav].map((x, i) => cmpRow(m, x, 'm' + i)).join('')}
     ${c.buds.length ? `<span class="label">${t('Tus presupuestos')}</span>${c.buds.map((x, i) => cmpRow(m, x, 'b' + i)).join('')}` : ''}
-    ${m.over ? table(['', t('Planificado'), t('Actual')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real)])) : table(['', t('Planificado'), t('Hasta hoy'), t('Proyección')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), fmt(x.proj)]))}
+    ${m.over ? table(['', t('Planificado'), t('Actual'), t('Diferencia')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), diffCell(x.real, x.plan, x.more)])) : table(['', t('Planificado'), t('Hasta hoy'), t('Proyección'), t('Diferencia ≈')], rows.map((x) => [esc(x.label), fmtN(Math.round(x.plan)), fmtN(Math.round(x.real)), fmtN(Math.round(x.proj)), diffCell(x.proj, x.plan, x.more)]))}
   </section>`;
 }
 const PERIODS = { mes: t('Este mes'), '3m': t('3 meses'), ano: t('Todo el plan') };
@@ -1051,14 +1054,14 @@ function analisis(m) {
     <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span></div>
     ${columns({ cols: left, labels: lastI >= 0 ? [lastI] : [], aria: t('Ahorrado / planificado de cada mes') })}
     ${nowLine(`${t('ahorrado')} <b>${fmt(m.savedOf(m.curYM))}</b> · ${t('planificado')} <b>${fmt(m.targetOf(m.curYM))}</b>`)}
-    ${table([t('Mes'), t('Ahorrado'), t('Planificado')], sm.map(({ ym }, i) => [esc(cap(ymLabel(ym))), left[i].value == null ? '—' : fmt(left[i].value), fmt(m.targetOf(ym))]))}
+    ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], sm.map(({ ym }, i) => [esc(cap(ymLabel(ym))), left[i].value == null ? '—' : fmt(left[i].value), fmt(m.targetOf(ym)), left[i].value == null ? '—' : diffCell(left[i].value, m.targetOf(ym), 'good')]))}
   </section>
 
   <section class="card" aria-label="${t('Ingresado y gastado')}">
     <div class="row between"><h2>${t('Ingresado y gastado')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span></span></div>
     ${pairs({ cols: io, aria: t('Ingresos y gastos de cada mes') })}
     ${nowLine(`${t('ingresado')} <b>${fmt(m.incomeTo(m.curYM, m.todayISO))}</b> · ${t('gastado')} <b>${fmt(outOfM(m.curYM))}</b>`)}
-    ${table([t('Mes'), t('Ingresado'), t('Gastado')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—']))}
+    ${table([t('Mes'), t('Ingresado'), t('Gastado'), t('Diferencia')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—', has ? diffCell(m.incomeTo(ym), outOfM(ym), 'good') : '—']))}
   </section>`;
 }
 const compactMoney = (v) => (v < 10000 ? fmt(v) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
@@ -1761,13 +1764,17 @@ document.addEventListener('click', (e) => {
       const sheet = $('#bud-sheet'); if (sheet) openBudget(sheet.dataset.id);
       break;
     }
-    case 'msel': UI.mesYM = ym; go('mes'); break;
-    case 'calmove': UI.mesYM = ymAdd(UI.mesYM, +b.dataset.k); render(true); break;
+    case 'msel': UI.mesFromHome = false; UI.mesYM = ym; go('mes'); break;
+    case 'homemonth': UI.mesFromHome = true; UI.mesYM = ymAdd(compute(store.data).curYM, +b.dataset.k); go('mes'); break;
+    case 'calmove': {
+      UI.mesYM = ymAdd(UI.mesYM, +b.dataset.k);
+      if (UI.mesFromHome && UI.mesYM === compute(store.data).curYM) { UI.mesFromHome = false; goBack(); break; } // back to this month: Hoy
+      render(true); break;
+    }
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
     case 'doneall': UI.doneAll = true; render(true); break;
-    case 'yearpick': openYearPick(); break;
-    case 'yearset': UI.yearOff = +b.dataset.k; dlg.close(); render(true); break;
+    case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'notifyfold': case 'notifymore': {
       // only the card changes (no redraw of the page), and the choice is kept for the next time
       const box = b.closest('.notify'), key = b.dataset.act === 'notifyfold' ? 'fold' : 'all';

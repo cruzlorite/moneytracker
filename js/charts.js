@@ -92,7 +92,7 @@ export function ranked(rows) {
 /** The table twin of a chart. rows: arrays of cells (strings already escaped where needed). */
 export function table(head, rows) {
   return `<details class="tview"><summary>${t('Ver como tabla')}</summary><table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></details>`;
+    <tbody>${rows.map((r) => `<tr>${r.map((c, i) => (c && typeof c === 'object' ? `<td class="num dtone ${c.tone || ''}">${c.v}</td>` : `<td class="${i ? 'num' : ''}">${c}</td>`)).join('')}</tr>`).join('')}</tbody></table></details>`;
 }
 
 /**

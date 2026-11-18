@@ -1,5 +1,7 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Diferencia ≈': 'Difference ≈',
+  'Diferencia': 'Difference',
   'Gasto guardado': 'Expense saved',
   'Cambiar de año': 'Change year',
   'Mostrar u ocultar': 'Show or hide',

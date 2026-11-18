@@ -1115,3 +1115,36 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .yrow[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
 .spend.editable { cursor: pointer; border-radius: 10px; }
 .spend.editable:active { background: var(--panel-2); }
+details.tview td.dtone { font-weight: 700; }
+details.tview td.dtone.ok { color: var(--ok); }
+details.tview td.dtone.bad { color: var(--spend); }
+details.tview th, details.tview td { padding-left: 4px; padding-right: 4px; }
+details.tview th:first-child, details.tview td:first-child { padding-left: 0; }
+details.tview th:last-child, details.tview td:last-child { padding-right: 0; }
+details.tview th { letter-spacing: 0; font-size: 10px; }
+details.tview td { font-size: 12.5px; }
+
+/* the year selector spans the width, like a card; the table headers may wrap so five columns fit */
+.yearchip { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border: 0; border-radius: 16px; background: var(--panel); box-shadow: var(--shadow); text-align: left; }
+.yearchip .yc-l { display: grid; gap: 0; line-height: 1.25; min-width: 0; }
+.yearchip b { font-size: 16px; }
+.yearchip .chev svg { width: 18px; height: 18px; }
+.yearchip .chev { transform: rotate(90deg); }
+details.tview th { white-space: normal !important; vertical-align: bottom; }
+
+/* year bar: slim, full width, arrows at the ends */
+.yearnav.slim { display: flex; align-items: center; gap: 4px; width: 100%; padding: 2px; border-radius: 12px; background: var(--panel); box-shadow: none; border: 1px solid var(--line); }
+.yearnav.slim .yn-t { flex: 1; display: flex; justify-content: center; align-items: baseline; gap: 8px; min-width: 0; white-space: nowrap; }
+.yearnav.slim .yn-t b { font-size: 14px; } .yearnav.slim .yn-t .fine { font-size: 12px; }
+.yearnav.slim .iconbtn { width: 32px; height: 32px; }
+.yearnav.slim .iconbtn svg { width: 16px; height: 16px; }
+.yearnav.slim .iconbtn:disabled { opacity: .25; }
+details.tview th, details.tview td { padding-left: 3px; padding-right: 3px; font-size: 12px; }
+details.tview th { font-size: 9.5px; }
+details.tview td:first-child { white-space: normal; }
+
+/* month header: centred, arrows at the sides */
+.mhead { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 4px; }
+.mhead-t { display: grid; justify-items: center; text-align: center; gap: 2px; min-width: 0; }
+.mhead-t h1 { font-size: 28px; }
+.mhead .iconbtn { width: 40px; height: 40px; }
