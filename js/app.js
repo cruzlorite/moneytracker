@@ -579,11 +579,12 @@ const itemCat = (it) => it.cat || guessCat(it.name);
 function quickCats(m) {
   const ids = [], add = (id) => { if (CAT[id] && !ids.includes(id)) ids.push(id); };
   add(UI.qcat);
+  // the most used come first (last 90 days), then your budgets, savings and the usual starters
+  const since = toISO(new Date(Date.now() - 90 * 864e5)), n = {};
+  for (const e of m.allSpends) if (e.cat && e.cat !== SAVE_CAT && e.date >= since) n[e.cat] = (n[e.cat] || 0) + 1;
+  Object.entries(n).sort((a, b) => b[1] - a[1]).forEach(([id]) => add(id));
   m.shown().filter((b) => b.budget && activeIn(b, m.curYM)).forEach((b) => add(b.cat));
   add(SAVE_CAT);
-  const since = toISO(new Date(Date.now() - 90 * 864e5)), n = {};
-  for (const e of m.allSpends) if (e.cat && e.date >= since) n[e.cat] = (n[e.cat] || 0) + 1;
-  Object.entries(n).sort((a, b) => b[1] - a[1]).forEach(([id]) => add(id));
   STARTERS.forEach(add);
   return ids.slice(0, 8);
 }
