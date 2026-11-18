@@ -1061,7 +1061,9 @@ function plan(m) {
   const avgIn = m.incomeY / 12, avgOut = m.outY / 12, free = m.restAvg;
   const budM = m.budY / 12, tot = Math.max(avgIn, avgOut + budM + m.target, 1), w = (v) => clamp(v / tot * 100, 0, 100).toFixed(1);
   // the lists show one version per item (the one in force this month, or the next one to start); the sums use them all
-  const off = UI.yearOff || 0, shown = m.shown(viewYMOf(m)), sIns = shown.filter((i) => i.kind === 'in'), sBuds = shown.filter((i) => i.budget);
+  // a one-off belongs to its own year: the plan of another year doesn't list it
+  const ofYear = (it) => it.freq !== 'once' || m.season.includes(`${it.year}-${String(it.month).padStart(2, '0')}`);
+  const off = UI.yearOff || 0, shown = m.shown(viewYMOf(m)).filter(ofYear), sIns = shown.filter((i) => i.kind === 'in'), sBuds = shown.filter((i) => i.budget);
   const outs = shown.filter((i) => i.kind === 'out' && !i.budget).sort((a, b) => (a.freq === 'monthly' ? 0 : 1) - (b.freq === 'monthly' ? 0 : 1));
   const budY = m.budY;
   const outM = m.outs.filter((i) => !i.budget && !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
