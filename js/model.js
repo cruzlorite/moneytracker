@@ -115,11 +115,19 @@ export function normItem(r) {
   if (r.note) it.note = String(r.note);
   const real = num(r.real);
   if (real != null) it.real = real;
+  // versions: the same item can be defined differently over time. `from`/`to` are the first and last month (YYYY-MM) a
+  // version applies to; none = no limit. `at` is when the change was made (ISO timestamp)
+  if (isYM(r.from)) it.from = r.from;
+  if (isYM(r.to) && (!it.from || r.to >= it.from)) it.to = r.to;
+  if (r.at && !Number.isNaN(Date.parse(r.at))) it.at = String(r.at);
   return it;
 }
 const truthy = (v) => v === true || /^(true|1|s[ií]|yes|x)$/i.test(String(v ?? '').trim());
 
-export function occurs(it, ym) {
+/** Is this version of the item in force in month `ym`? */
+export const activeIn = (it, ym) => (!it.from || ym >= it.from) && (!it.to || ym <= it.to);
+/** Does it recur in that calendar month, whatever version is in force. */
+function recurs(it, ym) {
   const mm = +ym.slice(5), yy = +ym.slice(0, 4);
   switch (it.freq) {
     case 'monthly': return true;
@@ -129,6 +137,8 @@ export function occurs(it, ym) {
   }
   return false;
 }
+/** It recurs in that month and this version is in force. */
+export const occurs = (it, ym) => activeIn(it, ym) && recurs(it, ym);
 export const unit = (it) => ({ monthly: t('/mes'), quarterly: t('/trim.'), yearly: t('/año'), once: '' }[it.freq]);
 export function freqText(it) {
   const day = it.day ? ' · ' + t('día {d}', { d: it.day }) : '';
@@ -137,6 +147,53 @@ export function freqText(it) {
   if (it.freq === 'yearly') return it.month ? t('cada {m}', { m: MES[it.month - 1] }) + day : t('una vez al año, sin fecha fija');
   return it.day ? t('solo el {d} de {m} {y}', { d: it.day, m: MES[(it.month || 1) - 1], y: it.year }) : t('solo {m} {y}', { m: MES[(it.month || 1) - 1], y: it.year });
 }
+// ---------- the plan over time ----------
+// An item is a list of versions (rows with the same id): each one in force from a month to a month. Changing the plan
+// never overwrites: it cuts the versions it overlaps and adds the new one, so the plan of any month can be rebuilt.
+/** The parts of a version that fall outside the months F..T (T empty: no end). */
+function cutOut(seg, F, T) {
+  const out = [], a = seg.from || '', b = seg.to || '', lastLeft = ymAdd(F, -1);
+  if (!a || a <= lastLeft) out.push({ ...seg, ...(!b || b > lastLeft ? { to: lastLeft } : {}) });
+  if (T) {
+    const firstRight = ymAdd(T, 1);
+    if (!b || b >= firstRight) out.push({ ...seg, from: !a || a < firstRight ? firstRight : a });
+  }
+  return out;
+}
+function rebuild(items, id, newSeg, F, T) {
+  const out = []; const old = []; let at = -1;
+  for (const it of items) {
+    if (it.id !== id) { out.push(it); continue; }
+    if (at < 0) at = out.length;
+    old.push(...cutOut(it, F, T));
+  }
+  const all = [...old, ...(newSeg ? [newSeg] : [])].sort((x, y) => (x.from || '').localeCompare(y.from || ''));
+  out.splice(at < 0 ? out.length : at, 0, ...all);
+  return out;
+}
+/** Change an item from month F (to month T, or onwards): `def` is its whole new definition. */
+export function planEdit(items, id, def, F, T = '', at = new Date().toISOString()) {
+  return rebuild(items, id, normItem({ ...def, id, from: F || undefined, to: T || undefined, at }), F, T);
+}
+/** Stop an item from month F on (what it was stays in the past). */
+export const planDelete = (items, id, F) => rebuild(items, id, null, F, '');
+/** Add an item that applies from month F. */
+export const planAdd = (items, def, F, at = new Date().toISOString()) => [...items, normItem({ ...def, from: F || undefined, at })];
+/** One version per item for a month: the one in force, or else the next one that starts. */
+export function planShown(items, ym) {
+  const seen = new Set(), out = [];
+  for (const it of items) {
+    if (seen.has(it.id)) continue;
+    seen.add(it.id);
+    const segs = items.filter((i) => i.id === it.id);
+    const now = segs.find((i) => activeIn(i, ym)) || segs.filter((i) => i.from && i.from > ym).sort((a, b) => a.from.localeCompare(b.from))[0];
+    if (now) out.push(now);
+  }
+  return out;
+}
+/** The version of an item that starts after month `ym` (the next change already planned), if any. */
+export const planNext = (items, id, ym) => items.filter((i) => i.id === id && i.from && i.from > ym).sort((a, b) => a.from.localeCompare(b.from))[0] || null;
+
 /** How many times the item falls inside the 12 months of the plan. */
 export function timesIn(it, season) {
   if (it.freq === 'yearly' && !it.month) return 1;
@@ -169,10 +226,11 @@ export function compute(data, today = new Date()) {
 
   /** The date (ISO) an item falls on in month `ym`, or null if it doesn't. No day: the month's last day. */
   const dateIn = (it, ym) => {
-    if (!it.day || D <= 1) return occurs(it, ym) ? (it.day ? `${ym}-${pad(dayIn(it.day, ym))}` : range(ym).to) : null;
+    if (!activeIn(it, ym)) return null; // this version isn't in force in that month
+    if (!it.day || D <= 1) return recurs(it, ym) ? (it.day ? `${ym}-${pad(dayIn(it.day, ym))}` : range(ym).to) : null;
     const r = range(ym);
     for (const c of [ymAdd(ym, -1), ym]) {
-      if (!occurs(it, c)) continue;
+      if (!recurs(it, c)) continue;
       const d = `${c}-${pad(dayIn(it.day, c))}`;
       if (d >= r.from && d <= r.to) return d;
     }
@@ -192,25 +250,28 @@ export function compute(data, today = new Date()) {
   const todayISO = toISO(today);
 
   // budgets by type (one budget per type: the first one wins)
+  /** The budget of a type in force in a month (one per type: the first one wins). */
+  const budFor = (cat, ym) => budgets.find((b) => b.cat === cat && activeIn(b, ym));
+  // as they stand this month (what the screens show)
   const budByCat = new Map();
-  for (const b of budgets) if (!budByCat.has(b.cat)) budByCat.set(b.cat, b);
+  for (const b of budgets) if (activeIn(b, curYM) && !budByCat.has(b.cat)) budByCat.set(b.cat, b);
   // allSpends: every one (older ones may point at a budget's id: read them as its type);
   // spends: the ones against Resto de vida
   const idCat = new Map(budgets.map((b) => [b.id, b.cat]));
   const allSpends = (data.spends || []).map((e) => (idCat.has(e.cat) ? { ...e, cat: idCat.get(e.cat) } : e));
-  const spends = allSpends.filter((e) => !budByCat.has(e.cat) && e.cat !== SAVE_CAT);
+  const spends = allSpends.filter((e) => !budFor(e.cat, monthOf(e.date)) && e.cat !== SAVE_CAT);
   /** What you logged against a budget in a month. */
-  const budSpent = (b, ym) => budByCat.get(b.cat) !== b ? 0
+  const budSpent = (b, ym) => budFor(b.cat, ym) !== b ? 0
     : round2(allSpends.reduce((s, e) => s + (e.cat === b.cat && monthOf(e.date) === ym ? e.amount : 0), 0));
   /** A month's spending by type, largest first ('' = no type). */
   const byCat = (ym) => {
     const t = {};
     for (const e of allSpends) if (monthOf(e.date) === ym && e.cat !== SAVE_CAT) t[e.cat || ''] = round2((t[e.cat || ''] || 0) + e.amount);
-    return Object.entries(t).map(([cat, amount]) => ({ cat, amount, budget: budByCat.get(cat) || null })).sort((a, b) => b.amount - a.amount);
+    return Object.entries(t).map(([cat, amount]) => ({ cat, amount, budget: budFor(cat, ym) || null })).sort((a, b) => b.amount - a.amount);
   };
   /** What a monthly budget takes from its month: the whole budget while the month runs (more if you went over);
    *  once the month is over, only what you spent: the rest goes back to the month's leftover. */
-  const budUse = (b, ym) => { const sp = budSpent(b, ym); return ym < curYM ? sp : Math.max(b.amount, sp); };
+  const budUse = (b, ym) => { if (!activeIn(b, ym)) return 0; const sp = budSpent(b, ym); return ym < curYM ? sp : Math.max(b.amount, sp); };
 
   /** Exact amount entered for that month, if any (older plans kept some under potSpent). */
   const realOf = (it, ym) => {
@@ -236,7 +297,12 @@ export function compute(data, today = new Date()) {
   /** A yearly budget: what you logged against it over the 12 months. */
   const budSpentY = (b) => round2(season.reduce((s, ym) => s + budSpent(b, ym), 0));
   /** Budgets over the year: monthly ones month by month, yearly ones at their limit (or what you spent, if more). */
-  const budY = round2(season.reduce((s, ym) => s + mbud.reduce((a, b) => a + budUse(b, ym), 0), 0) + ybud.reduce((s, b) => s + Math.max(b.amount, budSpentY(b)), 0));
+  // a yearly limit is one amount for the year even if it changed: the one in force last in the plan year, against all that was spent
+  const yids = [...new Set(ybud.map((b) => b.id))];
+  const budY = round2(season.reduce((s, ym) => s + mbud.reduce((a, b) => a + budUse(b, ym), 0), 0) + yids.reduce((s, id) => {
+    const segs = ybud.filter((b) => b.id === id), last = [...season].reverse().map((ym) => segs.find((b) => activeIn(b, ym))).find(Boolean);
+    return s + (last ? Math.max(last.amount, segs.reduce((a, b) => a + budSpentY(b), 0)) : 0);
+  }, 0));
   const possible = incomeY - outY - budY;
   /** Día a día: what's left for everything not in the plan, after expected expenses, budgets and savings. */
   /**
@@ -245,13 +311,14 @@ export function compute(data, today = new Date()) {
    * (even below zero), every month leaves the same amount unplanned, and the twelve add up to the yearly goal.
    */
   const plannedNet = (ym) => round2(ins.reduce((s, i) => s + (occ(i, ym) ? i.amount : 0), 0) - direct.reduce((s, i) => s + (occ(i, ym) ? i.amount : 0), 0)
-    - mbud.reduce((s, b) => s + b.amount, 0) - ybud.reduce((s, b) => s + b.amount, 0) / 12);
+    - mbud.reduce((s, b) => s + (activeIn(b, ym) ? b.amount : 0), 0) - ybud.reduce((s, b) => s + (activeIn(b, ym) ? b.amount : 0), 0) / 12);
   const slack = (season.reduce((s, ym) => s + plannedNet(ym), 0) - goal) / 12; // planned and unplanned each month
   const targetOf = (ym) => (goal > 0 ? round2(plannedNet(ym) - slack) : 0);
   const restOf = (ym) => round2(incomeOf(ym) - outOf(ym) - budOf(ym) - targetOf(ym));
   const restAvg = (possible - goal) / 12;
 
-  const payItem = ins.filter((i) => i.freq === 'monthly' && i.day).sort((a, b) => b.amount - a.amount)[0];
+  const payers = ins.filter((i) => i.freq === 'monthly' && i.day).sort((a, b) => b.amount - a.amount);
+  const payItem = payers.find((i) => activeIn(i, curYM)) || payers[0];
   const payday = payItem ? payItem.day : null;
 
   const idx = ymDiff(start, curYM);
@@ -465,7 +532,9 @@ export function compute(data, today = new Date()) {
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
     cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: (iso, ym) => dayOfCycle(iso, ym, D),
     balStart, openAfter, onceDate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
-    budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, byCat,
+    budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, budFor, byCat,
+    /** One version per item, as it stands in month ym (default: this one). */
+    shown: (ym = curYM) => planShown(items, ym), segmentsOf: (id) => items.filter((i) => i.id === id), itemAt: (id, ym) => items.find((i) => i.id === id && activeIn(i, ym)) || null,
   };
 }
 
@@ -502,7 +571,16 @@ export function parsePlanFile(obj) {
   const months = {};
   for (const [ym, m] of Object.entries(obj.months || {})) if (isYM(ym)) months[ym] = normMonth(m);
   const spends = Array.isArray(obj.spends) ? obj.spends.map(normSpend).filter(Boolean) : [];
-  return { settings, items, months, spends };
+  return { settings, items, months, spends, log: normLog(obj.log) };
+}
+/** The log of plan changes: who changed what, when and from which month: [{ at, id, name, action, from, to, before, after }]. */
+export function normLog(arr) {
+  const obj = (o) => (o && typeof o === 'object' && !Array.isArray(o) ? o : {});
+  return (Array.isArray(arr) ? arr : []).map((e) => ({
+    at: String(e?.at || ''), id: String(e?.id || ''), name: String(e?.name || ''),
+    action: ['add', 'edit', 'delete'].includes(e?.action) ? e.action : 'edit',
+    from: isYM(e?.from) ? e.from : '', to: isYM(e?.to) ? e.to : '', before: obj(e?.before), after: obj(e?.after),
+  })).filter((e) => e.at && e.id);
 }
 /** Settings: the yearly goal, the plan's first month, and past years' closes. */
 export function normSettings(o = {}) {

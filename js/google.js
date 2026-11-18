@@ -2,7 +2,7 @@
 // calls Google's APIs with the user's own token, and the data lives in a sheet in their Drive.
 import { CONFIG } from '../config.js';
 import { t, lang } from './i18n.js';
-import { normItem, normMonth, normSettings, normSpend, num, isYM, pad } from './model.js';
+import { normItem, normLog, normMonth, normSettings, normSpend, num, isYM, pad } from './model.js';
 
 const SCOPE_FILE = 'https://www.googleapis.com/auth/drive.file';
 const SCOPES = `${SCOPE_FILE} openid email`;
@@ -13,9 +13,10 @@ const SCHEMA = '1';
 // The sheet format is fixed: you can edit it by hand, keeping the header row.
 export const TABS = {
   settings: { title: '_hucha', head: ['key', 'value'] },
-  items: { title: 'items', head: ['id', 'kind', 'name', 'amount', 'freq', 'month', 'year', 'day', 'pot', 'vary', 'note', 'real', 'budget', 'cat'] },
+  items: { title: 'items', head: ['id', 'kind', 'name', 'amount', 'freq', 'month', 'year', 'day', 'pot', 'vary', 'note', 'real', 'budget', 'cat', 'from', 'to', 'at'] },
   months: { title: 'meses', head: ['ym', 'saved', 'pots', 'pot_spent', 'real', 'close', 'challenge', 'bal', 'open', 'check', 'open_date', 'dates'] },
   spends: { title: 'gastos', head: ['id', 'date', 'amount', 'note', 'cat'] },
+  log: { title: 'cambios', head: ['at', 'id', 'name', 'action', 'from', 'to', 'before', 'after'] },
 };
 
 export class AuthError extends Error {
@@ -120,6 +121,7 @@ export async function rememberEmail() {
 }
 
 // ---------- reading and writing the sheet ----------
+const parseJ = (v) => { try { return v ? JSON.parse(v) : {}; } catch { return {}; } };
 const quote = (t) => `'${t.replace(/'/g, "''")}'`;
 
 /** Hand-typed dates and months can come back as serial numbers. */
@@ -141,7 +143,7 @@ export function parseSheet(valueRanges) {
   const get = (k) => valueRanges.find((v) => v.range?.replace(/'/g, '').startsWith(TABS[k].title + '!'))?.values || [];
   const settings = {};
   for (const [k, v] of get('settings').slice(1)) settings[String(k).trim()] = v;
-  const items = rowsToObjects(get('items'), TABS.items.head).map(normItem);
+  const items = rowsToObjects(get('items'), TABS.items.head).map((r) => normItem({ ...r, from: cellYM(r.from), to: cellYM(r.to) }));
   const months = {};
   for (const r of rowsToObjects(get('months'), TABS.months.head)) {
     const ym = cellYM(r.ym);
@@ -156,6 +158,7 @@ export function parseSheet(valueRanges) {
   return {
     settings: normSettings({ goal: settings.goal, start: cellYM(settings.start), years: json(settings.years), cats: json(settings.cats), cycleDay: settings.cycle_day }),
     items, months, spends,
+    log: normLog(rowsToObjects(get('log'), TABS.log.head).map((r) => ({ ...r, from: cellYM(r.from), to: cellYM(r.to), before: parseJ(r.before), after: parseJ(r.after) }))),
   };
 }
 
@@ -164,13 +167,14 @@ export function toRows(data) {
   return {
     settings: [TABS.settings.head, ['schema', SCHEMA], ['goal', data.settings.goal], ['start', data.settings.start],
       ['cycle_day', data.settings.cycleDay ?? ''], ['cats', data.settings.cats?.length ? JSON.stringify(data.settings.cats) : ''], ['years', data.settings.years?.length ? JSON.stringify(data.settings.years) : '']],
-    items: [TABS.items.head, ...data.items.map((i) => [i.id, i.kind, i.name, i.amount, i.freq, i.month ?? '', i.year ?? '', i.day ?? '', b(i.pot), b(i.vary), i.note || '', i.real ?? '', b(i.budget), i.cat || ''])],
+    items: [TABS.items.head, ...data.items.map((i) => [i.id, i.kind, i.name, i.amount, i.freq, i.month ?? '', i.year ?? '', i.day ?? '', b(i.pot), b(i.vary), i.note || '', i.real ?? '', b(i.budget), i.cat || '', i.from || '', i.to || '', i.at || ''])],
     months: [TABS.months.head, ...Object.keys(data.months).sort().map((ym) => {
       const m = data.months[ym];
       const j = (o) => (o && Object.keys(o).length ? JSON.stringify(o) : '');
       return [ym, m.saved ?? '', b(m.pots), j(m.potSpent), j(m.real), j(m.close), j(m.challenge), m.bal ?? '', m.open ?? '', j(m.check), m.openDate || '', j(m.dates)];
     })],
     spends: [TABS.spends.head, ...[...data.spends].sort((a, b2) => a.date.localeCompare(b2.date)).map((e) => [e.id, e.date, e.amount, e.note || '', e.cat || ''])],
+    log: [TABS.log.head, ...(data.log || []).map((e) => [e.at, e.id, e.name, e.action, e.from || '', e.to || '', JSON.stringify(e.before || {}), JSON.stringify(e.after || {})])],
   };
 }
 
@@ -195,7 +199,16 @@ export class SheetStore {
     return id;
   }
 
+  /** Sheets made before a tab existed (the change log) get it added, so reading and writing it can't fail. */
+  async ensureTabs(id) {
+    const meta = await api(`${SHEETS}/${id}?fields=sheets.properties.title`);
+    const have = new Set((meta.sheets || []).map((s) => s.properties?.title));
+    const missing = Object.values(TABS).filter((t) => !have.has(t.title));
+    if (missing.length) await api(`${SHEETS}/${id}:batchUpdate`, { method: 'POST', body: { requests: missing.map((t) => ({ addSheet: { properties: { title: t.title, gridProperties: { frozenRowCount: 1 } } } })) } });
+  }
+
   async load(id) {
+    await this.ensureTabs(id);
     const ranges = Object.values(TABS).map((t) => `${quote(t.title)}!A1:Z`);
     const u = new URL(`${SHEETS}/${id}/values:batchGet`);
     ranges.forEach((r) => u.searchParams.append('ranges', r));

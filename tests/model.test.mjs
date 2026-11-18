@@ -377,3 +377,49 @@ test('the month chart counts the pay on the first day when the start balance is 
     assert.ok(cv.daily < 0 && cv.daily > -100, `${openDate}: the rest is a small daily spend, never a gain`);
   }
 });
+
+import { planEdit, planDelete, planAdd, planShown, planNext } from '../js/model.js';
+test('the plan over time: a change cuts the old version and adds the new one; any month can be rebuilt', () => {
+  const sal = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 28 };
+  let items = [normItem(sal)];
+  // a raise from March 2027 on
+  items = planEdit(items, 's', { ...sal, amount: 2300 }, '2027-03', '', '2027-02-10T10:00:00Z');
+  assert.equal(items.length, 2);
+  const m = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends: [] }, new Date(2027, 0, 20));
+  assert.equal(m.incomeOf('2027-02'), 2000, 'before the change: the old amount');
+  assert.equal(m.incomeOf('2027-03'), 2300, 'from the change on: the new one');
+  assert.equal(m.incomeOf('2027-12'), 2300);
+  // a change for a few months only, then it goes back
+  items = planEdit(items, 's', { ...sal, amount: 1000 }, '2027-05', '2027-06');
+  const m2 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends: [] }, new Date(2027, 0, 20));
+  assert.deepEqual(['2027-04', '2027-05', '2027-06', '2027-07'].map((ym) => m2.incomeOf(ym)), [2300, 1000, 1000, 2300], 'it comes back after the end month');
+  assert.equal(m2.incomeY, 2000 * 2 + 2300 * 2 + 1000 * 2 + 2300 * 6, 'the year adds up version by version');
+  // the plan as it stood in a given month
+  assert.equal(planShown(items, '2027-02')[0].amount, 2000);
+  assert.equal(planShown(items, '2027-05')[0].amount, 1000);
+  assert.equal(planNext(items, 's', '2027-04').amount, 1000, 'the next change already planned');
+  // ending an item keeps its past
+  const ended = planDelete(items, 's', '2027-08');
+  const m3 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: ended, months: {}, spends: [] }, new Date(2027, 0, 20));
+  assert.equal(m3.incomeOf('2027-07'), 2300, 'what it was before the end is untouched');
+  assert.equal(m3.incomeOf('2027-08'), 0, 'and from the end month it no longer counts');
+  assert.equal(planShown(ended, '2027-09').length, 0, 'an ended item is no longer shown');
+  // an edit that covers an older version replaces it
+  const again = planEdit(planEdit([normItem(sal)], 's', { ...sal, amount: 1800 }, '2027-06'), 's', { ...sal, amount: 2100 }, '2027-03');
+  assert.deepEqual(again.map((i) => [i.from || '', i.to || '', i.amount]), [['', '2027-02', 2000], ['2027-03', '', 2100]], 'a later edit from an earlier month supersedes the later version');
+  // adding applies from the month you say
+  const added = planAdd([], { id: 'r', kind: 'out', name: 'Alquiler', amount: 600, freq: 'monthly', day: 1 }, '2027-04');
+  const m4 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: added, months: {}, spends: [] }, new Date(2027, 0, 20));
+  assert.deepEqual(['2027-03', '2027-04'].map((ym) => m4.outOf(ym)), [0, 600]);
+});
+
+test('versions and the change log survive the sheet', () => {
+  const sal = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 28 };
+  const items = planEdit([normItem(sal)], 's', { ...sal, amount: 2300 }, '2027-03', '2027-09', '2027-02-10T10:00:00.000Z');
+  const log = [{ at: '2027-02-10T10:00:00.000Z', id: 's', name: 'Sueldo', action: 'edit', from: '2027-03', to: '2027-09', before: { amount: 2000 }, after: { amount: 2300 } }];
+  const d = { settings: { goal: 100, start: '2027-01' }, items, months: {}, spends: [], log };
+  const rows = toRows(d);
+  const back = parseSheet(Object.entries(rows).map(([k, values]) => ({ range: `'${TABS[k].title}'!A1:Z`, values })));
+  assert.deepEqual(back.items.map((i) => [i.amount, i.from || '', i.to || '', i.at ? 'at' : '']), items.map((i) => [i.amount, i.from || '', i.to || '', i.at ? 'at' : '']));
+  assert.deepEqual(back.log, log);
+});

@@ -3,7 +3,7 @@ import { Store } from './store.js';
 import { isConfigured, loadGis, signIn, signOut, tokenValid, rememberEmail, sheetUrl, savedHint } from './google.js';
 import {
   MES, MES3, DIAS, FREQ, fmt, fmtN, fmtSigned, esc, clamp, num, round2, uid, ymAdd, ymLabel, monthName, toISO, toYM, unit, freqText,
-  compute, daysTo, monthGrid, parsePlanFile, normItem, timesIn, isYM, occurs, ymDiff, daysInMonth,
+  compute, daysTo, monthGrid, parsePlanFile, normItem, timesIn, isYM, occurs, ymDiff, daysInMonth, planEdit, planDelete, planAdd, planNext, activeIn,
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
@@ -639,9 +639,9 @@ function budInfo(m, b, ym) {
 }
 const budBar = (x, key) => gauge({ names: { fill: t('Gastado'), plan: t('Límite') }, v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
 function openBudget(id) {
-  const b = store.data.items.find((i) => i.id === id && i.budget);
+  const m = compute(store.data), ym = m.curYM, b = m.shown(ym).find((i) => i.id === id && i.budget);
   if (!b) return;
-  const m = compute(store.data), ym = m.curYM, x = budInfo(m, b, ym), over = x.left < -0.5;
+  const x = budInfo(m, b, ym), over = x.left < -0.5;
   const mine = (e) => e.cat === b.cat && (b.freq === 'monthly' ? m.monthOf(e.date) === ym : m.season.includes(m.monthOf(e.date)));
   const list = m.allSpends.filter(mine).sort((a, c) => c.date.localeCompare(a.date));
   const today = toISO(new Date());
@@ -995,9 +995,11 @@ function plan(m) {
   const s = store.data.settings;
   const avgIn = m.incomeY / 12, avgOut = m.outY / 12, free = m.restAvg;
   const budM = m.budY / 12, tot = Math.max(avgIn, avgOut + budM + m.target, 1), w = (v) => clamp(v / tot * 100, 0, 100).toFixed(1);
-  const outs = m.outs.filter((i) => !i.budget).sort((a, b) => (a.freq === 'monthly' ? 0 : 1) - (b.freq === 'monthly' ? 0 : 1));
+  // the lists show one version per item (the one in force this month, or the next one to start); the sums use them all
+  const shown = m.shown(), sIns = shown.filter((i) => i.kind === 'in'), sBuds = shown.filter((i) => i.budget);
+  const outs = shown.filter((i) => i.kind === 'out' && !i.budget).sort((a, b) => (a.freq === 'monthly' ? 0 : 1) - (b.freq === 'monthly' ? 0 : 1));
   const budY = m.budY;
-  const outM = outs.filter((i) => !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
+  const outM = m.outs.filter((i) => !i.budget && !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
   const maxGoal = Math.max(0, Math.floor(m.possible / 100) * 100), share = m.incomeY ? Math.round(m.goal / m.incomeY * 100) : 0;
   // "Cumplidos", newest first, only what belongs to each section: the incomes you confirmed, the expenses you confirmed
   // (recurring or one-off), and, under the limits, the spends you logged in those categories. A confirmed one-off
@@ -1007,13 +1009,13 @@ function plan(m) {
   const doneList = (kind) => {
     const rows = [];
     for (const [ym, mo] of Object.entries(store.data.months)) for (const [id, amount] of Object.entries(mo.real || {})) {
-      const it = m.items.find((i) => i.id === id);
+      const it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
       if (!it || it.kind !== kind || it.budget) continue;
       const date = m.dateOf(it, ym);
       rows.push({ date, html: flowRow(ym, m.openAfter(ym))({ it, date, day: +date.slice(8), amount, state: 'real' }) });
     }
     // under the limits: the spends you logged in the categories that have a limit
-    if (kind === 'bud') for (const e of m.allSpends) if (m.budByCat.has(e.cat)) rows.push({ date: e.date, html: spendRow(e) });
+    if (kind === 'bud') for (const e of m.allSpends) if (m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, html: spendRow(e) });
     return rows.sort((a, b) => b.date.localeCompare(a.date));
   };
   const DONE_MAX = 40;
@@ -1041,7 +1043,7 @@ function plan(m) {
       <span>${t('Ahorro planificado')}</span><span>−${fmt(m.goal)}</span>
       <span class="tot">${t('Gasto total planificado')}</span><span class="tot">${fmt(m.incomeY - m.goal)}</span>
       <span class="sub">${t('Gastos planificados')}</span><span>${fmt(m.outY)}</span>
-      ${m.budgets.length ? `<span class="sub">${t('Límites de gasto')}</span><span>${fmt(budY)}</span>` : ''}
+      ${sBuds.length ? `<span class="sub">${t('Límites de gasto')}</span><span>${fmt(budY)}</span>` : ''}
       <span class="sub">${t('Sin planificar')}</span><span class="${free < 0 ? 'c-spend' : ''}">${free < 0 ? '−' : ''}${fmt(Math.abs(free * 12))}</span>
     </div>
     ${free < 0 ? `<div class="note c-spend">${t('No cabe: faltan {x} al mes. Como mucho caben {y} al año, sin dejar nada para gastar.', { x: fmt(-free), y: fmt(maxGoal) })}
@@ -1051,28 +1053,54 @@ function plan(m) {
       <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +m.start.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +m.start.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${m.cycleDay}" style="max-width: 80px"></label>
   </section>
-  ${group(t('Ingresos planificados'), '', m.ins, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
+  ${group(t('Ingresos planificados'), '', sIns, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
   ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null, 'out')}
-  ${group(t('Límites de gasto'), '', m.budgets, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), m.budgets.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}`;
+  ${group(t('Límites de gasto'), '', sBuds, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir límite'), sBuds.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}`;
 }
 const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 0h3v3H6zM0 6h3v3H0zM6 6h3v3H6zM0 12h3v3H0zM6 12h3v3H6z"/></svg>';
 function planRow(it, m, movable) {
   let real = '';
+  // what the history says about this item: it starts later, it ends, or a change is already planned
+  const nx = planNext(m.items, it.id, m.curYM);
+  const when = [
+    it.from && it.from > m.curYM ? `<span class="c-sav">${t('empieza en {m}', { m: ymLabel(it.from) })}</span>` : '',
+    it.to && it.to >= m.curYM ? `<span class="c-warn">${t('hasta {m}', { m: ymLabel(it.to) })}</span>` : '',
+    nx && nx !== it ? `<span class="c-sav">${t('desde {m}: {x}', { m: ymLabel(nx.from), x: fmt(nx.amount) })}</span>` : '',
+  ].join('');
   if (it.real != null) {
     real = `<span>${t('últimos 12 meses')}: ${fmt(it.real)}${unit(it)}</span>`;
     if (it.kind === 'out' && it.real - it.amount > it.real * 0.05) real += `<span class="c-warn">${t('planificas {x} menos', { x: fmt(it.real - it.amount) })}</span>`;
   }
   return `<div class="pitem" data-id="${esc(it.id)}">${movable ? `<button type="button" class="grip" aria-label="Mover ${esc(it.name)} (flechas arriba y abajo)" title="${t('Arrastra para ordenar')}">${GRIP}</button>` : ''}<button class="prow" data-act="edit" data-id="${esc(it.id)}">
     <span class="n">${it.kind === 'out' && CAT[itemCat(it)] ? catEl(itemCat(it), 'sm') : ''}${esc(it.name)}</span><span class="a ${it.kind === 'in' ? 'c-in' : ''}">${it.vary ? '≈ ' : ''}${it.kind === 'in' ? '+' : ''}${fmt(it.amount)}<small>${unit(it)}</small></span>
-    <span class="sub"><span>${it.budget ? (it.freq === 'monthly' ? t('al mes') : t('al año')) : esc(freqText(it))}</span>${m.isSave(it) ? '<span class="c-sav">' + t('ahorro · no es gasto') + '</span>' : ''}${real}</span>
+    <span class="sub"><span>${it.budget ? (it.freq === 'monthly' ? t('al mes') : t('al año')) : esc(freqText(it))}</span>${m.isSave(it) ? '<span class="c-sav">' + t('ahorro · no es gasto') + '</span>' : ''}${when}${real}</span>
   </button></div>`;
 }
 /** A Plan list was reordered: put its items in that order, in the slots they already held among all items. */
 function reorder(ids) {
   store.update('items', (d) => {
-    const want = new Set(ids), byId = new Map(d.items.map((it) => [it.id, it]));
-    d.items.map((it, i) => (want.has(it.id) ? i : -1)).filter((i) => i >= 0).forEach((slot, k) => { d.items[slot] = byId.get(ids[k]); });
+    const want = new Set(ids), groups = new Map();
+    d.items.forEach((it) => { if (want.has(it.id)) groups.set(it.id, [...(groups.get(it.id) || []), it]); });
+    const slots = d.items.map((it, i) => (want.has(it.id) ? i : -1)).filter((i) => i >= 0);
+    ids.flatMap((id) => groups.get(id) || []).forEach((it, k) => { d.items[slots[k]] = it; });
   });
+}
+
+/** The change log as readable lines, newest first: what changed, from which month. */
+function planHistory() {
+  const log = [...(store.data.log || [])].sort((a, b) => b.at.localeCompare(a.at));
+  if (!log.length) return '';
+  const LAB = { name: t('Nombre'), amount: t('Importe'), day: t('Día'), freq: t('Cuándo'), month: t('Mes'), year: t('Año'), vary: t('varía'), cat: t('Tipo'), note: t('Nota') };
+  const val = (k, v) => (k === 'amount' ? fmt(v) : k === 'freq' ? FREQ[v] || v : k === 'month' ? MES[v - 1] || v : k === 'cat' ? catName(v) : v === true ? t('sí') : v);
+  const line = (e) => {
+    const span = e.from ? ` · ${t('desde {m}', { m: ymLabel(e.from) })}${e.to ? ' ' + t('hasta {m}', { m: ymLabel(e.to) }) : ''}` : '';
+    if (e.action === 'add') return `${t('Añadido')}${span}: ${fmt(e.after.amount || 0)}`;
+    if (e.action === 'delete') return `${t('Terminado')}${span}`;
+    const ch = Object.keys({ ...e.before, ...e.after }).filter((k) => LAB[k] && e.before[k] !== e.after[k]);
+    return `${t('Cambio')}${span}: ${ch.map((k) => `${LAB[k]} ${e.before[k] != null ? val(k, e.before[k]) : '—'} → ${e.after[k] != null ? val(k, e.after[k]) : '—'}`).join(' · ') || t('sin cambios')}`;
+  };
+  return `<section class="card"><details class="tview"><summary>${t('Historial del plan')} (${log.length})</summary>
+    <div class="hist">${log.map((e) => `<div class="hrow"><span class="fine num">${esc(new Date(e.at).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' }))}</span><span><b>${esc(e.name)}</b><br><span class="fine">${esc(line(e))}</span></span></div>`).join('')}</div></details></section>`;
 }
 
 // ---------- Ajustes ----------
@@ -1097,6 +1125,7 @@ function settings() {
     <div class="grid typegrid">${(store.data.settings.cats || []).map((c) => `<button type="button" class="catchip g-tuyos" data-act="catedit" data-id="${esc(c.id)}">${catEl(c.id)}<span>${esc(c.name)}</span></button>`).join('')}
       <button type="button" class="catchip new" data-act="catnew" data-from="manage">${PLUS}<span>${t('Nuevo tipo')}</span></button></div>
   </section>` : ''}
+  ${planHistory()}
   <section class="card"><h2>${t('Tu plan en un archivo')}</h2>
     <p class="fine">${t('Guarda una copia o pásala a otro dispositivo. Importar sustituye todo lo que hay ahora.')}</p>
     <div class="row wrap-row"><button data-act="export">${t('Exportar (.json)')}</button>
@@ -1121,7 +1150,8 @@ function settings() {
 // ---------- item form (dialog) ----------
 let FORM = null, CONFIRM = false;
 function openItem(it, preset = {}) {
-  FORM = it ? { ...it, _edit: true } : { kind: 'out', freq: 'monthly', amount: '', ...preset };
+  const cm = compute(store.data).curYM;
+  FORM = it ? { ...it, _edit: true, _from: it.from && it.from > cm ? it.from : cm, _to: it.to && it.to >= cm ? it.to : '' } : { kind: 'out', freq: 'monthly', amount: '', ...preset, _from: cm, _to: '' };
   if (FORM.kind === 'out' && !FORM.cat && FORM.name) FORM.cat = guessCat(FORM.name);
   CONFIRM = false;
   renderForm();
@@ -1133,6 +1163,19 @@ const SEC_FREQ = {
   bud: { yearly: t('Al año'), monthly: t('Al mes') },
 };
 const secOf = (f) => f._sec || (f.kind === 'in' ? 'in' : f.budget ? 'bud' : 'out');
+/** From which month a change applies (and until which): by default, this month on; what came before is not touched. */
+function applyBlock(f) {
+  const m = compute(store.data);
+  const months = []; for (let k = -3; k <= 36; k++) { const ym = ymAdd(m.curYM, k); if (k < 0 && m.mon(ym).close) continue; months.push(ym); }
+  const from = f._from || m.curYM, to = f._to || '';
+  if (!months.includes(from)) months.unshift(from);
+  const opt = (ym, sel) => `<option value="${ym}" ${ym === sel ? 'selected' : ''}>${cap(ymLabel(ym))}</option>`;
+  const sum = `${from === m.curYM ? t('Desde este mes') : t('Desde {m}', { m: ymLabel(from) })}${to ? ' · ' + t('hasta {m}', { m: ymLabel(to) }) : ' · ' + t('en adelante')}`;
+  return `<details class="applyto" ${f._applyOpen ? 'open' : ''}><summary><span>${t('Aplicar')}:</span> <b>${sum}</b></summary>
+    <div class="fields2"><label class="field"><span class="label">${t('Desde')}</span><select id="f-from">${months.map((ym) => opt(ym, from)).join('')}</select></label>
+    <label class="field"><span class="label">${t('Hasta')}</span><select id="f-to"><option value="">${t('Siempre')}</option>${months.filter((ym) => ym >= from).map((ym) => opt(ym, to)).join('')}</select></label></div>
+    <p class="fine">${f._edit ? t('Lo anterior no cambia: queda como estaba, con su historial.') : t('Antes de ese mes no cuenta.')}</p></details>`;
+}
 function renderForm() {
   const f = FORM, sec = secOf(f);
   f.kind = sec === 'in' ? 'in' : 'out';
@@ -1161,10 +1204,11 @@ function renderForm() {
       </div>`}
     ${bud ? '' : `<label class="check-row"><input type="checkbox" id="f-vary" ${f.vary ? 'checked' : ''}><span>${t('El importe varía')}<br><span class="fine">${t('Te pediré el importe exacto cada vez. Si no, cuenta el importe planificado y solo lo corriges si cambia.')}</span></span></label>`}
     <label class="field"><span class="label">${t('Nota')}</span><input id="f-note" value="${esc(f.note)}" placeholder="${t('Opcional')}" autocomplete="off"></label>
+    ${applyBlock(f)}
     <div class="formbtns">
       <button type="button" class="primary" data-act="fsave">${f._edit ? t('Guardar') : t('Añadir')}</button>
       ${f._edit ? `<button type="button" data-act="fdup">${t('Duplicar')}</button>` : ''}
-      ${f._edit ? `<button type="button" class="danger" data-act="fdel">${CONFIRM ? t('Confirmar borrado') : t('Borrar')}</button>` : ''}
+      ${f._edit ? `<button type="button" class="danger" data-act="fdel">${CONFIRM ? t('Confirmar borrado') : t('Terminar')}</button>` : ''}
     </div>
   </form>`;
 }
@@ -1178,6 +1222,7 @@ function readForm() {
   f.day = g('f-day') ? g('f-day').value : f.day;
   if (g('f-vary')) f.vary = g('f-vary').checked;
   if (g('f-note')) f.note = g('f-note').value;
+  if (g('f-from')) { f._from = g('f-from').value; f._to = g('f-to').value; if (f._to && f._to < f._from) f._to = ''; f._applyOpen = g('f-from').closest('details').open; }
 }
 function saveForm() {
   readForm();
@@ -1188,23 +1233,30 @@ function saveForm() {
   if (f.freq === 'once' && !(+f.year > 2000)) return invalid('#f-year', t('Escribe el año'));
   if (f.kind === 'out' && !f.cat && !f._nocat) f.cat = guessCat(f.name);
   if (f.budget && f.kind === 'out') {
-    const c = f.cat || 'otros', other = store.data.items.find((i) => i.budget && i.cat === c && i.id !== f.id);
+    const c = f.cat || 'otros', other = store.data.items.find((i) => i.budget && i.cat === c && i.id !== f.id && activeIn(i, f._from || compute(store.data).curYM));
     if (other) return toast(t('Ya tienes un límite de {c}: «{n}»', { c: catName(c), n: other.name }), 3500);
   }
-  const old = f._edit ? store.data.items.find((i) => i.id === f.id) : null;
-  const it = normItem({ ...f, amount, id: f.id || uid(f.kind), real: old?.real });
-  store.update('items', (d) => {
-    if (old) d.items = d.items.map((x) => (x.id === it.id ? it : x)); else d.items.push(it);
+  const m = compute(store.data), F = f._from || m.curYM, T = f._to || '';
+  const old = f._edit ? (m.itemAt(f.id, F) || m.segmentsOf(f.id)[0]) : null;
+  const it = normItem({ ...f, amount, id: f.id || uid(f.kind) });
+  store.update(['items', 'log'], (d) => {
+    d.items = f._edit ? planEdit(d.items, it.id, it, F, T) : planAdd(d.items, it, F);
+    d.log = [...(d.log || []), logEntry(f._edit ? 'edit' : 'add', it, old, F, T)];
   });
   dlg.close();
   toast(old ? t('Guardado') : t('Añadido'));
 }
+const PLAN_FIELDS = ['name', 'amount', 'freq', 'month', 'year', 'day', 'vary', 'cat', 'note', 'budget'];
+const planFields = (it) => (it ? Object.fromEntries(PLAN_FIELDS.filter((k) => it[k] != null && it[k] !== false && it[k] !== '').map((k) => [k, it[k]])) : {});
+/** One line of the change log: what it was, what it became, from which month. */
+const logEntry = (action, it, before, F, T) => ({ at: new Date().toISOString(), id: it.id, name: it.name, action, from: F || '', to: T || '', before: planFields(before), after: action === 'delete' ? {} : planFields(it) });
+
 
 // ---------- one occurrence: the exact amount for a month ----------
 function openOcc(id, ym) {
-  const it = store.data.items.find((i) => i.id === id);
+  const m = compute(store.data), it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
   if (!it) return;
-  const m = compute(store.data), r = m.realOf(it, ym);
+  const r = m.realOf(it, ym);
   const day = it.day ? t(' · día ') + Math.min(it.day, daysInMonth(ym)) : '';
   dlg.innerHTML = `<div class="sheet" id="occ-form">
     <div class="row between"><h2>${esc(it.name)}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
@@ -1409,7 +1461,7 @@ function setMonth(ym, patch) {
 }
 function addSpend(date, amount, note, from, cat) {
   const e = { id: uid('g'), date, amount: round2(amount), note: note || '', ...(cat ? { cat } : {}) };
-  const bud = cat && store.data.items.find((i) => i.budget && i.cat === cat);
+  const bud = cat && compute(store.data).budByCat.get(cat);
   UI.qcat = null;
   const done = celebrate(() => store.update('spends', (d) => { d.spends.push(e); }), from);
   UI.undo.push(e.id); UI.undo = UI.undo.slice(-20);
@@ -1621,14 +1673,14 @@ document.addEventListener('click', (e) => {
     case 'oconfirm': {
       const v = num(val('o-real'));
       if (v == null || v < 0) return invalid('#o-real', t('Escribe un importe'));
-      const od = val('o-date'), mm = compute(store.data), it = store.data.items.find((i) => i.id === b.dataset.id);
+      const od = val('o-date'), mm = compute(store.data), it = mm.itemAt(b.dataset.id, ym);
       if (od && (od < mm.range(ym).from || od > mm.range(ym).to)) return invalid('#o-date', t('Una fecha de este mes'));
       dlg.close();
       if (!celebrate(() => setReal(b.dataset.id, ym, v, od && od !== plannedDate(it, ym) ? od : ''), null)) toast(`Confirmado: ${fmt(v)}`);
       break;
     }
     case 'oclear': setReal(b.dataset.id, ym, null); dlg.close(); toast(t('Cuenta el importe planificado')); break;
-    case 'edit': { const it = store.data.items.find((i) => i.id === b.dataset.id); if (it) openItem(it); break; }
+    case 'edit': { const it = compute(store.data).shown().find((i) => i.id === b.dataset.id); if (it) openItem(it); break; }
     case 'additem': openItem(null, JSON.parse(b.dataset.preset || '{}')); break;
     case 'addonce': { const d = b.dataset.date; openItem(null, { kind: 'in', _sec: 'in', freq: 'once', month: +d.slice(5, 7), year: +d.slice(0, 4), day: +d.slice(8) }); break; }
     case 'ffreq': readForm(); FORM.freq = b.dataset.v; renderForm(); break;
@@ -1652,9 +1704,10 @@ document.addEventListener('click', (e) => {
     case 'fdup': { readForm(); const { id, real, _edit, ...rest } = FORM; FORM = { ...rest, _copy: rest.name || t('sin nombre') }; CONFIRM = false; renderForm(); dlg.querySelector('#f-amount')?.focus(); break; }
     case 'fdel': {
       if (!CONFIRM) { CONFIRM = true; readForm(); renderForm(); break; }
-      const id = FORM.id;
-      store.update('items', (d) => { d.items = d.items.filter((i) => i.id !== id); });
-      dlg.close(); toast(t('Borrado')); break;
+      readForm();
+      const id = FORM.id, mm = compute(store.data), F = FORM._from || mm.curYM, before = mm.itemAt(id, F) || mm.segmentsOf(id)[0];
+      store.update(['items', 'log'], (d) => { d.items = planDelete(d.items, id, F); d.log = [...(d.log || []), logEntry('delete', before, before, F, '')]; });
+      dlg.close(); toast(t('Terminado')); break;
     }
     case 'keepremote': dlg.close(); toast(t('Usando la hoja de Drive')); break;
     case 'keeplocal': store.replaceAll(UI.chooseLocal); dlg.close(); toast(t('Subiendo el plan de este dispositivo')); break;
