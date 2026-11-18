@@ -1032,3 +1032,4 @@ details.tview th:first-child, details.tview td:first-child { padding-left: 0; }
 .bl-dot2 { fill: var(--muted); stroke: var(--panel); stroke-width: 2; }
 .bl-dot2[hidden] { display: none; }
 .bl-dot.cl-dot { fill: var(--sav); }
+.ch-dot.cl-dot { fill: var(--sav); }

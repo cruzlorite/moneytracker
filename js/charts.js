@@ -209,7 +209,7 @@ export function bindBalance() {
  * Two cumulative lines over the months of the plan: the plan (reference) and what is saved, dashed from `projFrom` on
  * (the estimate). plan, real: arrays of the same length; labels: one per point (shown for a few).
  */
-export function cumLines({ plan, real, projFrom = null, labels = [], tips = [], aria = '', h = 170 }) {
+export function cumLines({ plan, real, projFrom = null, nowIdx = null, labels = [], tips = [], aria = '', h = 170 }) {
   const W = 340, padL = 44, padR = 50, padT = 22, padB = 22, n = plan.length - 1;
   const all = [...plan, ...real, 0], mx = Math.max(...all), mn = Math.min(...all), span = mx - mn || 1, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / span * ph;
@@ -218,7 +218,8 @@ export function cumLines({ plan, real, projFrom = null, labels = [], tips = [], 
   const ticks = [...new Set([mx, mx / 2, 0, mn].map((v) => Math.round(v)))];
   const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
-  const lx = labels.map((l, i) => (i === 0 || i === n || i % 3 === 0 ? `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(l)}</text>` : '')).join('');
+  const lx = labels.map((l, i) => (l && (i === 1 || i === n || (i - 1) % 3 === 0) ? `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(l)}</text>` : '')).join('');
+  const now = nowIdx != null && nowIdx >= 0 && nowIdx <= n ? `<circle class="ch-dot cl-dot" cx="${xs[nowIdx].toFixed(1)}" cy="${pyR[nowIdx].toFixed(1)}" r="4"/>` : '';
   const solid = curve(xs, pyR, tR, 0, k == null ? n : k - 1), dash = k == null ? '' : curve(xs, pyR, tR, k - 1, n);
   // the two end figures sit to the right of the lines, pushed apart when they are close
   let yp = pyP[n] + 4, yr = pyR[n] + 4;
@@ -227,7 +228,7 @@ export function cumLines({ plan, real, projFrom = null, labels = [], tips = [], 
   const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
     <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${padT + ph}"/><circle class="bl-dot2" r="4"/><circle class="bl-dot cl-dot" r="5"/><g class="bl-label"><rect rx="6"/><text/></g></g>`;
   return `<svg class="chart bal-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}
-    <path class="ch-plan" d="${curve(xs, pyP, tP, 0, n)}"/><path class="ch-line cl-real" d="${solid}"/>${dash ? `<path class="ch-line cl-real ch-proj" d="${dash}"/>` : ''}
+    <path class="ch-plan" d="${curve(xs, pyP, tP, 0, n)}"/><path class="ch-line cl-real" d="${solid}"/>${dash ? `<path class="ch-line cl-real ch-proj" d="${dash}"/>` : ''}${now}
     <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yp.toFixed(1)}" style="fill: var(--muted)">${esc(compact(plan[n]))}</text>
     <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yr.toFixed(1)}">${k != null ? '≈ ' : ''}${esc(compact(real[n]))}</text>${lx}${hits}</svg>`;
 }

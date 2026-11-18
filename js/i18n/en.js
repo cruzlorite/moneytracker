@@ -52,6 +52,7 @@ export default {
   'Cómo se calcula': 'How it is calculated',
   'Ver como tabla': 'View as table',
   'Idioma': 'Language',
+  'Inicio': 'Start',
   'Ingreso sin apuntar': 'Income not logged',
   'Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.': 'Your balance is {x} higher than your income and expenses explain: an income is missing, or the starting balance already included one.',
   'Desconfirmar': 'Unconfirm',
