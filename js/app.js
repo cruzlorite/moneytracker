@@ -662,10 +662,12 @@ const ST = { future: [t('planificado'), ''], auto: [t('dado por bueno'), 'st-aut
 const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
   const inBal = !!after && date <= after; // before the day your start balance refers to: already in it, not added again
   const [txt, cls] = inBal ? [t('ya en tu saldo inicial'), 'st-inbal'] : ST[state], diff = round2(amount - it.amount);
-  return `<button class="flow ${inBal ? 'inbal' : ''}" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}">
+  const row = `<button class="flow ${inBal ? 'inbal' : ''}" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}">
   <span class="d">${day ? `<b>${day}</b>${MES3[+date.slice(5, 7) - 1]}` : '<b>—</b>' + t('mes')}</span>
   <span class="grow"><b>${esc(it.name)}</b><br><span class="fine"><span class="st ${cls}">${txt}</span>${state === 'real' && diff ? ` <span class="num">(${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})</span>` : ''}</span></span>
   <span class="num ${it.kind === 'in' ? 'amt-in' : 'amt-out'}">${it.vary && state !== 'real' ? '≈ ' : ''}${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+  // a confirmed one can be un-confirmed right here: it goes back to its planned amount and date
+  return state === 'real' ? `<div class="flowrow">${row}<button type="button" class="unconf" data-act="unconfirm" data-id="${esc(it.id)}" data-ym="${ym}" aria-label="${t('Desconfirmar {n}', { n: esc(it.name) })}" title="${t('Desconfirmar')}">${ic('x')}</button></div>` : row;
 };
 
 // ---------- Mes ----------
@@ -1192,7 +1194,7 @@ function openOcc(id, ym) {
     <p class="fine">${it.vary ? t('Este importe varía: hasta que lo confirmes, cuenta el importe planificado.') : t('Si no lo tocas, cuenta el importe planificado.')} ${t('Pon 0 si este mes no ha habido.')}</p>
     <div class="formbtns">
       <button type="button" class="primary" data-act="oconfirm" data-id="${esc(id)}" data-ym="${ym}">Confirmar</button>
-      ${r != null ? `<button type="button" data-act="oclear" data-id="${esc(id)}" data-ym="${ym}">${t('Volver al importe planificado')}</button>` : ''}
+      ${r != null ? `<button type="button" data-act="oclear" data-id="${esc(id)}" data-ym="${ym}">${t('Desconfirmar')}</button>` : ''}
       <button type="button" class="ghost" data-act="edit" data-id="${esc(id)}">${t('Editar en el plan')}</button>
     </div></div>`;
   openDialog();
@@ -1585,6 +1587,7 @@ document.addEventListener('click', (e) => {
     case 'msel': UI.mesYM = ym; go('mes'); break;
     case 'calmove': UI.mesYM = ymAdd(UI.mesYM, +b.dataset.k); render(true); break;
     case 'occ': openOcc(b.dataset.id, ym); break;
+    case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
     case 'notifymore': UI.notifyAll = !UI.notifyAll; render(true); break;
     case 'qok': { const v = +b.dataset.v; setReal(b.dataset.id, ym, v); toast(t('Confirmado')); break; }
     case 'qokall': {
