@@ -1007,3 +1007,6 @@ details.tview td:first-child { white-space: nowrap; }
 .notify .taskhead .notify-t { min-width: 0; }
 details.tview th, details.tview td:last-child, details.tview td:first-child { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 details.tview td:nth-child(2) { white-space: normal; overflow-wrap: anywhere; }
+details.tview th, details.tview td { padding-left: 10px; }
+details.tview th:first-child, details.tview td:first-child { padding-left: 0; }
+details.tview th:nth-child(2), details.tview td:nth-child(2) { text-align: left; }
