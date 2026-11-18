@@ -908,3 +908,7 @@ button.info:hover, button.info.tipon { color: var(--ink); border-color: var(--in
 input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1px var(--spend); }
 .field-err { display: block; margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--spend); }
 .field-err::before { content: "! "; font-weight: 800; }
+/* Hoy: the account balance, readable next to the button that updates it */
+.balrow { align-items: center; }
+.balv { display: grid; gap: 1px; min-width: 0; }
+.balv b { font-size: 20px; font-weight: 700; letter-spacing: -.01em; }

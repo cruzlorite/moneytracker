@@ -328,7 +328,10 @@ function home(m) {
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
     ${gauge({ v: spent, proj, tone, ptone, cap: plan, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], note: hpNote, label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}${hpNote && !hpNoteFits ? `<b style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}</b>` : ''}</div>
-    <div class="row between"><span class="fine">${cm.check ? t('Saldo del {d}', { d: shortDate(cm.check.date) }) : ''}</span><button class="btn-sec sm" data-act="check" data-ym="${ym}">${t('Actualizar saldo')}</button></div>
+    <div class="row between balrow">${(() => {
+      const bs = m.balStart(ym), has = cm.check ? cm.check.bal : bs;
+      return has == null ? '<span></span>' : `<span class="balv"><span class="fine">${cm.check ? t('Saldo del {d}', { d: shortDate(cm.check.date) }) : t('Saldo al empezar el mes')}</span><b class="num">${fmt(has)}</b></span>`;
+    })()}<button class="btn-sec sm" data-act="check" data-ym="${ym}">${t('Actualizar saldo')}</button></div>
   </section>
   <div class="stats2">
     <section class="card stat"><span class="label"><i class="sdot in"></i>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym, iso))}</b>
