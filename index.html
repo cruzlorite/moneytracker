@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>MoneyTracker</title>
+  <meta name="description" content="Planifica tu año: ingresos, gastos y ahorro.">
+  <meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0d12" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MoneyTracker">
+  <meta name="referrer" content="no-referrer">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preload" href="fonts/inter.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <script>
+    // If the app can't start (an error, or files of two versions mixed in the browser's cache),
+    // say so and offer to refresh every file, instead of showing "Cargando…" forever.
+    (function () {
+      var FILES = ['js/app.js', 'js/model.js', 'js/google.js', 'js/store.js', 'js/fx.js', 'js/sort.js', 'js/charts.js', 'js/cats.js', 'js/play.js', 'js/demo.js', 'config.js', 'styles.css'];
+      var shown = false;
+      function fail(msg) {
+        if (shown || window.__huchaReady) return;
+        shown = true;
+        var app = document.getElementById('app');
+        if (!app) return;
+        var en = (function () { try { var l = localStorage.getItem('hucha:lang'); if (l) return l === 'en'; } catch (e) {} return !/^es/i.test(navigator.language || 'es'); })();
+        var T = en ? ['MoneyTracker could not start', 'This usually happens when the browser keeps files from an older version. Press the button to fix it.', 'Update and reload', 'Updating…']
+          : ['No he podido arrancar', 'Suele pasar cuando el navegador guarda archivos de una versión anterior. Pulsa el botón y lo arreglo.', 'Actualizar y recargar', 'Actualizando…'];
+        app.innerHTML = '<main class="wrap"><section class="card"><h2>' + T[0] + '</h2>'
+          + '<p class="fine">' + T[1] + '</p>'
+          + '<p class="fine"><code id="boot-err"></code></p><button class="primary" id="boot-fix">' + T[2] + '</button></section></main>';
+        document.getElementById('boot-err').textContent = String(msg || '').slice(0, 300);
+        document.getElementById('boot-fix').onclick = function () {
+          this.disabled = true; this.textContent = T[3];
+          Promise.all(FILES.map(function (f) { return fetch(f, { cache: 'reload' }).catch(function () {}); }))
+            .then(function () { location.reload(); });
+        };
+      }
+      addEventListener('error', function (e) { fail(e.message || (e.target && e.target.src ? 'No se pudo cargar ' + e.target.src : 'Error al cargar')); }, true);
+      addEventListener('unhandledrejection', function (e) { fail(e.reason && e.reason.message || e.reason); });
+      setTimeout(function () { fail('Tarda demasiado en arrancar.'); }, 10000);
+    })();
+  </script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div id="app"><main class="wrap"><p class="fine center">…</p></main></div>
+  <dialog id="modal" aria-label="Formulario"></dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <noscript><p style="padding:16px">MoneyTracker necesita JavaScript.</p></noscript>
+</body>
+</html>

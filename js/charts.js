@@ -1,0 +1,126 @@
+// Small charts as HTML/SVG strings. No DOM access: the views drop them in and the app's tooltip layer
+// reads data-tip on hover, focus or tap. Marks follow one spec: columns at most 24px wide with a 4px
+// rounded data end and a square baseline, hairline solid grid, values labelled sparingly, and every chart
+// comes with its table (the caller puts it in a <details>).
+import { fmt, esc } from './model.js';
+import { t, locale } from './i18n.js';
+
+const nice = (v) => {
+  if (v <= 0) return 0;
+  const p = 10 ** Math.floor(Math.log10(v)), n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+};
+const compact = (v) => (Math.abs(v) >= 10000 ? Math.round(v / 1000) + 'K' : new Intl.NumberFormat(locale, { useGrouping: 'always' }).format(Math.round(v)));
+
+/** A bar from y0 (baseline) to y1, rounded 4px at the data end only. */
+function colPath(x, w, y0, y1) {
+  const up = y1 < y0, h = Math.abs(y0 - y1), r = Math.min(4, h, w / 2);
+  if (h < 0.5) return '';
+  return up
+    ? `M${x} ${y0}V${y1 + r}Q${x} ${y1} ${x + r} ${y1}H${x + w - r}Q${x + w} ${y1} ${x + w} ${y1 + r}V${y0}Z`
+    : `M${x} ${y0}V${y1 - r}Q${x} ${y1} ${x + r} ${y1}H${x + w - r}Q${x + w} ${y1} ${x + w} ${y1 - r}V${y0}Z`;
+}
+
+/**
+ * Column chart over months.
+ * cols: [{ label, value (null = no data yet), tip, cls, fill, mark (a short line across the column: its own target) }] — cls picks the fill (see .ch-* in styles.css); fill overrides it
+ * limit: a reference line (a budget, the monthly target) · labels: indexes of the columns to label
+ */
+export function columns({ cols, limit = null, limitLabel = '', labels = [], aria = '', h = 150 }) {
+  const W = 340, padL = 34, padR = 6, padT = 16, padB = 20;
+  const vals = cols.flatMap((c) => [c.value, c.mark]).filter((v) => v != null);
+  const hi = nice(Math.max(0, ...vals, limit ?? 0)), lo = -nice(Math.max(0, ...vals.map((v) => -v)));
+  const span = hi - lo || 1, ph = h - padT - padB;
+  const y = (v) => padT + (hi - v) / span * ph;
+  const band = (W - padL - padR) / cols.length, w = Math.min(24, band * 0.62);
+  const ticks = [hi, ...(lo < 0 ? [0, lo] : [0])].filter((t, i, a) => a.indexOf(t) === i);
+  const grid = ticks.map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/>
+    <text class="ch-tick" x="${padL - 6}" y="${(y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
+  const marks = cols.map((c, i) => {
+    const x = padL + band * i + (band - w) / 2, cx = padL + band * i + band / 2;
+    const bar = c.value == null ? '' : `<path class="ch-col ${c.cls || 'ch-1'}" d="${colPath(x, w, y(0), y(c.value))}"${c.fill ? ` style="fill:${c.fill}"` : ''}/>`;
+    const lab = c.value != null && labels.includes(i)
+      ? `<text class="ch-val" x="${cx}" y="${(c.value >= 0 ? y(c.value) - 5 : y(c.value) + 12).toFixed(1)}">${esc(c.short ?? compact(c.value))}</text>` : '';
+    return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip)}" data-tip="${esc(c.tip)}">
+      <rect class="ch-hit" x="${padL + band * i}" y="0" width="${band}" height="${h}"/>${bar}${lab}${c.mark == null ? '' : `<line class="ch-mark" x1="${(x - 3).toFixed(1)}" x2="${(x + w + 3).toFixed(1)}" y1="${y(c.mark).toFixed(1)}" y2="${y(c.mark).toFixed(1)}"/>`}
+      <text class="ch-x ${c.now ? 'now' : ''}" x="${cx}" y="${h - 5}">${esc(c.label)}</text></g>`;
+  }).join('');
+  const lim = limit == null ? '' : `<line class="ch-limit" x1="${padL}" x2="${W - padR}" y1="${y(limit).toFixed(1)}" y2="${y(limit).toFixed(1)}"/>
+    ${limitLabel ? `<text class="ch-limit-t" x="${W - padR}" y="${(y(limit) - 4).toFixed(1)}">${esc(limitLabel)}</text>` : ''}`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${grid}${marks}${lim}</svg>`;
+}
+
+/** Two series side by side per month (e.g. what came in and what went out). */
+export function pairs({ cols, aria = '', h = 160 }) {
+  const W = 340, padL = 34, padR = 6, padT = 12, padB = 20;
+  const hi = nice(Math.max(1, ...cols.flatMap((c) => [c.a ?? 0, c.b ?? 0])));
+  const ph = h - padT - padB, y = (v) => padT + (hi - v) / hi * ph;
+  const band = (W - padL - padR) / cols.length, w = Math.min(11, (band - 6) / 2);
+  const grid = [hi, hi / 2, 0].map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/>
+    <text class="ch-tick" x="${padL - 6}" y="${(y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
+  const marks = cols.map((c, i) => {
+    const x0 = padL + band * i + band / 2 - w - 1, cx = padL + band * i + band / 2;
+    return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip)}" data-tip="${esc(c.tip)}">
+      <rect class="ch-hit" x="${padL + band * i}" y="0" width="${band}" height="${h}"/>
+      ${c.a == null ? '' : `<path class="ch-col ch-in" d="${colPath(x0, w, y(0), y(c.a))}"/>`}
+      ${c.b == null ? '' : `<path class="ch-col ch-out" d="${colPath(x0 + w + 2, w, y(0), y(c.b))}"/>`}
+      <text class="ch-x ${c.now ? 'now' : ''}" x="${cx}" y="${h - 5}">${esc(c.label)}</text></g>`;
+  }).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${grid}${marks}</svg>`;
+}
+
+/**
+ * One whole split into parts (where the month's money goes). parts: [{ label, value, cls }].
+ * The share is printed inside a part only when it is wide enough; the legend under it carries every amount.
+ */
+export function segbar(parts, total, aria = '') {
+  const shown = parts.filter((p) => p.value > 0.5);
+  return `<div class="segbar" role="img" aria-label="${esc(aria)}">${shown.map((p) => {
+    const share = p.value / total * 100;
+    return `<span class="seg ${p.cls}" style="flex-grow:${p.value.toFixed(2)}" data-tip="${esc(`${p.label}: ${fmt(p.value)} (${Math.round(share)} %)`)}" tabindex="0">${share >= 13 ? `<b>${Math.round(share)}%</b>` : ''}</span>`;
+  }).join('')}</div>`;
+}
+
+/** Ranked horizontal bars: rows [{ icon (html), label, value, tip, extra }]; one colour, value at the tip. */
+export function ranked(rows) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return `<div class="ranked">${rows.map((r) => `<div class="rk" tabindex="0" data-tip="${esc(r.tip || '')}">${r.icon || ''}
+    <span class="rk-main"><span class="rk-l">${esc(r.label)}${r.extra || ''}</span>
+    <span class="rk-bar"><i style="width:${Math.max(1.5, r.value / max * 100).toFixed(1)}%"></i><b class="num">${fmt(r.value)}</b></span></span></div>`).join('')}</div>`;
+}
+
+/** The table twin of a chart. rows: arrays of cells (strings already escaped where needed). */
+export function table(head, rows) {
+  return `<details class="tview"><summary>${t('Ver como tabla')}</summary><table><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td class="${i ? 'num' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table></details>`;
+}
+
+/**
+ * A line through the days of a month. pts: [{ y, tip }] from day 0; marks: [{ i, text }] labels at some points.
+ * The zero line is where the month began; the area under the line is tinted.
+ */
+export function line({ pts, marks = [], aria = '', h = 170, xTicks = [] }) {
+  const W = 340, padL = 38, padR = 12, padT = 22, padB = 20;
+  const ys = pts.map((p) => p.y);
+  const hi = nice(Math.max(0, ...ys)), lo = -nice(Math.max(0, ...ys.map((v) => -v)));
+  const span = hi - lo || 1, ph = h - padT - padB, n = pts.length - 1;
+  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (hi - v) / span * ph;
+  const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
+  const area = `${d}L${X(n).toFixed(1)} ${Y(0).toFixed(1)}L${X(0).toFixed(1)} ${Y(0).toFixed(1)}Z`;
+  const ticks = [hi, 0, ...(lo < 0 ? [lo] : [])].filter((t, i, a) => a.indexOf(t) === i);
+  const grid = ticks.map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(t).toFixed(1)}" y2="${Y(t).toFixed(1)}"/>
+    <text class="ch-tick" x="${padL - 6}" y="${(Y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
+  const band = (W - padL - padR) / n;
+  const hits = pts.map((p, i) => `<rect class="ch-hit ch-band" x="${(X(i) - band / 2).toFixed(1)}" y="0" width="${band.toFixed(1)}" height="${h}" tabindex="-1" data-tip="${esc(p.tip || '')}"/>`).join('');
+  const placed = [];
+  const lab = marks.map(({ i, text }) => {
+    const x = clamp(X(i), padL + 24, W - padR - 24), y = Y(pts[i].y);
+    // two labels close together: the later one goes under its point
+    const below = placed.some((p) => Math.abs(p - x) < 56) || y - 9 < 10;
+    placed.push(x);
+    return `<circle class="ch-dot" cx="${X(i).toFixed(1)}" cy="${y.toFixed(1)}" r="4"/><text class="ch-val" x="${x.toFixed(1)}" y="${(below ? y + 18 : y - 9).toFixed(1)}">${esc(text)}</text>`;
+  }).join('');
+  const xs = xTicks.map((i) => `<text class="ch-x" x="${X(i).toFixed(1)}" y="${h - 5}">${i}</text>`).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${d}"/>${lab}${xs}${hits}</svg>`;
+}
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
