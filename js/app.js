@@ -157,7 +157,7 @@ const mFor = (ym, data = store.data) => computeYearAt(ymAdd(data.settings.start,
 /** How far back and forward you can go: back to the first year with anything in it, forward a few years to plan ahead. */
 function yearBounds() {
   const s = store.data.settings, firsts = [s.start, ...(s.years || []).map((y) => y.start), ...Object.keys(store.data.months), ...store.data.spends.map((e) => e.date.slice(0, 7))].filter(isYM).sort();
-  return { min: Math.min(0, Math.floor(ymDiff(s.start, firsts[0]) / 12)), max: 3 };
+  return { min: Math.min(0, Math.floor(ymDiff(s.start, firsts[0]) / 12)), max: UI.tab === 'plan' ? 3 : 0 }; // only the Plan looks ahead
 }
 /** The month the Plan shows its items "as of": this month in the current year, the last of a past year, the first of a year to come. */
 const viewYMOf = (m) => ((UI.yearOff || 0) === 0 ? m.curYM : (UI.yearOff || 0) < 0 ? m.season[11] : m.season[0]);
@@ -166,10 +166,15 @@ const yearWord = (off) => (off === 0 ? t('Año en curso') : off === -1 ? t('Año
 /** Go back and forward through the plan years; it is the same everywhere (Año, Análisis, Plan). */
 function yearNav(m) {
   const off = UI.yearOff || 0, b = yearBounds();
-  return `<div class="yearnav" role="group" aria-label="${t('Año')}">
-    <button type="button" class="iconbtn" data-act="yearmove" data-k="-1" ${off <= b.min ? 'disabled' : ''} aria-label="${t('Año anterior')}">${ic('left')}</button>
-    <button type="button" class="yn-t" data-act="yearnow" ${off ? '' : 'disabled'} aria-label="${t('Volver al año en curso')}"><b class="num">${yearRange(m)}</b><span class="fine">${yearWord(off)}</span></button>
-    <button type="button" class="iconbtn" data-act="yearmove" data-k="1" ${off >= b.max ? 'disabled' : ''} aria-label="${t('Año siguiente')}">${ic('right')}</button></div>`;
+  if (b.min >= b.max) return ''; // one year only: nothing to choose
+  return `<button type="button" class="yearchip" data-act="yearpick" aria-haspopup="dialog" aria-label="${t('Cambiar de año')}"><b class="num">${yearRange(m)}</b><span class="fine">${yearWord(off)}</span><span class="chev" aria-hidden="true">${ic('right')}</span></button>`;
+}
+/** The list of years to choose from. */
+function openYearPick() {
+  const b = yearBounds(), cur = UI.yearOff || 0, rows = [];
+  for (let o = b.max; o >= b.min; o--) rows.push(`<button type="button" class="yrow" data-act="yearset" data-k="${o}" aria-pressed="${o === cur}"><b class="num">${yearRange(computeYear(o))}</b><span class="fine">${yearWord(o)}</span></button>`);
+  dlg.innerHTML = `<div class="sheet"><div class="row between"><h2>${t('Año')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div><div class="yrows">${rows.join('')}</div></div>`;
+  openDialog();
 }
 function render(force) {
   if (!store.mode) { renderWelcome(); return; }
@@ -1744,8 +1749,8 @@ document.addEventListener('click', (e) => {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
     case 'doneall': UI.doneAll = true; render(true); break;
-    case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
-    case 'yearnow': UI.yearOff = 0; render(true); break;
+    case 'yearpick': openYearPick(); break;
+    case 'yearset': UI.yearOff = +b.dataset.k; dlg.close(); render(true); break;
     case 'notifyfold': case 'notifymore': {
       // only the card changes (no redraw of the page), and the choice is kept for the next time
       const box = b.closest('.notify'), key = b.dataset.act === 'notifyfold' ? 'fold' : 'all';

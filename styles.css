@@ -1105,3 +1105,11 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .notify:not(.all) .trow.x { display: none; }
 .notify-tog .chev { transform: rotate(90deg); }
 .notify.fold .notify-tog .chev { transform: none; }
+
+/* year: a small chip that opens the list, only when there is something to choose */
+.yearchip { display: inline-flex; align-items: center; gap: 8px; align-self: start; justify-self: start; padding: 6px 10px 6px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--ink); font: inherit; cursor: pointer; white-space: nowrap; max-width: 100%; }
+.yearchip b { font-size: 14px; } .yearchip .fine { font-size: 12px; }
+.yearchip .chev { display: inline-grid; color: var(--muted); transform: rotate(90deg); } .yearchip .chev svg { width: 14px; height: 14px; }
+.yrows { display: grid; gap: 6px; }
+.yrow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.yrow[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
