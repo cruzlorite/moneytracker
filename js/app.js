@@ -10,6 +10,7 @@ import { sortable } from './sort.js';
 import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
+import { VERSION } from './version.js';
 import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -378,7 +379,7 @@ function trailCard(m) {
   const n = [30, 60, 90].includes(UI.trail) ? UI.trail : +lsGet('hucha:trail') || 60, days = [30, 60, 90].includes(n) ? n : 60;
   const pts = m.balanceTrail(days);
   if (pts.length < 2) return '';
-  return `<section class="card" aria-label="${t('Saldo de tu cuenta')}">
+  return `<section class="card" aria-label="${t('Saldo de tu cuenta')}" data-trail>
     <div class="row between"><h2>${t('Saldo')} ${info('saldo')}</h2>
       <div class="seg trail" role="group" aria-label="${t('Periodo')}">${[30, 60, 90].map((d) => `<button data-act="trail" data-v="${d}" aria-pressed="${d === days}">${d} ${t('días')}</button>`).join('')}</div></div>
     ${balanceLine({ pts, aria: t('Saldo de tu cuenta en los últimos {n} días y estimación hasta fin de mes', { n: days }) })}
@@ -1068,7 +1069,8 @@ function settings() {
   ${mode !== 'demo' ? `<section class="card"><h2>${t('Borrar de este dispositivo')}</h2>
     <p class="fine">${mode === 'google' ? t('Quita la copia local y cierra la sesión. Tu hoja sigue en Drive.') : t('Borra tu plan de este dispositivo. No se puede deshacer: exporta antes si lo quieres guardar.')}</p>
     <button class="danger" data-act="wipe">${UI.wipe ? t('Pulsa otra vez para confirmar') : t('Borrar datos de este dispositivo')}</button></section>` : ''}
-  <p class="fine center"><a href="privacy.html">${t('Privacidad')}</a> ${t('· MoneyTracker')}</p>`;
+  <p class="fine center"><a href="privacy.html">${t('Privacidad')}</a> ${t('· MoneyTracker')} · ${t('Versión')} ${esc(VERSION)}</p>
+  <p class="center"><button type="button" class="ghost small" data-act="refreshapp">${t('Actualizar la app')}</button></p>`;
 }
 
 // ---------- item form (dialog) ----------
@@ -1527,7 +1529,14 @@ document.addEventListener('click', (e) => {
       addSpend(date, v, (val('k-note') || '').trim(), null, UI.qcat);
       break;
     }
-    case 'trail': UI.trail = +b.dataset.v; lsSet('hucha:trail', UI.trail); render(true); break;
+    case 'trail': {
+      // only this card is redrawn: the rest of Hoy (and its entrance animations) stays as it is
+      UI.trail = +b.dataset.v; lsSet('hucha:trail', UI.trail);
+      const card = b.closest('[data-trail]'), tmp = document.createElement('div');
+      tmp.innerHTML = trailCard(compute(store.data));
+      if (card && tmp.firstElementChild) card.replaceWith(tmp.firstElementChild); else render(true);
+      break;
+    }
     case 'anaper': UI.anaPer = b.dataset.v; lsSet('hucha:ana', UI.anaPer); render(true); break;
     case 'morespends': UI.allSpends = ym; render(true); break;
     case 'qpick': UI.qcat = b.dataset.cat || null; dlg.close(); render(true); break;
@@ -1578,6 +1587,14 @@ document.addEventListener('click', (e) => {
     case 'ffreq': readForm(); FORM.freq = b.dataset.v; renderForm(); break;
     case 'goalfit': { const v = +b.dataset.v; store.update('settings', (d) => { d.settings.goal = v; }); toast(t('Ahorro planificado: {x} al año', { x: fmt(v) })); render(true); break; }
     case 'fclose': case 'dclose': dlg.close(); break;
+    case 'refreshapp': {
+      // fetch every file again, bypassing the browser's cache, then reload
+      b.disabled = true; b.textContent = t('Actualizando…');
+      const files = ['./', 'index.html', 'styles.css', 'config.js', ...['app', 'model', 'cats', 'charts', 'fx', 'google', 'store', 'play', 'sort', 'demo', 'i18n', 'icons-extra', 'version'].map((n) => `js/${n}.js`), 'js/i18n/en.js'];
+      Promise.all(files.map((f) => fetch(f, { cache: 'reload' }).catch(() => null))).then(() => location.reload());
+      break;
+
+    }
     case 'goaledit': openGoal(); break;
     case 'startedit': openCheck(compute(store.data).curYM); break;
     case 'goalper': {

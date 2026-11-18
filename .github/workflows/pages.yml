@@ -23,6 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Stamp the version
+        run: printf "export const VERSION = '%s';\n" "${GITHUB_SHA::7}" > js/version.js
       # No build step: the repo is published as is (upload-pages-artifact already excludes .git and .github).
       - uses: actions/upload-pages-artifact@v3
         with:
