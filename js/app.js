@@ -2024,16 +2024,19 @@ if (store.mode === 'google') {
 // The on-screen keyboard covers the bottom of the page: the open sheet lifts above it and shrinks to what is left,
 // and the type search jumps to the top of the sheet so its results are in view.
 if (window.visualViewport) {
+  // --vvh is the height you can really see (the keyboard takes its part): sheets are sized from it, and lifted above the keyboard
   const fit = () => {
     const vv = window.visualViewport, kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-    const d = document.querySelector('dialog[open]');
-    document.querySelectorAll('dialog').forEach((x) => { x.style.marginBottom = ''; x.style.maxHeight = ''; });
+    const root = document.documentElement.style, d = document.querySelector('dialog[open]');
+    root.setProperty('--vvh', Math.round(vv.height * 0.96) + 'px');
+    document.querySelectorAll('dialog').forEach((x) => { x.style.marginBottom = ''; x.style.maxHeight = ''; x.querySelector('.sheet')?.style.removeProperty('max-height'); });
     if (!d || kb < 80) return;
     d.style.marginBottom = kb + 'px'; d.style.maxHeight = Math.round(vv.height * 0.96) + 'px';
     d.querySelector('.sheet')?.style.setProperty('max-height', Math.round(vv.height * 0.96) + 'px');
   };
   window.visualViewport.addEventListener('resize', fit);
   window.visualViewport.addEventListener('scroll', fit);
+  fit();
 }
 document.addEventListener('focusin', (e) => {
   if (e.target?.id !== 'cat-search') return;
