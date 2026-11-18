@@ -99,7 +99,7 @@ export function table(head, rows) {
  * A line through the days of a month. pts: [{ y, tip }] from day 0; marks: [{ i, text }] labels at some points.
  * The zero line is where the month began; the area under the line is tinted.
  */
-export function line({ pts, marks = [], aria = '', h = 170, xTicks = [] }) {
+export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFrom = null }) {
   const W = 340, padL = 38, padR = 12, padT = 22, padB = 20;
   const ys = pts.map((p) => p.y);
   const hi = nice(Math.max(0, ...ys)), lo = -nice(Math.max(0, ...ys.map((v) => -v)));
@@ -120,7 +120,38 @@ export function line({ pts, marks = [], aria = '', h = 170, xTicks = [] }) {
     placed.push(x);
     return `<circle class="ch-dot" cx="${X(i).toFixed(1)}" cy="${y.toFixed(1)}" r="4"/><text class="ch-val" x="${x.toFixed(1)}" y="${(below ? y + 18 : y - 9).toFixed(1)}">${esc(text)}</text>`;
   }).join('');
-  const xs = xTicks.map((i) => `<text class="ch-x" x="${X(i).toFixed(1)}" y="${h - 5}">${i}</text>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${d}"/>${lab}${xs}${hits}</svg>`;
+  const xs = xTicks.map((tk) => { const i = tk.i ?? tk; return `<text class="ch-x" x="${X(i).toFixed(1)}" y="${h - 5}">${tk.text ?? i}</text>`; }).join('');
+  // the days not known yet (projFrom on) are drawn dashed, from the last known point
+  const k = projFrom != null && projFrom > 0 && projFrom <= n ? projFrom : null;
+  const dSolid = k == null ? d : pts.slice(0, k).map((p, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
+  const dProj = k == null ? '' : pts.slice(k - 1).map((p, i) => `${i ? 'L' : 'M'}${X(k - 1 + i).toFixed(1)} ${Y(p.y).toFixed(1)}`).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${dSolid}"/>${dProj ? `<path class="ch-line ch-proj" d="${dProj}"/>` : ''}${lab}${xs}${hits}</svg>`;
+}
+
+/**
+ * The account balance over time (absolute values, not from zero): a solid line for what is known, dashed for the
+ * estimate that follows, a dot on today. pts: [{ date, bal, proj }].
+ */
+export function balanceLine({ pts, aria = '', h = 170 }) {
+  if (pts.length < 2) return '';
+  const W = 340, padL = 44, padR = 12, padT = 22, padB = 22, n = pts.length - 1;
+  const vs = pts.map((p) => p.bal), mn = Math.min(...vs), mx = Math.max(...vs), pad = (mx - mn) * 0.12 || Math.max(50, Math.abs(mx) * 0.05);
+  const lo = mn - pad, hi = mx + pad, ph = h - padT - padB;
+  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (hi - v) / (hi - lo) * ph;
+  const ti = Math.max(0, pts.findIndex((p) => p.proj) - 1), hasProj = pts.some((p) => p.proj), tp = hasProj ? ti : n;
+  const path = (a, b) => pts.slice(a, b + 1).map((p, i) => `${i ? 'L' : 'M'}${X(a + i).toFixed(1)} ${Y(p.bal).toFixed(1)}`).join('');
+  const area = `${path(0, tp)}L${X(tp).toFixed(1)} ${(padT + ph).toFixed(1)}L${X(0).toFixed(1)} ${(padT + ph).toFixed(1)}Z`;
+  const ticks = [mx, (mx + mn) / 2, mn];
+  const grid = ticks.map((v) => `<line class="ch-grid" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
+    <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
+  const day = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' });
+  const xs = [...new Set([0, Math.round(n / 2), n])].map((i) => `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(day(pts[i].date))}</text>`).join('');
+  const band = (W - padL - padR) / n;
+  const hits = pts.map((p, i) => `<rect class="ch-hit ch-band" x="${(X(i) - band / 2).toFixed(1)}" y="0" width="${band.toFixed(1)}" height="${h}" tabindex="-1" data-tip="${esc(`${day(p.date)}: ${p.proj ? '≈ ' : ''}${fmt(p.bal)}${p.proj ? ' · ' + t('estimado') : ''}`)}"/>`).join('');
+  const cx = X(tp), cy = Y(pts[tp].bal), end = pts[n];
+  const today = `<line class="ch-todayline" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${padT}" y2="${padT + ph}"/><circle class="ch-dot" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4"/>
+    <text class="ch-val" x="${clamp(cx, padL + 30, W - padR - 30).toFixed(1)}" y="${(cy - 10).toFixed(1)}">${esc(fmt(pts[tp].bal))}</text>`;
+  const last = hasProj ? `<text class="ch-val ch-valproj" x="${(W - padR).toFixed(1)}" y="${(Y(end.bal) + (end.bal < pts[tp].bal && Y(end.bal) + 16 <= padT + ph - 2 ? 16 : -8)).toFixed(1)}">≈ ${esc(fmt(end.bal))}</text>` : '';
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}">${grid}<path class="ch-area" d="${area}"/><path class="ch-line" d="${path(0, tp)}"/>${hasProj ? `<path class="ch-line ch-proj" d="${path(tp, n)}"/>` : ''}${today}${last}${xs}${hits}</svg>`;
 }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

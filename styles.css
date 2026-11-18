@@ -925,3 +925,15 @@ input.invalid, select.invalid { border-color: var(--spend); box-shadow: 0 0 0 1p
 .steps .st-t { flex: 1; min-width: 0; display: grid; gap: 1px; }
 .steps button { flex: none; }
 .donelist .plist { margin-top: 8px; opacity: .8; }
+/* balance chart */
+.ch-proj { stroke-dasharray: 5 4; opacity: .85; }
+.ch-todayline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.ch-x0 { text-anchor: start; } .ch-xn { text-anchor: end; }
+.ch-valproj { text-anchor: end; }
+.seg.trail { grid-auto-columns: auto; padding: 2px; }
+.seg.trail button { padding: 5px 9px; font-size: 13px; }
+/* the tab you are on: a tinted pill, a bar on top, heavier icon and label */
+nav.tabs button { position: relative; transition: background .15s ease, color .15s ease; }
+nav.tabs button[aria-current="page"] { color: var(--ink); font-weight: 700; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+nav.tabs button[aria-current="page"] svg { stroke-width: 2.6; }
+nav.tabs button[aria-current="page"]::before { content: ""; position: absolute; top: -7px; left: 50%; width: 26px; height: 3px; margin-left: -13px; border-radius: 0 0 3px 3px; background: var(--accent); }

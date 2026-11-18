@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { columns, pairs, segbar, ranked, table, line } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
@@ -262,6 +262,10 @@ function infoHTML(key) {
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
       ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
       t('Porcentajes: sobre tus ingresos. Lo que no gastes, también es ahorro.'));
+    case 'saldo': return card(t('Saldo de tu cuenta'), [
+      ixRow(IX.fill('var(--s1)'), t('Saldo'), t('lo que había en tu cuenta cada día.')),
+      ixRow(IX.proj('var(--s1)'), t('Estimado'), t('desde hoy hasta fin de mes: lo planificado y tu ritmo de gasto desde tu último saldo.'))],
+      t('Los días de meses cerrados se reparten a partes iguales entre el saldo inicial y el de cierre.'));
     case 'cierre': return card(t('Cierre del mes'), [
       ixRow('', t('Saldo'), t('lo que hay hoy en tu cuenta.')),
       ixRow(IX.fill(O), t('Gastado'), t('saldo inicial + ingresos − ahorro − saldo final.')),
@@ -332,6 +336,7 @@ function home(m) {
   return `
   ${pageHead(cap(monthName(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`)}
   ${closeBanner(due)}
+  ${tasks.length ? `<section class="card list" aria-label="${t('Pendiente')}">${tasks.join('')}</section>` : ''}
   ${setupCard(m, ym)}
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
     <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
@@ -353,8 +358,20 @@ function home(m) {
       <span class="fine num">${toCome.length ? t('+{x} el {d}', { x: fmt(toCome.reduce((a, p) => a + p.amount, 0)), d: shortDate(toCome[0].date) }) : came ? `${esc(came.it.name.toLowerCase())} · ${shortDate(came.date)}` : ''}</span></section>
     <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
   </div>
-  ${tasks.length ? `<section class="card list" aria-label="${t('Pendiente')}">${tasks.join('')}</section>` : ''}
-  ${watchCard(m, ym)}`;
+  ${watchCard(m, ym)}
+  ${trailCard(m)}`;
+}
+/** The account balance over the last 30, 60 or 90 days, and on to the end of the month (an estimate). */
+function trailCard(m) {
+  const n = [30, 60, 90].includes(UI.trail) ? UI.trail : +lsGet('hucha:trail') || 60, days = [30, 60, 90].includes(n) ? n : 60;
+  const pts = m.balanceTrail(days);
+  if (pts.length < 2) return '';
+  return `<section class="card" aria-label="${t('Saldo de tu cuenta')}">
+    <div class="row between"><h2>${t('Saldo')} ${info('saldo')}</h2>
+      <div class="seg trail" role="group" aria-label="${t('Periodo')}">${[30, 60, 90].map((d) => `<button data-act="trail" data-v="${d}" aria-pressed="${d === days}">${d} ${t('días')}</button>`).join('')}</div></div>
+    ${balanceLine({ pts, aria: t('Saldo de tu cuenta en los últimos {n} días y estimación hasta fin de mes', { n: days }) })}
+    <div class="legend"><span><i class="sw" style="background: var(--s1)"></i>${t('saldo')}</span><span><i class="lg-proj" style="--pc: var(--s1)"></i>${t('estimado')}</span></div>
+  </section>`;
 }
 /** The budgets, compact: what you've spent of each. Tap one to log against it. */
 function watchCard(m, ym) {
@@ -428,7 +445,7 @@ function mes(m) {
     <div class="card stat ${saved == null ? '' : 'svtile'}" ${saved == null ? '' : `style="${scaleOf(saved, tgt, m.target).style}"`}><span class="label">${past || cur ? t('Ahorrado') : t('Ahorro planificado')}</span>${saved == null ? '<b class="num">—</b>' : !past && !cur ? `<b class="num">${fmt(tgt)}</b>` : ofPlan(saved, tgt, cur ? t('proyección / planificado') : t('ahorrado / planificado'), { approx: cur, signed: past })}${vd ? vPill(vd) : ''}</div>
   </div>
   ${past && !d.close ? `<button class="primary" data-act="openclose" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>` : ''}
-  ${d.bal != null && m.balStart(ym) != null ? `<section class="card">${moneyChart(m, ym, +d.bal)}</section>` : ''}
+  ${m.balStart(ym) != null && (d.bal != null || ym === m.curYM) ? `<section class="card">${moneyChart(m, ym, d.bal != null ? +d.bal : null)}</section>` : ''}
   ${expectedCard(m, ym)}
   ${spentCard(m, ym)}
   ${d.close ? `<button class="ghost small center-self" data-act="closeundo" data-ym="${ym}">${t('Deshacer el cierre de {m}', { m: monthName(ym) })}</button>` : ''}`;
@@ -1192,17 +1209,18 @@ function closeCalc() {
 }
 /** The month's money as a line: 0 on day 1, up when the pay comes in, down as it goes. */
 function moneyChart(m, ym, bal) {
-  const cv = m.curveOf(ym, bal);
+  const live = bal == null, cv = live ? m.curveNow(ym) : m.curveOf(ym, bal);
   if (!cv) return '';
-  const dim = cv.pts.length - 1, name = monthName(ym);
+  const first = cv.pts[0].day, dim = cv.pts[cv.pts.length - 1].day, name = monthName(ym), last = cv.pts.length - 1;
+  const projFrom = live && cv.fromDay <= dim ? cv.fromDay - first : null;
   const evText = (e) => `${e.label} ${fmtSigned(e.amount)}`;
-  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 2).map(evText).join(', ') : ''}` : `${t('Empieza el mes')}: ${fmt(0)}` }));
-  const inDay = cv.pts.reduce((b, p) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: p.day, v } : b; }, { i: -1, v: 0 });
-  const marks = [...(inDay.i > 0 ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: dim, text: fmtSigned(cv.pts[dim].y) }];
-  const rows = cv.pts.filter((p) => p.events.length || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), fmtSigned(p.y)]);
+  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${live && p.day >= cv.fromDay ? '≈ ' : ''}${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 2).map(evText).join(', ') : ''}` : `${t('Empieza el mes')}: ${fmt(0)}` }));
+  const inDay = cv.pts.reduce((b, p, ix) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: ix, v } : b; }, { i: -1, v: 0 });
+  const marks = [...(inDay.i > 0 && inDay.i !== last ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: last, text: (projFrom != null ? '≈ ' : '') + fmtSigned(cv.pts[last].y) }];
+  const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmtSigned(p.y)]);
   return `<div class="cl-block">
-    <span class="label">${t('Tu dinero en {m}', { m: name })}</span>
-    ${line({ pts, marks, xTicks: [1, 10, 20, dim], aria: t('Tu dinero a lo largo de {m}: empieza en 0 y termina en {x}', { m: name, x: fmtSigned(cv.pts[dim].y) }) })}
+    <div><span class="label">${t('Tu dinero en {m}', { m: name })}</span>${live ? `<div class="fine">${t('estimado según tu último saldo')}</div>` : ''}</div>
+    ${line({ pts, marks, projFrom, xTicks: [1, 10, 20, dim].filter((d) => d >= first).map((d) => ({ i: d - first, text: d })), aria: t('Tu dinero a lo largo de {m}: empieza en 0 y termina en {x}', { m: name, x: fmtSigned(cv.pts[dim].y) }) })}
     ${table([t('Día'), t('Movimientos'), t('Acumulado')], rows)}
   </div>`;
 }
@@ -1468,6 +1486,7 @@ document.addEventListener('click', (e) => {
       addSpend(date, v, (val('k-note') || '').trim(), null, UI.qcat);
       break;
     }
+    case 'trail': UI.trail = +b.dataset.v; lsSet('hucha:trail', UI.trail); render(true); break;
     case 'anaper': UI.anaPer = b.dataset.v; lsSet('hucha:ana', UI.anaPer); render(true); break;
     case 'morespends': UI.allSpends = ym; render(true); break;
     case 'qpick': UI.qcat = b.dataset.cat || null; dlg.close(); render(true); break;

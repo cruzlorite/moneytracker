@@ -335,6 +335,59 @@ export function compute(data, today = new Date()) {
     pts[dim].y = round2(bal - r.start); // no rounding drift: the month ends where the balance says
     return { pts, daily: round2(daily) };
   };
+
+  /**
+   * The current month's account, day by day, before it is closed: from its start balance, with the incomes and expenses
+   * on their days. What the balance you looked at last says was spent beyond what is logged is spread evenly up to that
+   * day and carried on at the same pace to the end of the month (an estimate). Same shape as curveOf, plus `fromDay`:
+   * the first day that is not known yet (after today). Null without a start balance.
+   */
+  const curveNow = (ym) => {
+    const s = balStart(ym);
+    if (s == null) return null;
+    const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), after = m.openDate || '';
+    const d0 = after ? clamp(at(after), 0, dim) : 0, ev = Array.from({ length: dim + 1 }, () => []);
+    for (const it of items) {
+      if (it.budget) continue;
+      const real = realOf(it, ym);
+      if (real == null && !occ(it, ym)) continue;
+      if (after && dateOf(it, ym) <= after) continue;
+      const v = real ?? it.amount;
+      if (v) ev[at(dateOf(it, ym))].push({ label: it.name, amount: it.kind === 'in' ? v : -v, kind: isSave(it) ? 'save' : it.kind });
+    }
+    for (const e of allSpends) {
+      if (monthOf(e.date) !== ym || (after && e.date <= after)) continue;
+      ev[at(e.date)].push({ label: e.note || CAT[e.cat]?.name || t('Gasto'), amount: -e.amount, kind: e.cat === SAVE_CAT ? 'save' : 'spend' });
+    }
+    const E = Array(dim + 1).fill(0);
+    for (let d = Math.max(1, d0 + 1); d <= dim; d++) E[d] = E[d - 1] + ev[d].reduce((a, e) => a + e.amount, 0);
+    const chk = m.check, a = chk ? clamp(at(chk.date), d0, dim) : d0;
+    const ya = chk ? +chk.bal - s : 0, daily = chk && a > d0 ? (ya - E[a]) / (a - d0) : 0;
+    const y = (d) => (d <= a ? E[d] + daily * (d - d0) : ya + (E[d] - E[a]) + daily * (d - a));
+    const pts = [];
+    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : '', y: round2(d <= d0 ? 0 : y(d)), events: d > d0 ? ev[d] : [] });
+    return { pts, daily: round2(daily), start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0 };
+  };
+  /**
+   * The balance of the main account over the last `back` days and, for the current month, on to its end: a line of
+   * { date, bal, proj }. Closed months use the day-by-day line from their closing balance; the current one is estimated.
+   */
+  const balanceTrail = (back = 60) => {
+    const out = [], first = isoAdd(todayISO, -back);
+    for (let k = Math.ceil(back / 28) + 1; k >= 0; k--) {
+      const ym = ymAdd(curYM, -k), st = balStart(ym), m = mon(ym);
+      if (st == null) continue;
+      if (ym < curYM) {
+        if (m.bal == null) continue;
+        const cv = curveOf(ym, +m.bal);
+        if (cv) for (const p of cv.pts) if (p.day >= 1) out.push({ date: p.date, bal: round2(st + p.y), proj: false });
+      } else {
+        const cv = curveNow(ym);
+        if (cv) for (const p of cv.pts) if (p.day >= Math.max(1, cv.d0)) out.push({ date: p.date, bal: round2(st + p.y), proj: p.day >= cv.fromDay });
+      }
+    }
+    return out.filter((p) => p.date >= first);
+  };
   /** Where a month's spending comes from: 'bal' (closed with a balance), 'check' (a look mid-month) or 'log' (logged spends). */
   const spentSrc = (ym) => {
     const m = mon(ym);
@@ -391,7 +444,7 @@ export function compute(data, today = new Date()) {
     incomeY, outY, possible, payday, idx, pre, over, curIdx, cur, curYM, mon, status, spentOf, saved, streak, cleared,
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
     cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: (iso, ym) => dayOfCycle(iso, ym, D),
-    balStart, flowTo, fromBalance, curveOf, spentSrc, loggedRest, endISO, spentAll, incomeTo,
+    balStart, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
     budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, byCat,
   };
 }
