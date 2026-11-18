@@ -463,15 +463,15 @@ function monthTypes(m, ym) {
   </section>`;
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */
-const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + esc(sub) : ''}</span></span><span class="num ${kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + esc(sub) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
 /** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
   for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) {
-    rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: Math.abs(e.amount), kind: e.amount < 0 ? 'in' : 'out' }) });
+    rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: Math.abs(e.amount), kind: e.amount < 0 ? 'in' : 'out', save: e.cat === SAVE_CAT }) });
   }
   for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) {
-    rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real' }) });
+    rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save }) });
   }
   if (!rows.length) return '';
   rows.sort((a, b) => b.date.localeCompare(a.date));
@@ -757,13 +757,13 @@ const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
   const row = `<button class="flow ${inBal ? 'inbal' : ''}" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}">
   <span class="d">${day ? `<b>${day}</b>${MES3[+date.slice(5, 7) - 1]}` : '<b>—</b>' + t('mes')}</span>
   <span class="grow"><b>${esc(it.name)}</b><br><span class="fine"><span class="st ${cls}">${txt}</span>${state === 'real' && diff ? ` <span class="num">(${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})</span>` : ''}</span></span>
-  <span class="num ${it.kind === 'in' ? 'amt-in' : 'amt-out'}">${it.vary && state !== 'real' ? '≈ ' : ''}${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+  <span class="num ${it.kind === 'in' ? 'amt-in' : it.cat === SAVE_CAT && !it.budget ? 'c-save' : 'amt-out'}">${it.vary && state !== 'real' ? '≈ ' : ''}${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
   // a confirmed one can be un-confirmed right here: it goes back to its planned amount and date
   return state === 'real' ? `<div class="flowrow">${row}<button type="button" class="unconf" data-act="unconfirm" data-id="${esc(it.id)}" data-ym="${ym}" aria-label="${t('Desconfirmar {n}', { n: esc(it.name) })}" title="${t('Desconfirmar')}">${ic('x')}</button></div>` : row;
 };
 
 // ---------- Mes ----------
-const spendRow = (e) => `<div class="spend editable" role="button" tabindex="0" data-act="editspend" data-id="${esc(e.id)}" aria-label="${t('Editar gasto')}">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num ${e.amount < 0 ? 'c-in' : 'c-spend'}">${e.amount < 0 ? '+' : '−'}${fmt(Math.abs(e.amount))}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
+const spendRow = (e) => `<div class="spend editable" role="button" tabindex="0" data-act="editspend" data-id="${esc(e.id)}" aria-label="${t('Editar gasto')}">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num ${e.cat === SAVE_CAT ? 'c-save' : 'amt-out'}">${e.amount < 0 ? '+' : '−'}${fmt(Math.abs(e.amount))}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
 const stPill = (st) => `<span class="pill ${st === 'clear' ? 'c-ok' : st === 'partial' ? 'c-warn' : 'c-acc'}">${st === 'clear' ? t('Cumplido') : st === 'partial' ? t('Parcial') : t('Sin datos')}</span>`;
 
 

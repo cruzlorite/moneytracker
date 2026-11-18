@@ -1173,3 +1173,6 @@ details.tview td:first-child { white-space: normal; }
 .tiles .tile .fine.tl { display: grid; gap: 0; }
 .tiles .tile .fine.tl .num { white-space: nowrap; }
 .tiles.t3 .tile .label { font-size: 12px; white-space: nowrap; }
+
+.move .num.c-save, .spend .c-save, .flow .c-save { font-weight: 700; }
+.move .num.c-in { font-weight: 700; }
