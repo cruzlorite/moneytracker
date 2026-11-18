@@ -984,7 +984,12 @@ function reorder(ids) {
 function settings() {
   const mode = store.mode;
   const theme = lsGet('hucha:theme') || 'auto';
-  return `<section class="card"><h2>${t('Dónde se guarda')}</h2>
+  const sm = compute(store.data), smo = sm.mon(sm.curYM);
+  // the balance this month started from, while it was typed by hand: here to change it
+  const startCard = smo.open != null ? `<section class="card"><h2>${t('Saldo de inicio')}</h2>
+    <button type="button" class="goalbtn" data-act="startedit"><span class="gb-v num">${fmt(smo.open)}</span>
+      <span class="fine">${smo.openDate ? t('Saldo del {d}', { d: shortDate(smo.openDate) }) : t('Saldo al empezar el mes')}</span><span class="gb-edit" aria-hidden="true">${t('Cambiar')}</span></button></section>` : '';
+  return `${startCard}<section class="card"><h2>${t('Dónde se guarda')}</h2>
     ${mode === 'google' ? `<p>${t('En la hoja')} <b>${t('MoneyTracker')}</b> ${t('de tu Google Drive')}${savedHint() ? ` (${esc(savedHint())})` : ''}. ${t('Este dispositivo guarda una copia para abrir rápido y funcionar sin conexión.')}</p>
       <div class="row wrap-row"><a class="btn" href="${sheetUrl(store.sheetId)}" target="_blank" rel="noopener">${t('Abrir la hoja')}</a>
       ${tokenValid() ? '<button data-act="refresh">' + t('Recargar desde la hoja') + '</button>' : '<button class="primary" data-act="reauth">' + t('Volver a conectar') + '</button>'}
@@ -1504,6 +1509,7 @@ document.addEventListener('click', (e) => {
     case 'goalfit': { const v = +b.dataset.v; store.update('settings', (d) => { d.settings.goal = v; }); toast(t('Ahorro planificado: {x} al año', { x: fmt(v) })); render(true); break; }
     case 'fclose': case 'dclose': dlg.close(); break;
     case 'goaledit': openGoal(); break;
+    case 'startedit': openCheck(compute(store.data).curYM); break;
     case 'goalper': {
       const g = goalYear(); UI.goalPer = b.dataset.v === 'm' ? 'm' : 'y';
       dlg.querySelectorAll('[data-act=goalper]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === UI.goalPer)));

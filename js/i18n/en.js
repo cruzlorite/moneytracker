@@ -52,6 +52,7 @@ export default {
   'Cómo se calcula': 'How it is calculated',
   'Ver como tabla': 'View as table',
   'Idioma': 'Language',
+  'Saldo de inicio': 'Starting balance',
   'Cumplidos': 'Completed',
   'Primeros pasos': 'First steps',
   'Tus ingresos y gastos fijos': 'Your income and fixed expenses',
