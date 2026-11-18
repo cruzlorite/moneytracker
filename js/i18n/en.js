@@ -1,5 +1,7 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'quedan {x}': '{x} left',
+  'de': 'of',
   'Así te avisaré.': "This is how I will let you know.",
   'Activar avisos': "Turn reminders on",
   'Enviar un aviso de prueba': "Send a test reminder",

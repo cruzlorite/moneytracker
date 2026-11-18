@@ -485,10 +485,11 @@ function monthTypes(m, ym) {
     ...(rest > 0.5 ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), value: rest, tip: `${t('Otros tipos')}: ${fmt(rest)}` }] : [])];
   const budRows = buds.map((b) => {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
-    return `<button class="vrow" data-act="bud" data-id="${esc(b.id)}">
+    const tip = `${b.name}: ${fmt(x.spent)} ${t('de')} ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')} · ${x.left < -0.5 ? t('superado en {x}', { x: fmt(-x.left) }) : t('quedan {x}', { x: fmt(x.left) })}`;
+    return `<div class="vrow" tabindex="0" data-tip="${esc(tip)}">
       <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
       ${budBar(x, 'v-' + b.id)}
-      ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt(Math.round(x.proj))}</b></span>` : ''}</button>`;
+      ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt(Math.round(x.proj))}</b></span>` : ''}</div>`;
   }).join('');
   return `<section class="card" aria-label="${t('Gasto por tipo')}"><div class="row between"><h2>${t('Gasto por tipo')} ${info('limites')}</h2><span class="fine num">${fmt(tot)}</span></div>
     ${buds.length ? `<span class="label">${t('Presupuestos')}</span><div class="vlist">${budRows}</div>` : ''}
