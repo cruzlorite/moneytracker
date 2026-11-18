@@ -628,6 +628,7 @@ const itemCat = (it) => it.cat || guessCat(it.name);
 /** The short row when logging: your budgets' types, then the ones you use most, then a starter set. */
 function quickCats(m) {
   const ids = [], add = (id) => { if (CAT[id] && !ids.includes(id)) ids.push(id); };
+  add(SAVE_CAT); // after "Más", always first
   add(UI.qcat);
   // the most used come first (last 90 days), then your budgets, savings and the usual starters
   const since = toISO(new Date(Date.now() - 90 * 864e5)), n = {};
