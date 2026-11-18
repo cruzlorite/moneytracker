@@ -478,6 +478,9 @@ function home(m) {
   ${trailCard(m)}
   ${monthMoves(m, ym)}`;
 }
+/** One line of a spending-by-type list: icon and name (and its share) on the left, the amount on the right, a thin bar under it
+ *  against the biggest one. The same in Hoy and in Análisis. */
+const typeRow = (r, scale, key) => `<div class="vrow"><span class="row between"><span class="vname">${r.icon}${esc(r.label)}${r.pct != null ? ` <span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra || ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
 /** This month by type, budgets and the rest in one card: each budget against its limit, then what you spent on the other types. */
 function monthTypes(m, ym) {
   const buds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(buds.map((b) => b.cat));
@@ -489,7 +492,7 @@ function monthTypes(m, ym) {
     ...(rest > 0.5 ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), value: rest, tip: `${t('Otros tipos')}: ${fmt(rest)}` }] : [])];
   // the types with no budget look just like the ones that have one: name and amount, then a bar (against the biggest, since there is no limit)
   const top1 = Math.max(1, ...list.map((r) => r.value));
-  const plainRows = list.map((r, i) => `<div class="vrow"><span class="row between"><span class="vname">${r.icon}${esc(r.label)}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale: top1, tone: 'var(--out)', thin: true, key: `pt-${ym}-${i}`, label: r.tip })}</div>`).join('');
+  const plainRows = list.map((r, i) => typeRow(r, top1, `pt-${ym}-${i}`)).join('');
   const budRows = buds.map((b) => {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     const tip = `${b.name}: ${fmt(x.spent)} ${t('de')} ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')} · ${x.left < -0.5 ? t('superado en {x}', { x: fmt(-x.left) }) : t('quedan {x}', { x: fmt(x.left) })}`;
@@ -1125,8 +1128,12 @@ function analisis(m) {
 
   <section class="card" aria-label="${t('Gasto por tipo')}">
     <div class="row between"><h2>${t('Gasto por tipo')}</h2><span class="fine num">${fmt(tot)}</span></div>
-    ${rows.length ? ranked([...shown.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), pct: Math.round(v / (tot || 1) * 100), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('presupuesto') + '</span>' : '',
-      tip: `${rkName(c)}: ${fmt(v)} (${Math.round(v / (tot || 1) * 100)} %)` })), ...(rest ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), pct: Math.round(rest / (tot || 1) * 100), value: rest }] : [])])
+    ${rows.length ? `<div class="vlist">${(() => {
+      const list = [...shown.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), pct: Math.round(v / (tot || 1) * 100), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('presupuesto') + '</span>' : '' })),
+        ...(rest ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), pct: Math.round(rest / (tot || 1) * 100), value: rest }] : [])];
+      const top1 = Math.max(1, ...list.map((r) => r.value));
+      return list.map((r, i) => typeRow(r, top1, `at-${per}-${i}`)).join('');
+    })()}</div>`
       + table([t('Tipo'), t('Importe'), '%'], rows.map(([c, v]) => [esc(rkName(c)), fmt(v), Math.round(v / (tot || 1) * 100) + ' %']))
       : '<p class="fine">' + t('Aún no hay gastos en este periodo. Cierra el mes con tu saldo, o apunta con el + lo que quieras vigilar.') + '</p>'}
   </section>
