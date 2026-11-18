@@ -1275,3 +1275,17 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 .chart:has(.ch-band.tipon) .ch-band:not(.tipon) .ch-col { opacity: .22; filter: grayscale(.6); }
 .ch-band.tipon .ch-col { filter: saturate(1.7) brightness(1.08); stroke: var(--ink); stroke-opacity: .7; stroke-width: 2.5; paint-order: stroke; }
 .ch-band.tipon .ch-hit { fill: transparent; }
+
+/* the same selection language everywhere: marks, month cells, chart points, list rows */
+.g-mark, .g-today { transition: transform .15s ease, filter .15s ease; }
+.g-mark.tipon { transform: scaleX(2.4); filter: drop-shadow(0 0 3px var(--ink)); }
+.g-today.tipon { transform: scale(1.45); filter: drop-shadow(0 0 3px var(--ink)); }
+.mcell { transition: opacity .15s ease, filter .15s ease, box-shadow .15s ease; }
+.mgrid:has(.mcell:hover, .mcell:active, .mcell:focus-visible) .mcell:not(:hover):not(:active):not(:focus-visible) { opacity: .35; filter: grayscale(.6); }
+.mcell:hover, .mcell:active, .mcell:focus-visible { filter: saturate(1.6); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4.5px var(--c, var(--ink)); z-index: 1; }
+.bl-guide { stroke-width: 1.5; opacity: .8; }
+.bl-dot { stroke-width: 3; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--s1) 75%, transparent)); }
+.ch-dot { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--s1) 70%, transparent)); }
+.moves:has(.move:active) .move:not(:active), .flows:has(.flow:active) .flow:not(:active), .spends:has(.spend:active) .spend:not(:active) { opacity: .35; }
+.move:active, .flow:active, .spend.editable:active { background: color-mix(in srgb, var(--ink) 9%, transparent); border-radius: 10px; }
+.move, .flow, .spend { transition: opacity .15s ease, background .15s ease; }
