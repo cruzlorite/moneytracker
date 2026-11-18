@@ -1079,3 +1079,21 @@ details.applyto[open] summary { margin-bottom: 8px; }
 .rk-l .fine { white-space: nowrap; margin-left: 4px; }
 .tile .fine, .tile .v { text-wrap: balance; }
 .tiles { align-items: stretch; }
+
+/* Por confirmar, compact: flat rows with thin dividers, small pill */
+.notify.card { padding: 10px 12px 6px; gap: 0; }
+.notify .taskhead { padding: 0 0 6px; gap: 6px; }
+.notify .bellwrap { width: 30px; height: 30px; margin-right: 4px; }
+.notify .bellwrap svg { width: 16px; height: 16px; }
+.notify .trow { margin: 0; padding: 0; gap: 8px; border: 0; border-radius: 0; background: transparent; }
+.notify .trow + .trow { border-top: 1px solid var(--line); }
+.notify .trow .tbody { min-height: 46px; gap: 9px; }
+.notify .trow .tbody .grow { gap: 0; line-height: 1.25; }
+.notify .trow .tbody .grow b { font-size: 14px; }
+.notify .trow .tbody .grow .fine { font-size: 12px; }
+.notify .trow .tbody .num { font-size: 14px; }
+.notify .trow .okbtn { height: 30px; padding: 0 11px; font-size: 12px; border-radius: 15px; }
+.notify .center-self { margin: 2px auto 4px; padding: 4px 10px; font-size: 13px; }
+.notify-tog .chev { display: inline-grid; place-items: center; margin-left: 2px; color: var(--muted); transition: transform .2s ease; }
+.notify-tog .chev svg { width: 16px; height: 16px; }
+.notify-tog .chev.open { transform: rotate(90deg); }
