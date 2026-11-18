@@ -84,8 +84,8 @@ export function segbar(parts, total, aria = '') {
 /** Ranked horizontal bars: rows [{ icon (html), label, value, tip, extra }]; one colour, value at the tip. */
 export function ranked(rows) {
   const max = Math.max(1, ...rows.map((r) => r.value));
-  return `<div class="ranked">${rows.map((r) => `<div class="rk" tabindex="0" data-tip="${esc(r.tip || '')}">${r.icon || ''}
-    <span class="rk-main"><span class="rk-l">${esc(r.label)}${r.extra || ''}</span>
+  return `<div class="ranked">${rows.map((r) => `<div class="rk">${r.icon || ''}
+    <span class="rk-main"><span class="rk-l">${esc(r.label)}${r.pct != null ? ` <span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra || ''}</span>
     <span class="rk-bar"><i style="width:${Math.max(1.5, r.value / max * 100).toFixed(1)}%"></i><b class="num">${fmt(r.value)}</b></span></span></div>`).join('')}</div>`;
 }
 

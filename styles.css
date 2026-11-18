@@ -514,7 +514,6 @@ dialog.full .sheet { max-height: 96dvh; min-height: 70dvh; align-content: start;
 .segbar .seg { min-width: 4px; border-radius: 4px; display: flex; align-items: center; padding: 0 6px; overflow: visible; outline-offset: 2px; transition: filter .15s ease; }
 .segbar .seg b { font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap; }
 .segbar .seg.f4 b { color: #0b0b0b; }
-.segbar .seg:hover, .segbar .seg.tipon { filter: brightness(1.12); }
 .f1 { background: var(--s1); } .f2 { background: var(--s2); } .f3 { background: var(--s3); } .f4 { background: var(--s4); } .f5 { background: var(--s5); }
 .bar.f5 > i { background: var(--s5); }
 .flowleg { display: grid; gap: 2px; }
@@ -543,7 +542,6 @@ details.adjust[open] > summary { margin-bottom: 8px; }
 .rk-bar { display: flex; align-items: center; gap: 8px; }
 .rk-bar i { display: block; height: 10px; border-radius: 0 4px 4px 0; background: var(--s1); transition: width .6s cubic-bezier(.2, .8, .2, 1), filter .15s ease; }
 .rk-bar b { font-size: 13px; white-space: nowrap; }
-.rk:hover .rk-bar i, .rk.tipon .rk-bar i { filter: brightness(1.15); }
 .chart { width: 100%; height: auto; display: block; overflow: visible; }
 .chart text { font-family: var(--f-body); }
 .ch-grid { stroke: var(--line); stroke-width: 1; }
@@ -554,9 +552,7 @@ details.adjust[open] > summary { margin-bottom: 8px; }
 .ch-val { font-size: 10.5px; font-weight: 700; fill: var(--ink); text-anchor: middle; }
 .ch-hit { fill: transparent; }
 .ch-band { outline: none; cursor: default; }
-.ch-band:focus-visible .ch-hit, .ch-band:hover .ch-hit, .ch-band.tipon .ch-hit { fill: color-mix(in srgb, var(--ink) 5%, transparent); }
 .ch-col { transition: filter .15s ease; }
-.ch-band:hover .ch-col, .ch-band.tipon .ch-col { filter: brightness(1.15); }
 .ch-1 { fill: var(--s1); } .ch-2 { fill: var(--s2); } .ch-neg { fill: var(--s-neg); } .ch-in { fill: var(--s1); } .ch-out { fill: var(--s2); }
 .ch-save { fill: var(--save); }
 .ch-limit { stroke: var(--ink); stroke-width: 1.5; opacity: .7; }
@@ -1259,47 +1255,13 @@ dialog { max-height: var(--vvh, 92dvh); }
 dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(--vvh, 70dvh)); }
 .g-note { pointer-events: none; }
 
-/* what you are touching: the rest fades and loses colour, it gets bolder colour and a clear silhouette (a ring in the page colour inside bars that clip, a halo of its own hue elsewhere) */
-.g-bars:has(> i.tipon) > i:not(.tipon) { opacity: .2; filter: grayscale(.6); }
-.g-bars > i { transition: opacity .15s ease, filter .15s ease; }
-.g-bars > i.tipon { filter: saturate(1.7) brightness(1.08); box-shadow: inset 0 0 0 3px var(--panel), inset 0 0 0 4.5px color-mix(in srgb, var(--ink) 55%, transparent); }
-.ranked:has(.rk.tipon) .rk:not(.tipon) { opacity: .22; filter: grayscale(.6); }
-.rk { transition: opacity .15s ease, filter .15s ease; }
-.rk.tipon { background: color-mix(in srgb, var(--out) 10%, var(--panel)); box-shadow: 0 0 0 5px color-mix(in srgb, var(--out) 10%, var(--panel)); }
-.rk.tipon .rk-bar i { filter: saturate(1.7) brightness(1.08); transform: scaleY(1.45); transform-origin: left center; box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--out), 0 5px 12px -2px color-mix(in srgb, var(--out) 70%, transparent); }
-.rk.tipon .rk-bar b, .rk.tipon .rk-l { font-weight: 800; }
-.vlist:has(.vrow.tipon) .vrow:not(.tipon) { opacity: .22; filter: grayscale(.6); }
-.vrow { transition: opacity .15s ease, filter .15s ease; cursor: default; }
-.segbar:has(.seg.tipon) .seg:not(.tipon) { opacity: .25; filter: grayscale(.6); }
-.segbar .seg.tipon { filter: saturate(1.7) brightness(1.06); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px color-mix(in srgb, var(--ink) 65%, transparent); z-index: 1; }
-.chart:has(.ch-band.tipon) .ch-band:not(.tipon) .ch-col { opacity: .22; filter: grayscale(.6); }
-.ch-band.tipon .ch-col { filter: saturate(1.7) brightness(1.08); stroke: var(--ink); stroke-opacity: .7; stroke-width: 2.5; paint-order: stroke; }
-.ch-band.tipon .ch-hit { fill: transparent; }
-
-/* the same selection language everywhere: marks, month cells, chart points, list rows */
-.g-mark, .g-today { transition: transform .15s ease, filter .15s ease; }
-.g-mark.tipon { transform: scaleX(2.4); filter: drop-shadow(0 0 3px var(--ink)); }
-.g-today.tipon { transform: scale(1.45); filter: drop-shadow(0 0 3px var(--ink)); }
-.mcell { transition: opacity .15s ease, filter .15s ease, box-shadow .15s ease; }
-.mgrid:has(.mcell:hover, .mcell:active, .mcell:focus-visible) .mcell:not(:hover):not(:active):not(:focus-visible) { opacity: .35; filter: grayscale(.6); }
-.mcell:hover, .mcell:active, .mcell:focus-visible { filter: saturate(1.6); box-shadow: 0 0 0 2px var(--panel), 0 0 0 4.5px var(--c, var(--ink)); z-index: 1; }
-.bl-guide { stroke-width: 1.5; opacity: .8; }
-.bl-dot { stroke-width: 3; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--s1) 75%, transparent)); }
-.ch-dot { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--s1) 70%, transparent)); }
-.moves:has(.move:active) .move:not(:active), .flows:has(.flow:active) .flow:not(:active), .spends:has(.spend:active) .spend:not(:active) { opacity: .35; }
-.move:active, .flow:active, .spend.editable:active { background: color-mix(in srgb, var(--ink) 9%, transparent); border-radius: 10px; }
-.move, .flow, .spend { transition: opacity .15s ease, background .15s ease; }
-
-/* selected segment keeps its size: the ring is drawn outside it */
-.g-bars:has(> i.tipon) { overflow: visible; }
-.g-bars > i.tipon { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); z-index: 2; }
-.rk.tipon .rk-bar i { transform: none; }
-
+/* selection feedback lives only on the two thick bars (Hoy and Año): the rest fades, the part gets a bolder colour and a ring drawn outside it, so it never gets smaller */
+.gauge.tall .g-bars > i { transition: opacity .15s ease, filter .15s ease; }
+.gauge.tall .g-bars:has(> i.tipon) { overflow: visible; }
+.gauge.tall .g-bars:has(> i.tipon) > i:not(.tipon) { opacity: .25; filter: grayscale(.6); }
+.gauge.tall .g-bars > i.tipon { filter: saturate(1.7) brightness(1.08); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px color-mix(in srgb, var(--ink) 55%, transparent); z-index: 2; }
+.vrow { cursor: default; }
 /* the + always above the bottom bar (it sits on the bar's real height, set from the script) */
 .plusbtn.fab { z-index: 30; bottom: calc(var(--navh, var(--nav-h)) + 16px); }
-
-/* a tapped part inside a row: the row stays, the other rows fade (the tip sits on the part, not on the row) */
-.vlist:has(.tipon) .vrow:not(.tipon):not(:has(.tipon)) { opacity: .22; filter: grayscale(.6); }
-
-/* a selected row dims every other row of the card (budgets and the rest are one list) */
-section.card:has(.vrow.tipon) .vrow:not(.tipon) { opacity: .22; filter: grayscale(.6); }
+.move:active, .flow:active, .spend.editable:active { background: color-mix(in srgb, var(--ink) 9%, transparent); border-radius: 10px; }
+.rk-pct { color: var(--muted); font-weight: 500; }
