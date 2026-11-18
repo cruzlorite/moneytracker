@@ -333,10 +333,11 @@ function infoHTML(key) {
       ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el gasto planificado.'))]);
     case 'ahorroMes': return card(t('Ahorrado este mes'), [
       ixRow(IX.proj(S), t('Proyección'), t('ahorro planificado del mes + lo que sobre del gasto planificado.'))]);
-    case 'limites': return card(t('Tus presupuestos'), [
+    case 'limites': return card(t('Gasto por tipo'), [
       ixRow(IX.fill(O), t('Gastado'), t('en ese tipo, este mes (mensual) o este año (anual).')),
       ixRow(IX.mark, t('Presupuesto'), t('cantidad fijada en el Plan.')),
-      ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el presupuesto.'))]);
+      ixRow(IX.proj(O), t('Proyección'), t('lo que llevarías a fin de mes a este ritmo. Solo en presupuestos mensuales, y desde el tercer día.')),
+      ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el presupuesto.'))], t('Sin presupuestar: tipos sin límite; la barra los compara con el que más has gastado.'));
     case 'ano': return card(t('Este año'), [
       ixRow(IX.fill(S), t('Ahorrado'), t('suma de lo ahorrado cada mes.')),
       ixRow(IX.proj(S), t('Proyección'), t('ahorro estimado a fin de año.')),
