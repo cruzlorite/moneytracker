@@ -18,6 +18,7 @@ const app = $('#app'), dlg = $('#modal'), toastEl = $('#toast');
 // a reload starts at the top: the browser's own scroll restoration lands after the content changes and covers the top
 try { history.scrollRestoration = 'manual'; } catch { /* not supported */ }
 const notifyOn = (k) => !!lsGet('hucha:n' + k);
+let remTimer = 0; // the reminders' pending update (see the end of this file)
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch { /* ignore */ } };
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -207,6 +208,7 @@ function render(force) {
   afterRender(m);
 }
 function afterRender(m) {
+  syncReminders();
   // the app icon shows how many amounts are waiting to be confirmed (installed app, where supported)
   const n = m.items.length ? m.pendingIn(m.curYM).length : 0;
   try { n ? navigator.setAppBadge?.(n) : navigator.clearAppBadge?.(); } catch { /* not supported */ }
@@ -1263,7 +1265,7 @@ function settings() {
       <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +st.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +st.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${cd}" style="max-width: 80px"></label>
   </section>`;
-  return `${startCard}${calendar}<section class="card"><h2>${t('Dónde se guarda')}</h2>
+  return `${startCard}${calendar}${remindersCard()}<section class="card"><h2>${t('Dónde se guarda')}</h2>
     <p class="savestate ok" id="savestate" aria-live="polite"></p>
     ${mode === 'google' ? `<p>${t('En la hoja')} <b>${t('MoneyTracker')}</b> ${t('de tu Google Drive')}${savedHint() ? ` (${esc(savedHint())})` : ''}. ${t('Este dispositivo guarda una copia para abrir rápido y funcionar sin conexión.')}</p>
       <div class="row wrap-row"><a class="btn" href="${sheetUrl(store.sheetId)}" target="_blank" rel="noopener">${t('Abrir la hoja')}</a>
@@ -1665,6 +1667,9 @@ document.addEventListener('click', (e) => {
     case 'back': goBack(); break;
     case 'connect': connect(); break;
     case 'retrysave': store.sync(); break;
+    case 'remindon': enableReminders(); break;
+    case 'remindoff': disableReminders(); break;
+    case 'remindtest': swPost({ type: 'test', title: t('MoneyTracker'), body: t('Así te avisaré.') }); break;
     case 'reauth': case 'sync':
       if (act === 'sync' && store.status === 'error') { toast(store.error, 4000); store.sync(); break; }
       if (act === 'sync' && store.status !== 'auth') break;
@@ -2052,3 +2057,60 @@ document.addEventListener('focusin', (e) => {
   const go = () => { const sh = e.target.closest('.sheet'); if (sh) sh.scrollTop = Math.max(0, e.target.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - 8); };
   go(); setTimeout(go, 300); // again once the keyboard has finished opening
 });
+
+// ---------- service worker and reminders ----------
+// The service worker makes the app installable with its own icon and open offline. Reminders are dated notes the page
+// leaves in it; when the browser wakes it up (periodic sync, installed Chrome on Android) the due ones become system notifications.
+function remindersOn() { return !!lsGet('hucha:remind'); }
+function REM_SUPPORT() { return 'serviceWorker' in navigator && 'Notification' in window; }
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('./sw.js').catch(() => { /* no worker: it works the same, just not offline */ });
+function swPost(msg) { return REM_SUPPORT() ? navigator.serviceWorker.ready.then((r) => (r.active || navigator.serviceWorker.controller)?.postMessage(msg)).catch(() => {}) : Promise.resolve(); }
+/** What is worth a notification, with its date: closing the month that just ended, and what is due in the next days. */
+function remindersList(m) {
+  if (!m.items.length || store.mode === 'demo') return [];
+  const out = [], at9 = (iso) => `${iso}T09:00:00`;
+  const due = closeDue(m);
+  const prev = ymAdd(m.curYM, -1);
+  // the month that ended and is still open, or this one once it ends
+  const closeYM = due || m.curYM;
+  if (m.balStart(closeYM) != null && !m.mon(closeYM).close) {
+    const day = due ? toISO(new Date()) : (() => { const d = new Date(m.range(m.curYM).to + 'T12:00:00'); d.setDate(d.getDate() + 1); return toISO(d); })();
+    out.push({ key: `close-${closeYM}`, at: at9(day), title: t('Cierre de {m}', { m: monthName(closeYM) }), body: t('Ya puedes cerrar el mes: apunta tu saldo del último día.'), url: './#hoy' });
+  }
+  void prev;
+  const today = toISO(new Date()), lim = (() => { const d = new Date(); d.setDate(d.getDate() + 14); return toISO(d); })();
+  for (const ym of [m.curYM, ymAdd(m.curYM, 1)]) {
+    for (const p of m.plannedIn(ym)) {
+      if (p.date < today || p.date > lim || p.state === 'real') continue;
+      if (!(p.it.vary || p.it.kind === 'in')) continue; // what asks to be confirmed, and what you are waiting for
+      out.push({ key: `item-${p.it.id}-${p.date}`, at: at9(p.date), title: p.it.kind === 'in' ? t('Hoy toca: {n}', { n: p.it.name }) : t('Confirma {n}', { n: p.it.name }), body: p.it.kind === 'in' ? t('¿Ha llegado? Confírmalo en la app.') : t('Pon el importe de este mes.'), url: './#hoy' });
+    }
+  }
+  return out;
+}
+function syncReminders() {
+  if (!REM_SUPPORT() || !remindersOn() || Notification.permission !== 'granted') return;
+  clearTimeout(remTimer);
+  remTimer = setTimeout(() => swPost({ type: 'reminders', list: remindersList(compute(store.data)) }), 400);
+}
+async function enableReminders() {
+  if (!REM_SUPPORT()) { toast(t('Tu navegador no admite avisos')); return; }
+  const p = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if (p !== 'granted') { toast(t('Sin permiso: actívalo en los ajustes del navegador')); render(true); return; }
+  lsSet('hucha:remind', '1');
+  try { const reg = await navigator.serviceWorker.ready; await reg.periodicSync?.register('moneytracker-reminders', { minInterval: 12 * 3600 * 1000 }); } catch { /* not available: they are shown when you open the app */ }
+  syncReminders(); toast(t('Avisos activados')); render(true);
+}
+async function disableReminders() {
+  lsSet('hucha:remind', '');
+  try { const reg = await navigator.serviceWorker.ready; await reg.periodicSync?.unregister('moneytracker-reminders'); } catch { /* nothing to remove */ }
+  swPost({ type: 'reminders', list: [] }); toast(t('Avisos desactivados')); render(true);
+}
+function remindersCard() {
+  const perm = REM_SUPPORT() ? Notification.permission : 'unsupported', on = remindersOn() && perm === 'granted';
+  return `<section class="card"><h2>${t('Avisos')}</h2>
+    <p class="fine">${perm === 'unsupported' ? t('Tu navegador no admite avisos. Instala la app desde el menú del navegador.') : perm === 'denied' ? t('Los avisos están bloqueados: actívalos en los ajustes del navegador para este sitio.')
+      : t('Te avisa de «Cierre de {m}» y de lo que toca confirmar. En Android, con la app instalada, el móvil decide cuándo mirar: puede tardar unas horas.', { m: monthName(compute(store.data).curYM) })}</p>
+    ${perm === 'unsupported' || perm === 'denied' ? '' : `<div class="row wrap-row">${on ? `<button data-act="remindoff">${t('Desactivar avisos')}</button><button class="ghost" data-act="remindtest">${t('Enviar un aviso de prueba')}</button>` : `<button class="primary" data-act="remindon">${t('Activar avisos')}</button>`}</div>`}
+  </section>`;
+}
