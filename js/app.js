@@ -432,7 +432,7 @@ function metas(m) {
       <div class="row between"><h2>${t('Ahorro acumulado')} ${info('acumulado')}</h2></div>
       ${cumLines({ plan: planC, real: realC, projFrom: m.curIdx, labels: m.season.map((ym) => MES3[+ym.slice(5) - 1]), aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
-      ${table([t('Mes'), t('Ahorrado'), t('Planificado')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), (i > m.curIdx ? '≈ ' : i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i])]))}
+      ${table([t('Mes'), t('Ahorrado'), t('Planificado')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i])]))}
     </section>`;
   }
   const nexts = m.outs.filter((i) => i.freq !== 'monthly' && !i.budget).map((i) => ({ i, k: m.season.findIndex((s, ix) => ix >= m.curIdx && m.occurs(i, s)) }))
