@@ -146,3 +146,119 @@ export function guessCat(name) {
   for (const [id, keys] of RULES) if (keys.some((k) => words.some((w) => w.startsWith(k)))) return id;
   return null;
 }
+
+// ---------- search: find a type by typing, even loosely ----------
+// Words people would use for each type (Spanish and English, with things only loosely related). Not used to guess a
+// type from an item's name (RULES does that, stricter): only to find it while searching.
+const SYNONYMS = {
+  super: 'supermercado compra comida alimentos alimentacion mercado tienda verduras fruta frutas carne pescado leche pan huevos mercadona carrefour lidl aldi dia eroski alcampo costco despensa nevera supermarket grocery groceries food shopping market tesco asda sainsbury',
+  restaurante: 'restaurante comer comida fuera cena almuerzo menu menu del dia tapas pizzeria hamburguesa sushi kebab bar brunch comida rapida fast food mcdonalds burger king restaurant dinner lunch eating out meal takeaway cenar comer fuera',
+  cafe: 'cafe cafes cafeteria cafecito desayuno te infusion starbucks cortado capuchino bolleria croissant merienda coffee tea breakfast latte bakery',
+  copas: 'copas bar bares cañas caña cerveza birra vino cocktail coctel cubata ron whisky ginebra copa copeo salir de noche discoteca pub garito chupito tragos alcohol beer wine drinks nightclub club night out',
+  domicilio: 'domicilio a domicilio delivery glovo uber eats just eat telepizza pedir comida reparto take away take-away deliveroo food delivery app comida a casa',
+  alquiler: 'alquiler renta hipoteca piso casa vivienda cuota comunidad inquilino arrendamiento rent mortgage flat apartment housing landlord',
+  suministros: 'luz agua gas electricidad calefaccion factura facturas suministros endesa iberdrola naturgy butano energia bombona recibo luz recibos utilities electricity water heating bills energy',
+  internet: 'internet wifi fibra movil telefono telefonia linea datos tarifa vodafone movistar orange digi yoigo pepephone masmovil router adsl phone mobile broadband data plan',
+  hogar: 'hogar muebles mueble sofa cama colchon decoracion ikea leroy merlin electrodomesticos lavadora nevera cocina menaje vajilla cortinas lampara casa furniture home decor appliances kitchen',
+  limpieza: 'limpieza limpiar fregona detergente lejia productos de limpieza señora de la limpieza asistenta jabon suavizante lavanderia tintoreria cleaning cleaner laundry soap detergent dry cleaning',
+  reparaciones: 'reparaciones reparacion arreglo arreglos fontanero electricista cerrajero obra obras reforma manitas bricolaje albañil pintor averia repair plumber electrician maintenance handyman diy renovation',
+  plantas: 'plantas planta jardin jardineria flores maceta macetas vivero huerto cesped abono semillas garden plants flowers gardening',
+  transporte: 'transporte publico metro bus autobus tren renfe cercanias abono transporte taxi cabify uber bici bicicleta patinete tranvia billete monedero movilidad commuting public transport train subway tube tram ticket pass',
+  coche: 'coche automovil auto vehiculo itv taller mecanico neumaticos ruedas aceite revision seguro del coche lavado moto carnet de conducir car garage mechanic tyres tires mot service motorcycle',
+  gasolina: 'gasolina gasoil diesel combustible gasolinera repsol cepsa bp shell carga electrica cargar coche electrico fuel petrol gas station charging',
+  parking: 'parking aparcamiento garaje peaje peajes autopista zona azul ora estacionamiento via t telepeaje vado parking toll tolls car park street parking',
+  viajes: 'viajes viaje vacaciones vuelo vuelos avion billete aeropuerto escapada excursion turismo crucero maleta ryanair vueling iberia booking airbnb trip holiday flight flights travel vacation tour cruise getaway',
+  alojamiento: 'alojamiento hotel hostal apartamento turistico airbnb camping habitacion reserva noche estancia accommodation hostel lodging stay',
+  medico: 'medico medicos doctor clinica hospital consulta urgencias dentista dental ortodoncia fisioterapeuta fisio psicologo terapia oculista optica gafas lentillas analisis seguro medico sanitas adeslas especialista podologo nutricionista salud doctor dentist physio therapy optician glasses health medical',
+  farmacia: 'farmacia medicinas medicamentos pastillas receta botiquin parafarmacia vitaminas suplementos crema tiritas pharmacy medicine prescription pills drugs chemist',
+  deporte: 'deporte gimnasio gym padel tenis futbol natacion piscina yoga pilates crossfit running correr ciclismo equipo entrenador entrenamiento cuota club federacion senderismo montaña esqui sport fitness swimming training sports club hiking ski',
+  belleza: 'belleza peluqueria peluquero barberia barbero corte de pelo tinte manicura pedicura uñas estetica depilacion masaje spa maquillaje cosmeticos perfume perfumeria cuidado personal hair haircut barber nails beauty salon cosmetics makeup',
+  ocio: 'ocio planes salidas plan salir diversion fiesta quedada entretenimiento parque de atracciones bolera karaoke escape room museo exposicion feria fun outing leisure entertainment activities hobbies',
+  cine: 'cine teatro concierto concierto espectaculo entradas musical opera festival ticketmaster espectaculos monologo circo cinema movies theatre theater tickets show gig live',
+  suscripciones: 'suscripciones suscripcion netflix hbo disney prime video spotify youtube premium apple icloud google one dropbox chatgpt cuota mensual membresia plataforma streaming app subscription membership monthly plan',
+  juegos: 'juegos videojuegos playstation xbox nintendo steam consola mando juego de mesa app store dlc fortnite gaming games video games console board game',
+  musica: 'musica disco vinilo instrumento guitarra piano clases de musica spotify concierto cd altavoces auriculares equipo de sonido music instrument vinyl headphones',
+  libros: 'libros libro lectura kindle ebook librería libreria comic manga revista periodico prensa audiolibro audible papeleria books reading magazine newspaper bookshop',
+  tabaco: 'tabaco cigarrillos cigarros cigarrillo estanco fumar vapeo vaper vapear liar tabaco de liar puros pipa shisha nicotina cigarette cigarettes smoking vape vaping',
+  ropa: 'ropa calzado zapatos zapatillas camiseta pantalon vestido abrigo chaqueta jersey deportivas botas bolso complementos zara h&m primark decathlon vestuario moda lenceria clothes clothing shoes trainers fashion coat dress',
+  compras: 'compras compra tienda online amazon aliexpress ebay vinted el corte ingles centro comercial rebajas pedido paquete envio shopping store online order parcel mall',
+  tecnologia: 'tecnologia ordenador portatil movil smartphone tablet pantalla monitor teclado raton cargador cable auriculares reloj inteligente camara impresora disco duro mediamarkt pccomponentes apple android gadget tech computer laptop phone screen camera printer',
+  caprichos: 'caprichos capricho antojo antojos dulces chucherias helado chocolate bombones tarta pastel golosinas snacks picoteo regalo para mi darse un gusto treat treats sweets candy ice cream cake indulgence',
+  regalos: 'regalos regalo cumpleaños cumple navidad reyes boda bautizo comunion aniversario san valentin dia de la madre dia del padre detalle sorpresa flores presente gift gifts birthday christmas wedding anniversary present',
+  familia: 'familia hijos hijo hija niños niño bebe guarderia colegio extraescolares pañales biberon canguro juguetes pediatra cole ropa de niño padres abuelos pension alimenticia family kids children baby nursery school toys nanny diapers childcare',
+  mascotas: 'mascotas mascota perro gato pienso veterinario veterinaria vacunas peluqueria canina arena paseador acuario pajaro conejo pecera pets pet dog cat vet food litter',
+  formacion: 'formacion curso cursos clases academia universidad matricula master grado oposiciones idiomas ingles libros de texto colegio escuela seminario taller certificado examen tutoria educacion education course courses class tuition university school training exam language lessons',
+  donaciones: 'donaciones donacion ong caridad colaboracion solidaridad cruz roja unicef greenpeace apadrinar apadrinamiento limosna crowdfunding iglesia diezmo propina donation charity donate tip tips',
+  seguros: 'seguros seguro poliza hogar vida salud coche moto decesos responsabilidad civil mapfre axa mutua allianz generali linea directa prima insurance policy premium cover',
+  impuestos: 'impuestos impuesto tasas tasa irpf iva ibi hacienda renta declaracion modelo 130 autonomo cuota de autonomos seguridad social multa sancion denuncia basura plusvalia sucesiones contribucion ayuntamiento tributo gestor tax taxes council tax fine penalty vat income tax accountant',
+  comisiones: 'comisiones comision banco bancaria mantenimiento cuenta tarjeta cajero intereses transferencia cambio de divisa paypal bizum recargo cuota bancaria bank fees fee charges interest overdraft commission',
+  ahorro: 'ahorro ahorros inversion invertir fondo fondos indexado broker acciones bolsa etf plan de pensiones pension cripto bitcoin deposito hucha colchon traspaso aportacion reserva emergencia fondo de emergencia savings invest investment stocks shares fund pension crypto deposit transfer',
+  efectivo: 'efectivo dinero en metalico metalico cajero sacar dinero retirada billetes monedas cartera cash atm withdrawal wallet',
+  otros: 'otros otro varios imprevistos misc miscelanea sin clasificar desconocido other misc various unexpected',
+};
+const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const words = (s) => fold(s).split(/[^a-z0-9ñ&]+/).filter(Boolean);
+/** Edit distance, capped: we only care whether it is 0, 1 or 2. */
+function lev(a, b, cap = 3) {
+  if (Math.abs(a.length - b.length) > cap) return cap + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]; let min = i;
+    for (let j = 1; j <= b.length; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); min = Math.min(min, cur[j]); }
+    if (min > cap) return cap + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+const bigrams = (s) => { const g = new Set(); for (let i = 0; i < s.length - 1; i++) g.add(s.slice(i, i + 2)); return g; };
+/** How well one typed word matches one known word: 0 (not at all) to 100. */
+function wordScore(q, w) {
+  if (q === w) return 100;
+  if (w.startsWith(q) && q.length >= 2) return 82;
+  if (q.startsWith(w) && w.length >= 4) return 74; // "gasolinera" for "gasolina"
+  if (q.length >= 5 && w.includes(q)) return 58; // inside a word: only for longer queries ("cine" is not in "medicine")
+  if (w.length >= 5 && q.length >= 5 && q.includes(w)) return 56;
+  const d = lev(q, w);
+  if (q.length >= 4 && d <= (q.length >= 8 ? 2 : 1) && (q.length >= 6 || q[0] === w[0])) return 66 - d * 10; // a typo or two
+  if (q.length >= 5 && w.length >= 5) { // looks alike ("fontaneria" ~ "fontanero")
+    const A = bigrams(q), B = bigrams(w); let hit = 0; A.forEach((x) => { if (B.has(x)) hit++; });
+    const dice = (2 * hit) / (A.size + B.size);
+    if (dice >= 0.62) return Math.round(30 + dice * 25);
+  }
+  return 0;
+}
+let SEARCH_INDEX = null;
+/** Every type with the words it can be found by: its name, its group, the words people use for it. */
+function searchIndex() {
+  const sig = CATS.length + ':' + CATS.map((c) => c.name).join('|');
+  if (SEARCH_INDEX?.sig === sig) return SEARCH_INDEX.list;
+  const rules = Object.fromEntries(RULES);
+  const list = CATS.map((c) => {
+    const own = words(`${c.name} ${c.short}`), group = words(GROUPS[c.group] || '');
+    const extra = c.group === 'tuyos' ? [] : [...words(SYNONYMS[c.id] || ''), ...(rules[c.id] || []).flatMap(words), ...words(c.id)];
+    return { id: c.id, own, group, extra: [...new Set(extra)] };
+  });
+  SEARCH_INDEX = { sig, list };
+  return list;
+}
+/** Types matching what you typed, best first. Several words: every one has to match something. */
+export function searchCats(query) {
+  const qs = words(query);
+  if (!qs.length) return [];
+  const out = [];
+  for (const c of searchIndex()) {
+    let total = 0;
+    for (const q of qs) {
+      let best = 0;
+      for (const w of c.own) best = Math.max(best, wordScore(q, w) + 12);        // its own name counts most
+      for (const w of c.group) best = Math.max(best, wordScore(q, w) - 18);      // the group is a weak hint
+      for (const w of c.extra) best = Math.max(best, wordScore(q, w));
+      if (!best) { total = 0; break; }
+      total += Math.min(best, 100);
+    }
+    if (total) out.push({ id: c.id, score: total / qs.length });
+  }
+  const ranked = out.filter((r) => r.score >= 30).sort((a, b) => b.score - a.score);
+  const top = ranked[0]?.score || 0;
+  return ranked.filter((r) => r.score >= Math.max(30, top * 0.55)).map((r) => r.id); // a clear winner hides the stragglers
+}

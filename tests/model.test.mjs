@@ -423,3 +423,15 @@ test('versions and the change log survive the sheet', () => {
   assert.deepEqual(back.items.map((i) => [i.amount, i.from || '', i.to || '', i.at ? 'at' : '']), items.map((i) => [i.amount, i.from || '', i.to || '', i.at ? 'at' : '']));
   assert.deepEqual(back.log, log);
 });
+
+import { searchCats } from '../js/cats.js';
+test('the type search finds types by name, by loosely related words, with typos and without accents', () => {
+  const top = (q) => searchCats(q)[0];
+  for (const [q, id] of [['dentista', 'medico'], ['gasolinera', 'gasolina'], ['netflix', 'suscripciones'], ['uñas', 'belleza'], ['cumple', 'regalos'], ['fontanero', 'reparaciones'],
+    ['guarderia', 'familia'], ['veterinario', 'mascotas'], ['irpf', 'impuestos'], ['restaurnate', 'restaurante'], ['cervesa', 'copas'], ['gym', 'deporte'], ['mercadona', 'super'], ['rent', 'alquiler']]) {
+    assert.equal(top(q), id, `${q} → ${id}`);
+  }
+  assert.deepEqual(searchCats('zzzqq'), [], 'nothing for nonsense');
+  assert.deepEqual(searchCats(''), []);
+  assert.ok(!searchCats('cine').includes('farmacia'), 'a short word does not match unrelated types by typo');
+});

@@ -1045,3 +1045,7 @@ details.applyto summary span { color: var(--muted); }
 details.applyto[open] summary { margin-bottom: 8px; }
 .hist { display: grid; gap: 10px; margin-top: 8px; }
 .hrow { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: start; }
+/* type picker: search */
+.catsearch { display: grid; gap: 8px; margin-bottom: 8px; }
+.catsearch input { width: 100%; }
+.catfound[hidden], .catall[hidden] { display: none; }

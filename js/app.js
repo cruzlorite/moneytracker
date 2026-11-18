@@ -8,7 +8,7 @@ import {
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
 import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines } from './charts.js';
-import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, setCustomCats } from './cats.js';
+import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
 import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
@@ -559,14 +559,29 @@ function catRow(m, inSheet) {
 }
 /** Every type, by group. `act` is the action each button fires; `none` adds a "no type" choice. */
 const PLUS = '<span class="ct none" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg></span>';
+const catChip = (c, act, sel) => `<button type="button" class="catchip g-${c.group}" data-act="${act}" data-cat="${c.id}" aria-pressed="${sel === c.id}">${catEl(c.id)}<span>${esc(c.short)}</span></button>`;
 function catGrid(sel, act, none) {
   const by = {};
   for (const c of CATS) (by[c.group] ||= []).push(c);
-  const chip = (c) => `<button type="button" class="catchip g-${c.group}" data-act="${act}" data-cat="${c.id}" aria-pressed="${sel === c.id}">${catEl(c.id)}<span>${esc(c.short)}</span></button>`;
-  return `<div class="catgrid">${none ? `<div class="grid"><button type="button" class="catchip" data-act="${act}" data-cat="" aria-pressed="${!sel}">${catEl('')}<span>${t('Sin tipo')}</span></button></div>` : ''}
+  const chip = (c) => catChip(c, act, sel);
+  return `<div class="catgrid" data-act-pick="${act}" data-sel="${esc(sel || '')}">
+    <div class="catsearch"><input type="search" id="cat-search" placeholder="${t('Buscar tipo: dentista, netflix, gasolina…')}" aria-label="${t('Buscar tipo')}" autocomplete="off" autocapitalize="off" enterkeyhint="go">
+      <div class="catfound" id="cat-found" hidden aria-live="polite"></div></div>
+    <div class="catall">${none ? `<div class="grid"><button type="button" class="catchip" data-act="${act}" data-cat="" aria-pressed="${!sel}">${catEl('')}<span>${t('Sin tipo')}</span></button></div>` : ''}
     <div class="stack-sm"><span class="label">${t('Tuyos')}</span><div class="grid">${(by.tuyos || []).map(chip).join('')}
       <button type="button" class="catchip new" data-act="catnew" data-from="${act}">${PLUS}<span>${t('Nuevo tipo')}</span></button></div></div>
-    ${Object.entries(GROUPS).filter(([g]) => g !== 'tuyos').map(([g, gname]) => `<div class="stack-sm"><span class="label">${esc(gname)}</span><div class="grid">${by[g].map(chip).join('')}</div></div>`).join('')}</div>`;
+    ${Object.entries(GROUPS).filter(([g]) => g !== 'tuyos').map(([g, gname]) => `<div class="stack-sm"><span class="label">${esc(gname)}</span><div class="grid">${by[g].map(chip).join('')}</div></div>`).join('')}</div></div>`;
+}
+/** The search box of the type picker: show only the types that match, best first; Enter takes the first one. */
+function catSearch(input) {
+  const box = input.closest('.catgrid'), found = box.querySelector('#cat-found'), all = box.querySelector('.catall');
+  const act = box.dataset.actPick, sel = box.dataset.sel, q = input.value.trim();
+  if (!q) { found.hidden = true; found.innerHTML = ''; all.hidden = false; return; }
+  const ids = searchCats(q).filter((id) => CAT[id]);
+  all.hidden = true; found.hidden = false;
+  found.innerHTML = ids.length
+    ? `<div class="grid">${ids.map((id) => catChip(CAT[id], act, sel)).join('')}</div>`
+    : `<p class="fine">${t('No encuentro «{q}».', { q: esc(q) })}</p><div class="grid"><button type="button" class="catchip new" data-act="catnew" data-from="${act}">${PLUS}<span>${t('Nuevo tipo')}</span></button></div>`;
 }
 
 // ---------- your own spending types ----------
@@ -1737,6 +1752,7 @@ document.addEventListener('change', (e) => {
 // Enter in a quick input = press its button
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+  if (e.target.id === 'cat-search') { e.preventDefault(); e.target.closest('.catgrid')?.querySelector('#cat-found .catchip')?.click(); return; } // Enter takes the best match
   const map = { 'h-start': 'startbal', 'nc-name': 'ncsave', 'ck-bal': 'checkset', 'ck-open': 'checkset', 'o-real': 'oconfirm', 'b-amt': 'bspendc', 'b-note': 'bspendc', 'k-amt': 'kgo', 'k-note': 'kgo' };
   const act = map[e.target.id] || (e.target.closest('#item-form') ? 'fsave' : null);
   if (!act) return;
@@ -1748,7 +1764,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('toggle', (e) => { const d = e.target; if (d?.dataset?.done) { UI.doneOpen = { ...(UI.doneOpen || {}), [d.dataset.done]: d.open }; } }, true);
 document.addEventListener('input', (e) => {
   const id = e.target.id;
-  if (id === 'cl-bal' || id === 'cl-open') closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
+  if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open') closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
 });
 document.addEventListener('focusout', () => setTimeout(() => {
   if (!UI.pending) return;
