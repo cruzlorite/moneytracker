@@ -1257,3 +1257,4 @@ dialog.full { max-height: 100dvh; }
 dialog { max-height: var(--vvh, 92dvh); }
 .sheet { max-height: var(--vvh, 92dvh); }
 dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(--vvh, 70dvh)); }
+.g-note { pointer-events: none; }

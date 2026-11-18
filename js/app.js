@@ -395,7 +395,7 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   // a stretch of the bar named inside it (what would be left, what would go over): only when there's room for the words
   const noteEl = note && w(note.b) - w(note.a) >= 30 ? `<span class="g-note ${note.cls || ''}" style="left:${w(note.a)}%; width:${(w(note.b) - w(note.a)).toFixed(1)}%">${note.text}</span>` : '';
   return `<div class="gauge ${thin ? 'thin' : ''} ${tall ? 'tall' : ''}" role="img" aria-label="${esc(label)}">
-    <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}">${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
+    <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}" ${label ? `data-tip="${esc(label)}"` : ''}>${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
       ? `<span class="g-today" style="left:${w(k.at)}%" data-tip="${esc(`${t('Planificado a hoy')} ${fmt(k.at)}`)}"><i></i></span>`
       : `<b class="g-mark" style="left:${w(k.at)}%" data-tip="${esc(`${k.name || nm.plan} ${fmt(k.at)}`)}"></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
