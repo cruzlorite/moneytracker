@@ -28,7 +28,7 @@ test('pace: even spending line, forecast and daily allowance', () => {
 });
 
 test('month close: what is left over counts as saved, nothing carries over', () => {
-  const d = base({ months: { '2027-01': { saved: 100, open: 900, bal: 1040, close: { amount: 40 } }, '2027-02': { saved: 100, bal: 1100, check: { date: '2027-02-10', bal: 1200 }, close: { amount: -25 } } } });
+  const d = base({ months: { '2027-01': { saved: 100, open: 900, bal: 1040, close: { amount: 40 } }, '2027-02': { saved: 100, bal: 1100, check: { date: '2027-02-10', bal: 1200 }, checks: [{ date: '2027-02-10', bal: 1200 }], close: { amount: -25 } } } });
   const m = compute(d, new Date(2027, 2, 5));
   assert.equal(m.restOf('2027-02'), 300); // no carry from January
   assert.equal(m.savedOf('2027-01'), 140);

@@ -475,3 +475,10 @@ test('an item with no day counts from the first day of the month; with a day, fr
   assert.equal(m.outOf('2027-01'), 630);
   assert.equal(m.flowTo('2027-01', '2027-01-05').out, 600, 'so far this month: the one with no day');
 });
+
+test('balance updates: several per month, the latest one is the month\'s check', () => {
+  const m = normMonth({ checks: [{ date: '2027-02-12', bal: 1300 }, { date: '2027-02-10', bal: 1200 }] });
+  assert.deepEqual(m.checks.map((c) => c.date), ['2027-02-10', '2027-02-12']);
+  assert.deepEqual(m.check, { date: '2027-02-12', bal: 1300 });
+  assert.deepEqual(normMonth({ check: { date: '2027-02-10', bal: 5 } }).checks, [{ date: '2027-02-10', bal: 5 }]); // a single old check joins the list
+});
