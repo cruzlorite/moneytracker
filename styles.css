@@ -1269,3 +1269,4 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 .ch-band:focus-visible .ch-hit, .ch-band:hover .ch-hit, .ch-band.tipon .ch-hit { fill: color-mix(in srgb, var(--ink) 5%, transparent); }
 .ch-col { transition: filter .15s ease; }
 .ch-band:hover .ch-col, .ch-band.tipon .ch-col { filter: brightness(1.15); }
+.nw { white-space: nowrap; }

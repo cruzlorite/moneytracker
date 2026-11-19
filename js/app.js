@@ -815,6 +815,11 @@ const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
 };
 
 // ---------- Mes ----------
+/** A confirmed planned item in the Cumplidos lists: the same compact line as a logged spend (icon, name · date, amount), tap to edit, ✕ to un-confirm. */
+const doneRow = (it, ym, date, amount) => {
+  const diff = round2(amount - it.amount), save = it.kind === 'out' && it.cat === SAVE_CAT && !it.budget;
+  return `<div class="spend editable" role="button" tabindex="0" data-act="occ" data-id="${esc(it.id)}" data-ym="${ym}" aria-label="${esc(it.name)}">${catEl(it.kind === 'in' ? '' : itemCat(it) || '', 'sm')}<span class="grow">${esc(it.name)}<span class="fine"> · <span class="nw">${shortDate(date)}</span>${diff ? ` · <span class="nw">${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))}</span>` : ''}</span></span><b class="num ${it.kind === 'in' ? 'amt-in' : save ? 'c-save' : 'amt-out'}">${it.kind === 'in' ? '+' : '−'}${fmt(amount)}</b><button type="button" class="iconbtn sm" data-act="unconfirm" data-id="${esc(it.id)}" data-ym="${ym}" aria-label="${t('Desconfirmar {n}', { n: esc(it.name) })}" title="${t('Desconfirmar')}">${ic('x')}</button></div>`;
+};
 const spendRow = (e) => `<div class="spend editable" role="button" tabindex="0" data-act="editspend" data-id="${esc(e.id)}" aria-label="${t('Editar gasto')}">${catEl(e.cat, 'sm')}<span class="grow">${esc(e.note || CAT[e.cat]?.name || t('Gasto'))}${e.note && CAT[e.cat] ? `<span class="fine"> · ${esc(CAT[e.cat].short)}</span>` : ''}<span class="fine"> · ${+e.date.slice(8)} ${MES3[+e.date.slice(5, 7) - 1]}</span></span><b class="num ${e.cat === SAVE_CAT ? 'c-save' : 'amt-out'}">${e.amount < 0 ? '+' : '−'}${fmt(Math.abs(e.amount))}</b><button class="iconbtn sm" data-act="delspend" data-id="${esc(e.id)}" aria-label="${t('Borrar gasto')}">${ic('x')}</button></div>`;
 const stPill = (st) => `<span class="pill ${st === 'clear' ? 'c-ok' : st === 'partial' ? 'c-warn' : 'c-acc'}">${st === 'clear' ? t('Cumplido') : st === 'partial' ? t('Parcial') : t('Sin datos')}</span>`;
 
@@ -1185,7 +1190,7 @@ function plan(m) {
       const it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
       if (!it || it.kind !== kind || it.budget) continue;
       const date = m.dateOf(it, ym);
-      rows.push({ date, html: flowRow(ym, m.openAfter(ym))({ it, date, day: +date.slice(8), amount, state: 'real' }) });
+      rows.push({ date, html: doneRow(it, ym, date, amount) });
     }
     // under the limits: the spends you logged in the categories that have a limit
     if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, html: spendRow(e) });
