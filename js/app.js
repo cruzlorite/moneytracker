@@ -907,7 +907,9 @@ function openLineDetail(kind) {
   ].join('');
   const planC = [0], realC = [0]; let pa = 0, ra = 0;
   m.season.forEach((ym, i) => { pa += planM[i] || 0; planC.push(round2(pa)); if (real[i] != null) { ra += real[i]; realC.push(round2(ra)); } else realC.push(null); });
-  for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
+  const sp = kind === 'out' ? spendProjection(m) : null;
+  if (sp) { let acc = realC[ci + 1] - (real[ci] ?? 0) + sp.months[ci]; for (let i = ci + 1; i < n; i++) { acc += sp.months[i]; realC[i + 1] = round2(acc); } } // the dot stays where you are; from there, each month on what it is expected to cost
+  else for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
   const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: tone, k: real[i] != null ? 'solid' : 'hatch', l: real[i] != null ? word : t('Estimado'), v: (real[i] != null ? '' : '≈ ') + fmt(real[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i + 1]) }]))], aria: word })}
     <div class="legend"><span><i class="sw" style="background: ${tone}"></i>${word.toLowerCase()}</span><span><i class="lg-proj" style="--pc: ${tone}"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div></section>`;
   // what makes it up
@@ -1101,6 +1103,33 @@ function projSpent(m, ym) {
   const outPaid = planned.filter((p) => p.state !== 'future').reduce((a, p) => a + p.amount, 0);
   return round2(outPlan + Math.max(0, m.spentAll(ym, m.todayISO) - outPaid) / days * total);
 }
+/**
+ * Where the year's spending ends, month by month: what is done as it was; this month as in Hoy (what the plan expects
+ * from it, plus your pace on the rest); the months to come as what the plan already expects in each one (the yearly
+ * insurance in its month, the rent in all of them) plus your daily pace on everything else. Null when the year is not under way.
+ */
+function spendProjection(m) {
+  if (m.pre || m.over || !m.season.includes(m.curYM)) return null;
+  const cur = m.curYM, ci = m.season.indexOf(cur);
+  // your pace on what the plan doesn't name: what you spent beyond the planned expenses that came, per day, so far
+  let varSpent = 0, days = 0;
+  for (const ym of m.season) {
+    if (ym > cur) break;
+    const pc = pace(m, ym), after = m.openAfter(ym), from = after ? m.dayOf(after, ym) : 0, d = (ym === cur ? pc.day : pc.dim) - from;
+    if (d <= 0) continue;
+    const paid = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && p.date > after && p.state !== 'future').reduce((a, p) => a + p.amount, 0);
+    varSpent += Math.max(0, (ym === cur ? m.spentAll(ym, m.todayISO) : m.spentAll(ym)) - paid); days += d;
+  }
+  const rate = days >= 7 ? varSpent / days : null; // too little to go on: the plan's own figure
+  const months = m.season.map((ym, i) => {
+    if (i < ci) return m.spentAll(ym);
+    if (i === ci) return projSpent(m, ym) ?? m.spentAll(ym, m.todayISO);
+    if (rate == null) return planSpend(m, ym);
+    const fixed = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save).reduce((a, p) => a + p.amount, 0);
+    return fixed + rate * m.range(ym).days;
+  }).map(round2);
+  return { months, total: round2(months.reduce((a, v) => a + v, 0)), rate };
+}
 /** This month's saving at this pace: its target, plus what the projection leaves of the budget (minus, if it goes over). */
 const projSaved = (m, pc, ym) => { const p = projSpent(m, ym); return p == null ? null : round2(m.targetOf(ym) + planSpend(m, ym) - p); };
 const shortMoney = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + (Math.abs(v) >= 1000 ? (Math.abs(v) / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K' : Math.round(Math.abs(v)));
@@ -1188,7 +1217,8 @@ function planVsReal(m) {
   const sav = line(t('Ahorrado'), m.goal, m.saved, past.reduce((s, ym) => s + m.savedOf(ym), 0) + curSaved + fut.reduce((s, ym) => s + m.targetOf(ym), 0), 'good', '', 'planificado', true);
   // spending: everything that isn't saved
   const spentReal = past.reduce((s, ym) => s + m.spentAll(ym), 0) + (inSeason ? m.spentAll(m.curYM, todayISO) : 0);
-  const outs = line(t('Gastado'), ins.plan - m.goal, spentReal, ins.proj - sav.proj, 'bad', '', 'planificado');
+  const sproj = spendProjection(m);
+  const outs = line(t('Gastado'), ins.plan - m.goal, spentReal, sproj ? sproj.total : ins.proj - sav.proj, 'bad', '', 'planificado');
   // "hoy" on each line: what the plan expects by today. Dated items count from their day; undated ones, the
   // monthly targets and the limits count by the part of the month gone; past months count whole
   const frac = (ym) => (ym < m.curYM ? 1 : ym > m.curYM ? 0 : pc ? pc.day / pc.dim : 0);
