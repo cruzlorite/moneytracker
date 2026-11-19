@@ -876,6 +876,11 @@ function doneRowsOf(m, kind) {
   if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, ym: m.monthOf(e.date), signed: -e.amount, html: spendRow(e) });
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
+/** "Media al mes" said with its numbers: the total, the months it covers (this one counted by the days gone) and what the plan allows a month. */
+const avgTile = (label, total, elapsed, planYear, nMonths = 12) => {
+  const n = elapsed.toFixed(1).replace('.', ','), per = planYear != null ? ` · ${t('plan: {x} al mes', { x: fmt(Math.round(planYear / nMonths)) })}` : '';
+  return `<div class="tile"><span class="label">${label}</span><span class="v num">${fmt(Math.round(total / Math.max(1, elapsed)))}</span><span class="fine">${t('{x} en {n} meses', { x: fmt(Math.round(total)), n })}${per}</span></div>`;
+};
 /** Ingresado, Gastado or Ahorrado over the year in one view: where you stand, the running total against the plan, and what makes it up. */
 function openLineDetail(kind) {
   const m = computeYear(UI.yearOff || 0), pv = planVsReal(m), x = { in: pv.ins, out: pv.outs, sav: pv.sav }[kind];
@@ -898,7 +903,7 @@ function openLineDetail(kind) {
       ? (left > 0.5 ? tile(t('Te falta'), fmt(left), t('para el plan del año')) : tile(t('Superado en'), fmt(-left), t('el plan del año'), 'c-ok'))
       : (left >= -0.5 ? tile(t('Te queda'), fmt(Math.max(0, left)), t('del gasto planificado')) : tile(t('Te has pasado'), fmt(-left), t('del gasto planificado'), 'c-spend')),
     tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, `${fmt(Math.abs(Math.round(endGap)))} ${endGap > 0 ? t('por encima del plan') : t('por debajo del plan')}`, endGood ? 'c-ok' : 'c-spend'),
-    tile(t('Media al mes'), fmt(Math.round(avg)), t('{x} ÷ {n} meses que van', { x: word.toLowerCase(), n: elapsed.toFixed(1).replace('.', ',') })),
+    avgTile(kind === 'out' ? t('Gasto medio al mes') : kind === 'in' ? t('Ingreso medio al mes') : t('Ahorro medio al mes'), x.real, elapsed, x.plan, n),
   ].join('');
   const planC = [0], realC = [0]; let pa = 0, ra = 0;
   m.season.forEach((ym, i) => { pa += planM[i] || 0; planC.push(round2(pa)); if (real[i] != null) { ra += real[i]; realC.push(round2(ra)); } else realC.push(null); });
@@ -943,7 +948,7 @@ function openCatDetail(c) {
       gap != null ? tile(gap > 0.5 ? t('Te has pasado') : t('Vas por debajo'), fmt(Math.abs(gap)), t('respecto a hoy'), gap > 0.5 ? 'c-spend' : 'c-ok') : '',
       tile(over ? t('Te has pasado') : t('Te queda'), fmt(Math.abs(left)), over ? t('del presupuesto del año') : t('del presupuesto del año'), over ? 'c-spend' : ''),
       tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, x.proj > x.plan + 0.5 ? t('≈ {x} por encima', { x: fmt(Math.round(x.proj - x.plan)) }) : t('≈ {x} por debajo', { x: fmt(Math.round(x.plan - x.proj)) }), x.proj > x.plan + 0.5 ? 'c-spend' : 'c-ok'),
-      tile(t('Media al mes'), fmt(Math.round(avg)), t('gastado ÷ {n} meses que van', { n: elapsed.toFixed(1).replace('.', ',') })),
+      avgTile(t('Gasto medio al mes'), spent, elapsed, x.plan, x.monthly ? n : 12),
     ].join('');
     // the year as two running totals: what you have spent, and what the budget lets you spend, with the rest as it would go
     const planC = [0], realC = [0]; let pa = 0, ra = 0;
@@ -956,7 +961,7 @@ function openCatDetail(c) {
     tiles = [
       tile(t('Gastado'), fmt(spent), t('en lo que va del año')),
       tile(t('Del gasto total'), `${Math.round(spent / Math.max(1, tot) * 100)} %`, t('de {x}', { x: fmt(tot) })),
-      tile(t('Media al mes'), fmt(Math.round(avg)), t('gastado ÷ {n} meses que van', { n: elapsed.toFixed(1).replace('.', ',') })),
+      avgTile(t('Gasto medio al mes'), spent, elapsed, null),
       per.some((v) => v) ? tile(t('Mes de más gasto'), cap(MES3[+m.season[top].slice(5) - 1]), fmt(per[top] || 0)) : '',
     ].join('');
     chart = `<section class="card"><h2>${t('Mes a mes')}</h2>${columns({ cols: m.season.map((ym, i) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: per[i], now: ym === m.curYM, fill: 'var(--out)', tip: tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: per[i] != null ? fmt(per[i]) : t('aún no') }]) })), labels: [], aria: t('Gasto de cada mes') })}</section>`;

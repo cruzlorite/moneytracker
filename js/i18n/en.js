@@ -1,5 +1,10 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Ahorro medio al mes': 'Average saving a month',
+  'Ingreso medio al mes': 'Average income a month',
+  'Gasto medio al mes': 'Average spending a month',
+  '{x} en {n} meses': '{x} in {n} months',
+  'plan: {x} al mes': 'plan: {x} a month',
   'Cada punto es el acumulado de ese día, no el gasto de ese día.': "Each point is the running total of that day, not that day's spending.",
   'lo que ha entrado menos lo que ha salido desde el primer día del mes. Empieza en 0.': "what has come in minus what has gone out since the first day of the month. It starts at 0.",
   'Tu dinero en el mes': "Your money this month",
