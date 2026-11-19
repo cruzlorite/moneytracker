@@ -1,5 +1,9 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'A este ritmo, superarás el gasto planificado en ≈\u00a0{x}': 'At this pace, you will exceed planned spending by ≈ {x}',
+  'Gasto planificado superado en {x}': 'Planned spending exceeded by {x}',
+  'Te quedan {x} de gasto planificado': '{x} of planned spending left',
+  'A este ritmo, el gasto quedará ≈\u00a0{x} por debajo de lo planificado': 'At this pace, spending will end ≈ {x} below plan',
   'Ingresos y gastos': 'Income and spending',
   'gastado ÷ {n} meses que van': 'spent ÷ {n} months so far',
   '{x} ÷ {n} meses que van': '{x} ÷ {n} months so far',

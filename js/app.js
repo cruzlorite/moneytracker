@@ -464,9 +464,10 @@ function home(m) {
   const tone = spendTone(spent, plan), ptone = proj == null ? tone : spendTone(proj, plan);
   // the stretch between where the month ends (at this pace, or as it stands) and the budget, named inside the bar
   const end = proj ?? spent, gapMoney = Math.round(Math.abs(plan - end));
+  // a full sentence under the bar: where this month stands against the planned spending
   const hpNote = gapMoney < 1 ? null : end <= plan
-    ? { a: end, b: plan, text: proj != null ? t('≈ {x} por debajo', { x: fmt(gapMoney) }) : t('sin gastar {x}', { x: fmt(gapMoney) }), cls: 'gap' }
-    : { a: plan, b: end, text: spent > plan + 0.5 ? t('superado en {x}', { x: fmt(Math.round(spent - plan)) }) : t('≈ {x} por encima', { x: fmt(gapMoney) }), cls: 'over', over: true };
+    ? { a: end, b: plan, text: proj != null ? t('A este ritmo, el gasto quedará ≈\u00a0{x} por debajo de lo planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }) : t('Te quedan {x} de gasto planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'gap' }
+    : { a: plan, b: end, text: spent > plan + 0.5 ? t('Gasto planificado superado en {x}', { x: fmt(Math.round(spent - plan)).replace(/\s/g, '\u00a0') }) : t('A este ritmo, superarás el gasto planificado en ≈\u00a0{x}', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'over', over: true };
   const w = (v) => (plan > 0 ? clamp(v / plan * 100, 0, 100) : 0).toFixed(1);
   const tasks = [
     ...pending.map((p) => {
@@ -490,7 +491,8 @@ function home(m) {
     <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
     ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
-    <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}${hpNote ? `<b style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}</b>` : ''}</div>
+    <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}</div>
+    ${hpNote ? `<p class="hpsent" style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}</p>` : ''}
     <div class="row between balrow">${(() => {
       const bs = m.balStart(ym), has = cm.check ? cm.check.bal : bs;
       return has == null ? '<span></span>' : `<span class="balv"><span class="fine">${cm.check ? t('Saldo en cuenta a {d}', { d: shortDate(cm.check.date) }) : t('Saldo al empezar el mes')}</span><b class="num">${fmt(has)}</b></span>`;

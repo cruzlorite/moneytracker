@@ -1337,3 +1337,4 @@ dialog .sheet { overscroll-behavior: contain; }
 #tip .tsw.hatch { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, var(--panel)) 0 3px, color-mix(in srgb, var(--c) 25%, var(--panel)) 3px 6px); }
 #tip .tsw.line { width: 3px; height: 14px; border-radius: 1px; background: var(--ink); margin: 0 8px; }
 #tip .tsw.dash { height: 0; border-top: 2px dashed var(--muted); background: none; border-radius: 0; }
+.hpsent { margin: 2px 0 0; font-size: 14px; font-weight: 700; line-height: 1.35; text-wrap: balance; }
