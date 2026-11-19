@@ -578,6 +578,18 @@ function trailCard(m) {
     ${(() => { const x = m.curveNow(m.curYM)?.extra; return x ? `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.', { x: fmt(x) })}</p>` : ''; })()}
   </section>`;
 }
+/** Savings running total over the year, as Año draws it: what each month saved, this one at its pace, the rest as planned.
+ * The one source for the Año chart and the detail of "Ahorrado" in Análisis, so they are always the same line. */
+function savedSeries(m) {
+  const pc = m.season.includes(m.curYM) ? pace(m, m.curYM) : null, ps = pc ? projSaved(m, pc, m.curYM) : null;
+  const planC = [], realC = []; let pa = 0, ra = 0;
+  m.season.forEach((ym, i) => {
+    pa += m.targetOf(ym);
+    ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : m.targetOf(ym);
+    planC.push(round2(pa)); realC.push(round2(ra));
+  });
+  return { planC, realC };
+}
 // ---------- Año ----------
 function metas(m) {
   if (!m.items.length) return emptyPlanCard(m);
@@ -602,12 +614,7 @@ function metas(m) {
   // saved so far against planned, month by month and added up; the months to come follow the plan (an estimate)
   let cumCard = '';
   if (!m.pre && m.goal > 0) {
-    const planC = [], realC = []; let pa = 0, ra = 0;
-    m.season.forEach((ym, i) => {
-      pa += m.targetOf(ym);
-      ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : m.targetOf(ym);
-      planC.push(round2(pa)); realC.push(round2(ra));
-    });
+    const { planC, realC } = savedSeries(m);
     cumCard = `<section class="card" aria-label="${t('Ahorro e inversión acumulado')}">
       <div class="row between"><h2>${t('Ahorro e inversión acumulado')} ${info('acumulado')}</h2></div>
       ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [tipx(t('Inicio'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorrado'), v: fmt(0) }]), ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--sav)', k: i > m.curIdx ? 'hatch' : 'solid', l: i > m.curIdx ? t('Estimado') : t('Ahorrado'), v: i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i]) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i]) }], `${fmtSigned(Math.round(realC[i] - planC[i]))} ${t('sobre el plan')}`))], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
@@ -910,7 +917,9 @@ function openLineDetail(kind) {
   const sp = kind === 'out' ? spendProjection(m) : null;
   if (sp) { let acc = realC[ci + 1] - (real[ci] ?? 0) + sp.months[ci]; for (let i = ci + 1; i < n; i++) { acc += sp.months[i]; realC[i + 1] = round2(acc); } } // the dot stays where you are; from there, each month on what it is expected to cost
   else for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
-  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: tone, k: real[i] != null ? 'solid' : 'hatch', l: real[i] != null ? word : t('Estimado'), v: (real[i] != null ? '' : '≈ ') + fmt(real[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i + 1]) }]))], aria: word })}
+  let sav = null;
+  if (kind === 'sav') { const q = savedSeries(m); sav = { planC: [0, ...q.planC], realC: [0, ...q.realC] }; } // exactly the line Año draws
+  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: sav ? sav.planC : planC, real: sav ? sav.realC : realC.map((v) => v ?? 0), projFrom: live ? (sav ? ci + 1 : ci + 2) : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => { const RC = sav ? sav.realC : realC, PC = sav ? sav.planC : planC, est = sav ? i > ci : real[i] == null, near = sav && i === ci; return tipx(cap(ymLabel(ym)), [{ c: tone, k: est ? 'hatch' : 'solid', l: est ? t('Estimado') : word, v: (est || near ? '≈ ' : '') + fmt(est || near ? Math.round(RC[i + 1]) : RC[i + 1]) }, { k: 'dash', l: t('Planificado'), v: fmt(PC[i + 1]) }], sav ? `${fmtSigned(Math.round(RC[i + 1] - PC[i + 1]))} ${t('sobre el plan')}` : ''); })], aria: word })}
     <div class="legend"><span><i class="sw" style="background: ${tone}"></i>${word.toLowerCase()}</span><span><i class="lg-proj" style="--pc: ${tone}"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div></section>`;
   // what makes it up
   let listHead = '', body = '';
