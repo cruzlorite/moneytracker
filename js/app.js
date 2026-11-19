@@ -392,17 +392,24 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   // touching a part says what it is and its figure: the fill (what is), the hatched part (the projection), the marks (the plan)
   const nm = { fill: t('Actual'), proj: t('Proyección'), plan: t('Planificado'), over: t('Exceso'), ...names };
   const NT = thin; // thin bars are not selectable: no tips on their parts
-  const tipFill = NT ? '' : `data-tip="${esc(`${nm.fill} ${fmt(v)}`)}"`, tipProj = proj != null && !NT ? `data-tip="${esc(`${nm.proj} ≈ ${fmt(proj)}`)}"` : '', tipOver = cap != null && !NT ? `data-tip="${esc(`${nm.over} ${fmt(v - cap)}`)}"` : '';
+  // each part says the figure its own end stands for, so the number always matches the stretch you touched:
+  // past a cap the solid orange ends AT the cap (not at what was spent), the red is what went over it
+  const tip = (txt) => (NT ? '' : `data-tip="${esc(txt)}"`);
+  const overCap = cap != null && v > cap;
+  const tipFill = tip(overCap ? `${t('Dentro del presupuesto')} ${fmt(cap)}` : `${nm.fill} ${fmt(v)}`);
+  const tipOver = cap != null ? tip(`${nm.over} ${fmt(v - cap)}`) : '';
+  const tipProj = proj != null ? tip(`${nm.proj} ≈ ${fmt(proj)}`) : '';
+  const tipProjIn = proj != null ? tip(cap != null && proj > cap ? `${t('Proyección hasta el presupuesto')} ${fmt(cap)}` : `${nm.proj} ≈ ${fmt(proj)}`) : '';
   const max = Math.max(1, scale, v, proj || 0, ...marks.map((k) => k.at));
   const w = (x) => +clamp(x / max * 100, 0, 100).toFixed(1);
   const lab = marks.filter((k) => k.label).map((k) => { const at = w(k.at); return `<span class="${at > 70 ? 'end' : at < 15 ? 'start' : ''}" style="left:${at}%">${k.label}</span>`; }).join('');
-  const seg = (a, b, c, hatch) => (b - a > 0.004 ? `<i class="${hatch ? 'g-proj' : 'g-over'}" ${hatch ? tipProj : tipOver} style="left:${w(a)}%; width:${(w(b) - w(a)).toFixed(1)}%; ${hatch ? `--pc:${c}` : `background:${c}`}"></i>` : '');
+  const seg = (a, b, c, hatch, tp = tipProj) => (b - a > 0.004 ? `<i class="${hatch ? 'g-proj' : 'g-over'}" ${hatch ? tp : tipOver} style=""left:${w(a)}%; width:${(w(b) - w(a)).toFixed(1)}%; ${hatch ? `--pc:${c}` : `background:${c}`}"></i>` : '');
   let bars;
   if (cap != null) {
     // spending against a cap: within it, spending's own orange; only what goes past it in red
     const ok = 'var(--out)', over = 'var(--spend)', inV = Math.min(v, cap);
     bars = `<i class="g-fill" ${tipFill} style="background:${ok}; width:${w(Math.max(0, inV))}%"></i>${seg(cap, v, over)}`
-      + (proj != null && proj > v ? seg(v, Math.min(proj, cap), ok, true) + seg(Math.max(v, cap), proj, over, true) : '');
+      + (proj != null && proj > v ? seg(v, Math.min(proj, cap), ok, true, tipProjIn) + seg(Math.max(v, cap), proj, over, true) : '');
   } else {
     bars = `<i class="g-fill" ${tipFill} style="background:${tone}; width:${w(Math.max(0, v))}%"></i>${proj != null && proj > v ? seg(v, proj, ptone, true) : ''}`;
   }
