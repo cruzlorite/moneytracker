@@ -345,13 +345,13 @@ function infoHTML(key) {
   const O = 'var(--out)', S = 'var(--sav)', R = 'var(--spend)', M = 'var(--muted)';
   const card = (title, rows, foot = '') => `<h4>${title}</h4>${rows.join('')}${foot ? `<p class="ixf">${foot}</p>` : ''}`;
   switch (key) {
-    case 'mes': return card(t('Este mes'), [
+    case 'mes': return card(t('Gastos este mes'), [
       ixRow(IX.fill(O), t('Gastado'), t('salidas de tu cuenta este mes, sin contar el ahorro.')),
       ixRow(IX.mark, t('Planificado'), t('ingresos del mes − objetivo de ahorro del mes.')),
       ixRow(IX.proj(O), t('Proyección'), t('gasto estimado a fin de mes, a tu ritmo.')),
       ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el gasto planificado.'))]);
     case 'ahorroMes': return card(t('Ahorrado este mes'), [
-      ixRow(IX.proj(S), t('Proyección'), t('objetivo de ahorro del mes + lo que sobre del gasto planificado.'))]);
+      ixRow(IX.fill(S), t('Ahorrado'), t('lo que ya has pasado a ahorro e inversión este mes. Es dinero contabilizado, no una estimación.'))]);
     case 'limites': return card(t('Gasto por tipo'), [
       ixRow(IX.fill(O), t('Gastado'), t('en ese tipo, este mes (mensual) o este año (anual).')),
       ixRow(IX.mark, t('Presupuesto'), t('cantidad fijada en el Plan.')),
@@ -499,7 +499,7 @@ function home(m) {
     <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${dayBefore(m.range(ym).from)}" max="${toISO(new Date())}"></label>
     <button class="btn-dark" data-act="startbal" data-ym="${ym}">${t('Guardar')}</button></section>` : ''}
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
-    <div class="row between"><h2>${t('Este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
+    <div class="row between"><h2>${t('Gastos este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
     ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado'), proj: t('Gasto de aquí a fin de mes'), projTotal: t('Total a fin de mes') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}</div>
@@ -509,7 +509,7 @@ function home(m) {
   <div class="stats2">
     <section class="card stat"><span class="label"><i class="sdot in"></i>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym, iso))}</b>
       <span class="fine num">${toCome.length ? t('+{x} el {d}', { x: fmt(toCome.reduce((a, p) => a + p.amount, 0)), d: shortDate(toCome[0].date) }) : came ? `${esc(came.it.name.toLowerCase())} · ${shortDate(came.date)}` : ''}</span></section>
-    <section class="card stat" ${(() => { const cv = ps != null ? m.curveNow(ym) : null; if (!cv) return ''; const end = cv.pts[cv.pts.length - 1].y; return `tabindex="0" data-tip="${esc(tipx(t('Ahorrado este mes'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorro ya registrado y materializado'), v: fmt(cv.saveDone) }, { c: 'var(--sav)', k: 'hatch', l: t('Más lo que sobrará a fin de mes'), v: `≈ ${fmt(Math.round(end + cv.saveMoved - cv.saveDone))}` }, { k: 'line', l: t('Total a fin de mes'), v: `≈ ${fmt(Math.round(ps))}` }, { k: 'dash', l: t('Objetivo del mes'), v: fmt(tgt) }]))}"`; })()}><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
+    <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span><b class="num c-save">${fmt(m.savedOf(ym))}</b><span class="fine">${t('registrado este mes')}</span></section>
   </div>
   ${trail}
   ${monthTypes(m, ym)}

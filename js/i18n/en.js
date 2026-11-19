@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Gastos este mes': 'Spending this month',
+  'lo que ya has pasado a ahorro e inversión este mes. Es dinero contabilizado, no una estimación.': "what you have already moved to savings and investment this month. It is counted money, not an estimate.",
+  'registrado este mes': "logged this month",
   'Más lo que sobrará a fin de mes': 'Plus what will be left at month end',
   'Ahorro ya registrado y materializado': 'Saving already logged and made',
   'Objetivo del mes': 'Month target',
