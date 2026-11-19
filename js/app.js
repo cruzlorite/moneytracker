@@ -300,7 +300,7 @@ const money = (v, key, cls = '') => `<span class="num ${cls}" data-count="${Math
 function setupCard(m, ym) {
   const steps = [
     { done: m.items.length > 0, n: t('Tus ingresos y gastos fijos'), d: t('Nómina, alquiler, recibos… en Plan'), go: 'plan' },
-    { done: (store.data.settings.goal || 0) > 0, n: t('Tu ahorro planificado'), d: t('Cuánto quieres ahorrar al año, en Plan'), go: 'plan' },
+    { done: (store.data.settings.goal || 0) > 0, n: t('Tu objetivo de ahorro'), d: t('Cuánto quieres ahorrar al año, en Plan'), go: 'plan' },
     { done: m.balStart(ym) != null, n: t('El saldo de tu cuenta'), d: t('Una sola vez, en Hoy. Después, al cerrar cada mes'), go: m.items.length ? 'home' : '' },
   ];
   if (steps.every((x) => x.done)) return '';
@@ -347,11 +347,11 @@ function infoHTML(key) {
   switch (key) {
     case 'mes': return card(t('Este mes'), [
       ixRow(IX.fill(O), t('Gastado'), t('salidas de tu cuenta este mes, sin contar el ahorro.')),
-      ixRow(IX.mark, t('Planificado'), t('ingresos del mes − ahorro planificado del mes.')),
+      ixRow(IX.mark, t('Planificado'), t('ingresos del mes − objetivo de ahorro del mes.')),
       ixRow(IX.proj(O), t('Proyección'), t('gasto estimado a fin de mes, a tu ritmo.')),
       ixRow(IX.fill(R), t('Rojo'), t('exceso sobre el gasto planificado.'))]);
     case 'ahorroMes': return card(t('Ahorrado este mes'), [
-      ixRow(IX.proj(S), t('Proyección'), t('ahorro planificado del mes + lo que sobre del gasto planificado.'))]);
+      ixRow(IX.proj(S), t('Proyección'), t('objetivo de ahorro del mes + lo que sobre del gasto planificado.'))]);
     case 'limites': return card(t('Gasto por tipo'), [
       ixRow(IX.fill(O), t('Gastado'), t('en ese tipo, este mes (mensual) o este año (anual).')),
       ixRow(IX.mark, t('Presupuesto'), t('cantidad fijada en el Plan.')),
@@ -375,7 +375,7 @@ function infoHTML(key) {
       ixRow(IX.chip(scaleOf(100, 100).c), t('Columna'), t('ahorrado del mes.')),
       ixRow('<i class="lg-tick"></i>', t('Raya'), t('planificado del mes.')),
       ...scaleRows()], t('Color: ahorrado frente a planificado.'));
-    case 'plan': return card(t('Ahorro e inversión planificados'), [
+    case 'plan': return card(t('Objetivo de ahorro'), [
       ixRow(IX.k('k-save'), t('Ahorro'), t('cantidad planificada anual.')),
       ixRow(IX.k('k-fix'), t('Gastos planificados'), t('alquiler, recibos, seguros…')),
       ixRow(IX.k('k-bud'), t('Presupuestos'), t('lo que reservas para cada tipo de gasto.')),
@@ -671,7 +671,7 @@ function mes(m) {
   <div class="tiles3">
     <div class="card stat"><span class="label"><i class="sdot in"></i>${past || cur ? t('Ingresado') : t('Ingresos planificados')}</span><b class="num">${fmt(inc)}</b></div>
     <div class="card stat"><span class="label"><i class="sdot out"></i>${past || cur ? t('Gastado') : t('Gasto planificado')}</span>${past || cur ? ofPlan(spent, planSpend(m, ym), t('gastado / planificado'), { tone: spent > planSpend(m, ym) + 0.5 ? 'var(--spend)' : null }) : `<b class="num">${fmt(spent)}</b>`}</div>
-    <div class="card stat ${saved == null ? '' : 'svtile'}" ${saved == null ? '' : `style="${scaleOf(saved, tgt, m.target).style}"`}><span class="label">${past || cur ? t('Ahorrado') : t('Ahorro planificado')}</span>${saved == null ? '<b class="num">—</b>' : !past && !cur ? `<b class="num">${fmt(tgt)}</b>` : ofPlan(saved, tgt, cur ? t('proyección / planificado') : t('ahorrado / planificado'), { approx: cur, signed: past })}${vd ? vPill(vd) : ''}</div>
+    <div class="card stat ${saved == null ? '' : 'svtile'}" ${saved == null ? '' : `style="${scaleOf(saved, tgt, m.target).style}"`}><span class="label">${past || cur ? t('Ahorrado') : t('Objetivo de ahorro')}</span>${saved == null ? '<b class="num">—</b>' : !past && !cur ? `<b class="num">${fmt(tgt)}</b>` : ofPlan(saved, tgt, cur ? t('proyección / planificado') : t('ahorrado / planificado'), { approx: cur, signed: past })}${vd ? vPill(vd) : ''}</div>
   </div>
   ${past && !d.close ? `<button class="primary" data-act="openclose" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>` : ''}
   ${m.balStart(ym) != null && (d.bal != null || ym === m.curYM) ? `<section class="card">${moneyChart(m, ym, d.bal != null ? +d.bal : null)}</section>` : ''}
@@ -1185,7 +1185,7 @@ function openYear() {
   dlg.innerHTML = `<div class="sheet closer" id="year-sheet">
     <div class="row between"><span class="label">${t('Cierre del año')}</span><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div data-step class="cl-title"><h1>${cap(ymLabel(m.start))} – ${ymLabel(m.season[11])}</h1>
-      <p class="muted">${reached >= 1 ? t('Ahorro planificado cumplido.') : reached >= 0.8 ? t('Cerca del ahorro planificado.') : t('Por debajo del ahorro planificado.')}</p></div>
+      <p class="muted">${reached >= 1 ? t('Objetivo de ahorro cumplido.') : reached >= 0.8 ? t('Cerca del objetivo de ahorro.') : t('Por debajo del objetivo de ahorro.')}</p></div>
     <div data-step class="cl-block">
       <div class="row between bottom"><span class="label">${t('Ahorro e inversión')}</span><span class="big c-save num">${fmt(y.saved)}</span></div>
       ${gauge({ names: { fill: t('Ahorrado') }, v: y.saved, tone: scaleOf(y.saved, y.goal).c, key: 'yr-s' + Date.now(), marks: [{ at: y.goal, label: `${t('planificado')} ${fmt(y.goal)}` }], label: t('Ahorrado {a} de {b}', { a: fmt(y.saved), b: fmt(y.goal) }) })}
@@ -1200,7 +1200,7 @@ function openYear() {
     <div data-step class="cl-block">
       <span class="label">${t('El año siguiente')}: ${ymLabel(nextStart)} – ${ymLabel(ymAdd(nextStart, 11))}</span>
       <p class="fine">${t('Se mantiene el mismo plan (ingresos, gastos y presupuestos). Puedes modificarlo en Plan.')}</p>
-      <label class="field"><span class="label">${t('Ahorro planificado para el año')}</span><input type="text" inputmode="decimal" id="y-goal" value="${esc(m.goal)}" autocomplete="off"></label>
+      <label class="field"><span class="label">${t('Objetivo de ahorro para el año')}</span><input type="text" inputmode="decimal" id="y-goal" value="${esc(m.goal)}" autocomplete="off"></label>
       <button class="primary" data-act="yearnew">${t('Empezar {m}', { m: ymLabel(nextStart) })}</button>
     </div>
   </div>`;
@@ -1431,9 +1431,9 @@ function plan(m) {
     <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div><div class="hact">${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}<button type="button" class="addmini" data-act="additem" data-preset='${esc(JSON.stringify(preset))}' aria-label="${esc(addLabel)}" title="${esc(addLabel)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg></button></div></div>
     <div class="plist">${list.map((it) => planRow(it, m, list.length > 1)).join('') || `<p class="fine">${t('Nada todavía.')} <button type="button" class="linkbtn" data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>${esc(addLabel)}</button></p>`}</div>
     ${done.length ? `<button type="button" class="movlink" data-act="donelist" data-kind="${kind}">${t('Movimientos')} <b class="num">${done.length}</b>${ic('right')}</button>` : ''}</section>`; };
-  return `${yearNav(m)}<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
-    <div class="row between"><h2>${t('Ahorro e inversión planificados')} ${info('plan')}</h2></div>
-    <button type="button" class="goalbtn" ${off === 0 ? 'data-act="goaledit"' : 'disabled'} aria-label="${t('Ahorro planificado')}: ${esc(fmt(m.goal))} ${t('al año')}">
+  return `${yearNav(m)}<section class="card" aria-label="${t('Objetivo de ahorro')}">
+    <div class="row between"><h2>${t('Objetivo de ahorro')} ${info('plan')}</h2></div>
+    <button type="button" class="goalbtn" ${off === 0 ? 'data-act="goaledit"' : 'disabled'} aria-label="${t('Objetivo de ahorro')}: ${esc(fmt(m.goal))} ${t('al año')}">
       <span class="gb-v num">${fmt(m.goal)}<small> ${t('al año')}</small></span>
       <span class="fine num">≈ ${fmt(round2(m.goal / 12))} ${t('al mes')}${m.incomeY ? ` · ${t('{p} % de tus ingresos', { p: share })}` : ''}</span>
       ${off === 0 ? `<span class="gb-edit" aria-hidden="true">${t('Cambiar')}</span>` : ''}
@@ -1444,7 +1444,7 @@ function plan(m) {
       .filter(([, , v]) => v > 0.5).map(([k, l, v]) => `<span><i class="dot ${k}"></i>${l} <b>${avgIn ? Math.round(v / avgIn * 100) : 0} %</b></span>`).join('')}</div>
     <div class="sum">
       <span>${t('Ingresos planificados')}</span><b>${fmt(m.incomeY)}</b>
-      <span>${t('Ahorro planificado')}</span><span>−${fmt(m.goal)}</span>
+      <span>${t('Objetivo de ahorro')}</span><span>−${fmt(m.goal)}</span>
       <span class="tot">${t('Gasto total planificado')}</span><span class="tot">${fmt(m.incomeY - m.goal)}</span>
       <span class="sub">${t('Gastos planificados')}</span><span>${fmt(m.outY)}</span>
       ${sBuds.length ? `<span class="sub">${t('Presupuestos')}</span><span>${fmt(budY)}</span>` : ''}
@@ -1782,7 +1782,7 @@ function openGoal() {
   const g = store.data.settings.goal || 0;
   UI.goalPer = UI.goalPer === 'm' ? 'm' : 'y';
   dlg.innerHTML = `<div class="sheet" id="goal-sheet">
-    <div class="row between"><h2>${t('Ahorro e inversión planificados')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="row between"><h2>${t('Objetivo de ahorro')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div class="seg" role="group" aria-label="${t('Escribirlo')}"><button data-act="goalper" data-v="y" aria-pressed="${UI.goalPer === 'y'}">${t('Al año')}</button><button data-act="goalper" data-v="m" aria-pressed="${UI.goalPer === 'm'}">${t('Al mes')}</button></div>
     <label class="field"><span class="label" id="g-lab">${UI.goalPer === 'y' ? t('Al año') : t('Al mes, de media')}</span>
       <input type="text" inputmode="decimal" id="g-val" class="bigin" value="${esc(UI.goalPer === 'y' ? g : round2(g / 12))}" autocomplete="off"></label>
@@ -1859,7 +1859,7 @@ function celebrate(fn, from) {
   const after = compute(store.data), r = from?.getBoundingClientRect?.();
   if (after.goal && savedB < after.goal && after.saved >= after.goal) {
     burst(...(r && r.width ? [r.left + r.width / 2, r.top + r.height / 2] : []), { count: 120 });
-    toast(t('Ahorro planificado del año cumplido'), 3500); return true;
+    toast(t('Objetivo de ahorro del año cumplido'), 3500); return true;
   }
   return false;
 }
@@ -1901,7 +1901,7 @@ async function importFile(file) {
     const data = parsePlanFile(JSON.parse(await file.text()));
     if (!store.mode) { store.startLocal(data); toast(t('Plan importado')); return; }
     dlg.innerHTML = `<div class="sheet"><h2>${t('¿Importar este plan?')}</h2>
-      <p>${t('{n} ingresos y gastos, ahorro planificado de {x} al año desde {m}.', { n: data.items.length, x: fmt(data.settings.goal), m: ymLabel(data.settings.start) })} ${store.mode === 'google' ? t('Sustituye todo lo que hay ahora, también en tu hoja de Drive.') : t('Sustituye todo lo que hay ahora.')}</p>
+      <p>${t('{n} ingresos y gastos, objetivo de ahorro de {x} al año desde {m}.', { n: data.items.length, x: fmt(data.settings.goal), m: ymLabel(data.settings.start) })} ${store.mode === 'google' ? t('Sustituye todo lo que hay ahora, también en tu hoja de Drive.') : t('Sustituye todo lo que hay ahora.')}</p>
       <div class="formbtns"><button class="primary" data-act="doimport">${t('Importar')}</button><button class="ghost" data-act="dclose">${t('Cancelar')}</button></div></div>`;
     UI.importData = data;
     openDialog();
@@ -2027,7 +2027,7 @@ function onAct(b, sure = false) {
     case 'openyear': openYear(); break;
     case 'yearnew': {
       const g = num(val('y-goal'));
-      if (g == null || g < 0) return invalid('#y-goal', t('Escribe el ahorro planificado'));
+      if (g == null || g < 0) return invalid('#y-goal', t('Escribe tu objetivo de ahorro'));
       const m = compute(store.data), y = yearSummary(m);
       const { best, worst, ...keep } = y;
       dlg.close();
@@ -2211,7 +2211,7 @@ function onAct(b, sure = false) {
     case 'additem': openItem(null, JSON.parse(b.dataset.preset || '{}')); break;
     case 'addonce': { const d = b.dataset.date; openItem(null, { kind: 'in', _sec: 'in', freq: 'once', month: +d.slice(5, 7), year: +d.slice(0, 4), day: +d.slice(8) }); break; }
     case 'ffreq': readForm(); FORM.freq = b.dataset.v; renderForm(); break;
-    case 'goalfit': { const v = +b.dataset.v; store.update('settings', (d) => { d.settings.goal = v; }); toast(t('Ahorro planificado: {x} al año', { x: fmt(v) })); render(true); break; }
+    case 'goalfit': { const v = +b.dataset.v; store.update('settings', (d) => { d.settings.goal = v; }); toast(t('Objetivo de ahorro: {x} al año', { x: fmt(v) })); render(true); break; }
     case 'fclose': case 'dclose': dlg.close(); break;
     case 'refreshapp': refreshApp(b); break;
     case 'goaledit': openGoal(); break;
@@ -2225,7 +2225,7 @@ function onAct(b, sure = false) {
     }
     case 'goalset': {
       const g = goalYear(); if (g == null) { invalid('#g-val', t('Escribe una cifra válida')); break; }
-      store.update('settings', (d) => { d.settings.goal = g; }); dlg.close(); toast(t('Ahorro planificado: {x} al año', { x: fmt(g) })); render(true); break;
+      store.update('settings', (d) => { d.settings.goal = g; }); dlg.close(); toast(t('Objetivo de ahorro: {x} al año', { x: fmt(g) })); render(true); break;
     }
     case 'fsave': saveForm(); break;
     case 'fdup': { readForm(); const { id, real, _edit, ...rest } = FORM; FORM = { ...rest, _copy: rest.name || t('sin nombre') }; CONFIRM = false; renderForm(); break; }
