@@ -688,7 +688,7 @@ function openQuick(keep = {}) {
   const head = UI.editSpend ? (save ? t('Editar ahorro') : t('Editar gasto')) : save ? t('Apuntar ahorro') : t('Apuntar un gasto');
   dlg.innerHTML = `<div class="sheet quick${UI.kmore ? ' more' : ''}${save ? ' savemode' : ''}" id="quick-sheet">
     <div class="row between"><h2>${head}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
-    <div class="seg qmode" role="group" aria-label="${t('Qué apuntas')}"><button type="button" data-act="qmode" data-v="spend" aria-pressed="${!save}">${t('Gasto')}</button><button type="button" data-act="qmode" data-v="save" aria-pressed="${save}">${t('Ahorro e inversión')}</button></div>
+    ${UI.editSpend ? '' : `    <div class="seg qmode" role="group" aria-label="${t('Qué apuntas')}"><button type="button" data-act="qmode" data-v="spend" aria-pressed="${!save}">${t('Gasto')}</button><button type="button" data-act="qmode" data-v="save" aria-pressed="${save}">${t('Ahorro e inversión')}</button></div>`}
     <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
     ${save ? `<div class="seg qdir" id="k-dir" role="group" aria-label="${t('Ahorro e inversión')}"><button type="button" data-act="qdir" data-v="in" aria-pressed="${UI.qdir !== 'out'}">${t('Aportar')}</button><button type="button" data-act="qdir" data-v="out" aria-pressed="${UI.qdir === 'out'}">${t('Retirar')}</button></div>
       <p class="cathint">${t('Sale de tu cuenta, pero no es gasto: suma a lo que ahorras.')}</p>`
