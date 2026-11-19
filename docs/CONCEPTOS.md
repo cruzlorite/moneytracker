@@ -55,7 +55,7 @@ Lo ahorrado (o lo que ahorrarás a este ritmo) frente al objetivo de ese mes. El
 | Insuficiente | rojo → naranja | menos del 60 % (rojo hasta el 30 %) |
 | Mejorable | amarillo | del 60 % hasta el objetivo |
 | Correcto | verde claro | el objetivo |
-| Excelente | verde oscuro | 20 % o más por encima |
+| Excelente | verde oscuro | 10 % o más por encima |
 
 Si el objetivo del mes es cero o negativo, la distancia se mide con el objetivo medio.
 

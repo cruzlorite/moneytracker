@@ -322,7 +322,7 @@ const scaleRows = () => [
   ixRow(IX.chip(scaleOf(45, 100).c), t('Naranja'), '30 – 60 %.'),
   ixRow(IX.chip(scaleOf(85, 100).c), t('Amarillo'), '60 – 100 %.'),
   ixRow(IX.chip(scaleOf(100, 100).c), t('Verde'), '100 %.'),
-  ixRow(IX.chip(scaleOf(130, 100).c), t('Verde oscuro'), t('120 % o más.'))];
+  ixRow(IX.chip(scaleOf(120, 100).c), t('Verde oscuro'), t('110 % o más.'))];
 function infoHTML(key) {
   const O = 'var(--out)', S = 'var(--sav)', R = 'var(--spend)', M = 'var(--muted)';
   const card = (title, rows, foot = '') => `<h4>${title}</h4>${rows.join('')}${foot ? `<p class="ixf">${foot}</p>` : ''}`;
@@ -489,7 +489,7 @@ function home(m) {
 }
 /** One line of a spending-by-type list: icon and name (and its share) on the left, the amount on the right, a thin bar under it
  *  against the biggest one. The same in Hoy and in Análisis. */
-const typeRow = (r, scale, key) => `<div class="vrow"><span class="row between"><span class="vname">${r.icon}${esc(r.label)}${r.pct != null ? ` <span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra || ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
+const typeRow = (r, scale, key) => `<div class="vrow${r.cat ? ' hasdetail' : ''}" ${r.cat ? `data-act="catdetail" data-cat="${esc(r.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: r.label }))}"` : ''}><span class="row between"><span class="vname">${r.icon}${esc(r.label)}${r.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}${r.pct != null ? ` <span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra || ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
 /** This month by type, budgets and the rest in one card: each budget against its limit, then what you spent on the other types. */
 function monthTypes(m, ym) {
   const buds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(buds.map((b) => b.cat));
@@ -839,6 +839,57 @@ function doneRowsOf(m, kind) {
   if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, ym: m.monthOf(e.date), signed: -e.amount, html: spendRow(e) });
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
+/** A type (a budget or not) in one view: where you stand, how the year went, and every movement in it. */
+function openCatDetail(c) {
+  const m = computeYear(UI.yearOff || 0), pv = planVsReal(m), x = pv.buds.find((l) => l.cat === c) || null;
+  const per = m.season.map((ym) => (ym <= m.curYM ? round2(spendByType(m, [ym]).by[c] || 0) : null));
+  const spent = round2(per.reduce((a, v) => a + (v || 0), 0)), n = m.season.length, ci = Math.max(0, m.season.indexOf(m.curYM)), live = !m.over && m.season.includes(m.curYM);
+  const pc = live ? pace(m, m.curYM) : null, elapsed = live ? ci + (pc ? pc.day / pc.dim : 0) : n;
+  const avg = spent / Math.max(1, elapsed);
+  const tile = (label, val, sub, cls = '') => `<div class="tile"><span class="label">${label}</span><span class="v num ${cls}">${val}</span><span class="fine">${sub}</span></div>`;
+  let tiles = '', chart = '';
+  if (x) {
+    const due = x.due ?? null, gap = due != null ? round2(x.real - due) : null, left = round2(x.plan - x.real), over = left < -0.5;
+    tiles = [
+      tile(t('Llevas'), fmt(x.real), t('de {x} al año', { x: fmt(x.plan) })),
+      due != null ? tile(t('Deberías llevar'), fmt(due), t('hoy, repartido por igual')) : tile(t('Presupuesto'), fmt(x.plan), t('del año')),
+      gap != null ? tile(gap > 0.5 ? t('Te has pasado') : t('Vas por debajo'), fmt(Math.abs(gap)), t('respecto a hoy'), gap > 0.5 ? 'c-spend' : 'c-ok') : '',
+      tile(over ? t('Te has pasado') : t('Te queda'), fmt(Math.abs(left)), over ? t('del presupuesto del año') : t('del presupuesto del año'), over ? 'c-spend' : ''),
+      tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, x.proj > x.plan + 0.5 ? t('≈ {x} por encima', { x: fmt(Math.round(x.proj - x.plan)) }) : t('≈ {x} por debajo', { x: fmt(Math.round(x.plan - x.proj)) }), x.proj > x.plan + 0.5 ? 'c-spend' : 'c-ok'),
+      tile(t('Media al mes'), fmt(Math.round(avg)), t('de lo gastado hasta hoy')),
+    ].join('');
+    // the year as two running totals: what you have spent, and what the budget lets you spend, with the rest as it would go
+    const planC = [0], realC = [0]; let pa = 0, ra = 0;
+    m.season.forEach((ym, i) => { pa += x.amounts[i] || 0; planC.push(round2(pa)); if (per[i] != null) { ra += per[i]; realC.push(round2(ra)); } else realC.push(null); });
+    for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
+    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${per[i] != null ? fmt(realC[i + 1]) + ' / ' : ''}${t('plan')} ${fmt(planC[i + 1])}`)], aria: t('Gastado acumulado frente al presupuesto') })}
+      <div class="legend"><span><i class="sw" style="background: var(--out)"></i>${t('gastado')}</span><span><i class="lg-proj" style="--pc: var(--out)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('presupuesto')}</span></div></section>`;
+  } else {
+    const tot = spendByType(m, m.season.filter((ym) => ym <= m.curYM)).tot, top = per.reduce((b, v, i) => (v != null && v > (per[b] ?? -1) ? i : b), 0);
+    tiles = [
+      tile(t('Gastado'), fmt(spent), t('en lo que va del año')),
+      tile(t('Del gasto total'), `${Math.round(spent / Math.max(1, tot) * 100)} %`, t('de {x}', { x: fmt(tot) })),
+      tile(t('Media al mes'), fmt(Math.round(avg)), t('de lo gastado hasta hoy')),
+      per.some((v) => v) ? tile(t('Mes de más gasto'), cap(MES3[+m.season[top].slice(5) - 1]), fmt(per[top] || 0)) : '',
+    ].join('');
+    chart = `<section class="card"><h2>${t('Mes a mes')}</h2>${columns({ cols: m.season.map((ym, i) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: per[i], now: ym === m.curYM, fill: 'var(--out)', tip: `${cap(ymLabel(ym))}: ${per[i] != null ? fmt(per[i]) : t('aún no')}` })), labels: [], aria: t('Gasto de cada mes') })}</section>`;
+  }
+  // every movement in the type: what you logged and what the plan expected that already came, by month
+  const rows = [];
+  for (const e of m.allSpends) if (e.cat === c && m.season.includes(m.monthOf(e.date))) rows.push({ date: e.date, ym: m.monthOf(e.date), signed: -e.amount, html: spendRow(e) });
+  for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.state !== 'future' && p.it.kind === 'out' && !p.it.budget && itemCat(p.it) === c && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, signed: -p.amount, html: doneRow(p.it, ym, p.date, p.amount) });
+  rows.sort((a, b) => b.date.localeCompare(a.date));
+  let cur = '', body = '';
+  for (const r of rows) {
+    if (r.ym !== cur) { cur = r.ym; const sum = rows.filter((q) => q.ym === cur).reduce((a, q) => a + q.signed, 0); body += `<div class="mdiv"><span>${esc(cap(ymLabel(cur)))}</span><span class="num">${fmtSigned(Math.round(sum))}</span></div>`; }
+    body += r.html;
+  }
+  dlg.classList.add('full');
+  dlg.innerHTML = `<div class="sheet donesheet" id="cat-sheet" data-cat="${esc(c)}"><div class="row between"><h2 class="withic">${catEl(c)}${esc(catName(c))}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="tiles t2 detiles">${tiles}</div>${chart}
+    <section class="card"><div class="row between"><h2>${t('Movimientos')}</h2><span class="fine">${rows.length}</span></div>${rows.length ? `<div class="flows">${body}</div>` : `<p class="fine">${t('Aún no hay movimientos.')}</p>`}</section></div>`;
+  openDialog();
+}
 const DONE_TITLE = { in: 'Ingresos cumplidos', out: 'Gastos cumplidos', bud: 'Gastos de tus presupuestos' };
 /** The movements of one section of the Plan, in a sheet: by date, newest first, a divider for each month. */
 function openDone(kind) {
@@ -906,7 +957,7 @@ function closeText(m, ym) {
 /** A month's colour by what you put aside, net: green the month's target, yellow something, red nothing or less than nothing. */
 const savedTone = (m, ym) => { const v = m.savedOf(ym); return v >= m.targetOf(ym) - 0.5 ? 'good' : v > 0.5 ? 'some' : 'none'; };
 /** Past this share of the month's target, saving counts as well above plan (dark green). */
-const OVER = 1.2;
+const OVER = 1.1; // dark green from 110 % of the target
 /**
  * A month's colour by what it saved against the month's target:
  * red (30 % or less) → yellow (from 60 %, still below) → light green (the target) → dark green (OVER and up).
@@ -1068,6 +1119,7 @@ function planVsReal(m) {
     const plan = monthly ? m.season.reduce((s, ym) => s + (at(ym)?.amount || 0), 0) : last.amount;
     const proj = monthly ? segs.reduce((s, b) => s + m.season.reduce((a, ym) => a + m.budUse(b, ym), 0), 0) : Math.max(last.amount, spent);
     const x = line(last.name, plan, spent, proj, 'bad', catEl(last.cat, 'sm'), 'planificado');
+    x.cat = last.cat; x.id = last.id; x.monthly = monthly; x.amounts = m.season.map((ym) => (at(ym) ? (monthly ? at(ym).amount : last.amount / 12) : 0)); // for the detail view
     // "hoy" by the days gone: a yearly budget spread evenly over the year, like the rest of the spending
     if (live) x.due = round2(m.season.reduce((s, ym) => s + (at(ym) ? (monthly ? at(ym).amount : last.amount / 12) * frac(ym) : 0), 0));
     // a yearly budget has no pace of its own, so it is judged against the even spread: what you have spent plus what the
@@ -1097,8 +1149,8 @@ function cmpRow(m, x, key) {
     : near ? t('≈ planificado')
       : t(d > 0 ? '≈ {x} por encima' : '≈ {x} por debajo', { x: fmt(Math.abs(d)) });
   const tip = fin ? `${x.label}: ${fmt(x.real)} / ${fmt(x.plan)}` : `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
-  return `<div class="cmp">
-    <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b></span>
+  return `<div class="cmp${x.cat ? ' hasdetail' : ''}" ${x.cat ? `data-act="catdetail" data-cat="${esc(x.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: x.label }))}"` : ''}>
+    <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b>${x.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
     ${gauge({ names: { fill: fin ? t('Actual') : t('Hasta hoy') }, v: x.real, proj: fin ? null : x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
       marks: [...(x.due != null ? [{ at: Math.max(0, x.due), cls: 'today' }] : []), { at: x.plan }], label: tip })}
@@ -1180,7 +1232,7 @@ function analisis(m) {
   <section class="card" aria-label="${t('Gasto por tipo')}">
     <div class="row between"><h2>${t('Gasto por tipo')}</h2><span class="fine num">${fmt(tot)}</span></div>
     ${rows.length ? `<div class="vlist">${(() => {
-      const list = [...shown.map(([c, v]) => ({ icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), pct: Math.round(v / (tot || 1) * 100), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('presupuesto') + '</span>' : '' })),
+      const list = [...shown.map(([c, v]) => ({ cat: c && c !== DIA ? c : '', icon: catEl(c === DIA ? '' : c, 'sm'), label: rkName(c), pct: Math.round(v / (tot || 1) * 100), value: v, extra: m.budByCat.get(c) ? ' <span class="fine c-acc">' + t('presupuesto') + '</span>' : '' })),
         ...(rest ? [{ icon: catEl('', 'sm'), label: t('Otros tipos'), pct: Math.round(rest / (tot || 1) * 100), value: rest }] : [])];
       const top1 = Math.max(1, ...list.map((r) => r.value));
       return list.map((r, i) => typeRow(r, top1, `at-${per}-${i}`)).join('');
@@ -1973,6 +2025,7 @@ function onAct(b, sure = false) {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
     case 'donelist': openDone(b.dataset.kind); break;
+    case 'catdetail': openCatDetail(b.dataset.cat); break;
     case 'movesall': UI.movesAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'notifyfold': case 'notifymore': {

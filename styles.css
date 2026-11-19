@@ -1302,3 +1302,13 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 .sheet.savemode .amt input, .sheet.savemode .amt span { color: var(--sav); }
 .sheet.savemode .primary.big { background: var(--sav); color: #fff; border-color: var(--sav); }
 .sheet.savemode .seg.qmode button[aria-pressed="true"] { color: var(--sav); }
+
+/* tapping a budget or a type in Análisis opens its detail */
+.hasdetail { cursor: pointer; border-radius: 12px; }
+.hasdetail:active { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.dchev { display: inline-grid; margin-left: 4px; color: var(--muted); } .dchev svg { width: 14px; height: 14px; }
+.detiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.donesheet .card { box-shadow: none; border: 1px solid var(--line); }
+/* in a spending detail the running total is spending's orange, not savings' violet */
+#cat-sheet .ch-line.cl-real, #cat-sheet .cl-real { stroke: var(--out); }
+#cat-sheet .ch-dot.cl-dot, #cat-sheet .bl-dot.cl-dot { fill: var(--out); }
