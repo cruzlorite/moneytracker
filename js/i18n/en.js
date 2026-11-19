@@ -1,5 +1,6 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Saldo en cuenta a {d}': 'Account balance on {d}',
   'Evolución del saldo': 'Balance over time',
   'Proyección hasta el presupuesto': 'Projection up to the budget',
   'Dentro del presupuesto': 'Within the budget',

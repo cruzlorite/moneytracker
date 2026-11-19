@@ -475,7 +475,7 @@ function home(m) {
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}${hpNote ? `<b style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}</b>` : ''}</div>
     <div class="row between balrow">${(() => {
       const bs = m.balStart(ym), has = cm.check ? cm.check.bal : bs;
-      return has == null ? '<span></span>' : `<span class="balv"><span class="fine">${cm.check ? t('Saldo del {d}', { d: shortDate(cm.check.date) }) : t('Saldo al empezar el mes')}</span><b class="num">${fmt(has)}</b></span>`;
+      return has == null ? '<span></span>' : `<span class="balv"><span class="fine">${cm.check ? t('Saldo en cuenta a {d}', { d: shortDate(cm.check.date) }) : t('Saldo al empezar el mes')}</span><b class="num">${fmt(has)}</b></span>`;
     })()}<button class="btn-sec sm" data-act="check" data-ym="${ym}">${t('Actualizar saldo')}</button></div>
   </section>
   <div class="stats2">
