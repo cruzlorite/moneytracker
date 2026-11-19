@@ -1,5 +1,10 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  '¿Salir de la demo?': 'Leave the demo?',
+  '¿Desconectar?': 'Disconnect?',
+  '¿Deshacer el cierre?': 'Undo the close?',
+  '¿Desconfirmar?': 'Undo?',
+  '¿Borrar?': 'Delete?',
   'Gastos de tus presupuestos': "Your budgets' spending",
   'Gastos cumplidos': 'Expenses done',
   'Ingresos cumplidos': 'Incomes done',

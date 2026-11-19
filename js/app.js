@@ -1707,6 +1707,14 @@ document.addEventListener('click', (e) => {
   if (!b || b.disabled) return;
   const act = b.dataset.act, ym = b.dataset.ym;
   const val = (id) => document.getElementById(id)?.value;
+  // anything that deletes or undoes asks first: the button turns into the question, and a second tap does it
+  const ASK = { delspend: '¿Borrar?', checkdel: '¿Borrar?', unconfirm: '¿Desconfirmar?', closeundo: '¿Deshacer el cierre?', signout: '¿Desconectar?', leave: '¿Salir de la demo?' };
+  if (ASK[act] && b.dataset.sure !== '1') {
+    const html = b.innerHTML, cls = b.className, label = b.getAttribute('aria-label');
+    b.dataset.sure = '1'; b.classList.add('sure'); b.textContent = t(ASK[act]); b.setAttribute('aria-label', t(ASK[act]));
+    setTimeout(() => { if (b.isConnected && b.dataset.sure === '1') { delete b.dataset.sure; b.className = cls; b.innerHTML = html; label ? b.setAttribute('aria-label', label) : b.removeAttribute('aria-label'); } }, 4000);
+    return;
+  }
   switch (act) {
     case 'tab': go(b.dataset.tab); break;
     case 'back': goBack(); break;
