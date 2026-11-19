@@ -1352,3 +1352,7 @@ dialog .sheet { overscroll-behavior: contain; }
 .srow .num { text-align: right; white-space: nowrap; font-weight: 600; }
 .srow.shead .num { font-weight: 700; }
 .c-save { color: color-mix(in srgb, var(--sav) var(--mixk, 100%), var(--ink)); }
+
+/* what is waiting for you to confirm: an amber edge and a pill-like word, so it stands out in any list */
+.move.is-pend { box-shadow: inset 3px 0 0 var(--warn); padding-left: 10px; background: color-mix(in srgb, var(--warn) 7%, transparent); border-radius: 8px; }
+.move .st-pend { color: var(--warn-ink, var(--warn)); font-weight: 700; }

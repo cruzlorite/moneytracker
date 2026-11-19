@@ -548,7 +548,7 @@ function monthTypes(m, ym) {
   </section>`;
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */
-const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + esc(sub) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save, pend }) => `<button type="button" class="move${pend ? ' is-pend' : ''}" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + (pend ? `<span class="st-pend">${esc(sub)}</span>` : esc(sub)) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
 /** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
@@ -556,7 +556,7 @@ function monthMoves(m, ym) {
     rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: Math.abs(e.amount), kind: e.amount < 0 ? 'in' : 'out', save: e.cat === SAVE_CAT }) });
   }
   for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) {
-    rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save }) });
+    rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save, pend: p.state === 'pending' }) });
   }
   if (!rows.length) return '';
   rows.sort((a, b) => b.date.localeCompare(a.date));
@@ -1041,7 +1041,7 @@ function expectedCard(m, ym) {
   const rowOf = (p) => {
     const diff = p.state === 'real' ? round2(p.amount - p.it.amount) : 0;
     const sub = !counted(p) ? t('ya en tu saldo inicial') : `${ST[p.state][0]}${diff ? ` (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})` : ''}`;
-    return moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(p.it.kind === 'in' ? '' : itemCat(p.it) || '', 'sm'), title: p.it.name, sub, date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save });
+    return moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(p.it.kind === 'in' ? '' : itemCat(p.it) || '', 'sm'), title: p.it.name, sub, date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save, pend: p.state === 'pending' && counted(p) });
   };
   const head = (arr) => { const i = sum(arr, 'in'), o = sum(arr, 'out'); return `<span class="fine num">${i ? ` <span class="c-in">+${fmt(i)}</span> ` : ''}${o ? `−${fmt(o)}` : ''}</span>`; };
   return `<section class="card" aria-label="${t('Planificado este mes')}">
