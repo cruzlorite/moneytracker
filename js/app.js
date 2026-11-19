@@ -509,7 +509,7 @@ function home(m) {
   <div class="stats2">
     <section class="card stat"><span class="label"><i class="sdot in"></i>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym, iso))}</b>
       <span class="fine num">${toCome.length ? t('+{x} el {d}', { x: fmt(toCome.reduce((a, p) => a + p.amount, 0)), d: shortDate(toCome[0].date) }) : came ? `${esc(came.it.name.toLowerCase())} · ${shortDate(came.date)}` : ''}</span></section>
-    <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
+    <section class="card stat" ${(() => { const cv = ps != null ? m.curveNow(ym) : null; if (!cv) return ''; const end = cv.pts[cv.pts.length - 1].y; return `tabindex="0" data-tip="${esc(tipx(t('Ahorrado este mes'), [{ c: 'var(--sav)', k: 'solid', l: t('Ya ahorrado'), v: fmt(cv.saveDone) }, { c: 'var(--sav)', k: 'hatch', l: t('Lo que sobrará a fin de mes'), v: `≈ ${fmt(Math.round(end + cv.saveMoved - cv.saveDone))}` }, { k: 'line', l: t('Total a fin de mes'), v: `≈ ${fmt(Math.round(ps))}` }, { k: 'dash', l: t('Objetivo del mes'), v: fmt(tgt) }]))}"`; })()}><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
   </div>
   ${trail}
   ${monthTypes(m, ym)}
@@ -1175,7 +1175,12 @@ function spendProjection(m) {
   return { months, total: round2(months.reduce((a, v) => a + v, 0)), rate };
 }
 /** This month's saving at this pace: its target, plus what the projection leaves of the budget (minus, if it goes over). */
-const projSaved = (m, pc, ym) => { const p = projSpent(m, ym); return p == null ? null : round2(m.targetOf(ym) + planSpend(m, ym) - p); };
+const projSaved = (m, pc, ym) => {
+  const p = projSpent(m, ym); if (p == null) return null;
+  // what the month saves = what it adds to the account by its end (the estimated balance, from the same projection as the spending) plus what went to savings on the way
+  const cv = ym === m.curYM ? m.curveNow(ym) : null;
+  return cv ? round2(cv.pts[cv.pts.length - 1].y + cv.saveMoved) : round2(m.targetOf(ym) + planSpend(m, ym) - p);
+};
 const shortMoney = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + (Math.abs(v) >= 1000 ? (Math.abs(v) / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K' : Math.round(Math.abs(v)));
 
 // ---------- Año: the goal, the closes, the year ----------

@@ -456,7 +456,10 @@ export function compute(data, today = new Date()) {
     const yy = (d) => (V == null || d <= tDay ? y(d) : y(tDay) + (E[d] - E[tDay]) - V * (d - tDay));
     const pts = [];
     for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : isoAdd(cycleDate(ym, 1, D), -1), y: round2(d <= d0 ? 0 : yy(d)), events: d > d0 ? ev[d] : [] });
-    return { pts, daily: round2(daily), extra, start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0 };
+    // what leaves the account for savings and investment in the month, done and planned: it is saved, though the balance drops by it
+    const saveMoved = round2(-ev.reduce((a, day) => a + day.filter((e) => e.kind === 'save').reduce((b, e) => b + e.amount, 0), 0));
+    const saveDone = round2(-ev.slice(0, tDay + 1).reduce((a, day) => a + day.filter((e) => e.kind === 'save').reduce((b, e) => b + e.amount, 0), 0));
+    return { pts, daily: round2(daily), extra, start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0, saveMoved, saveDone };
   };
   /**
    * The balance of the main account over the last `back` days and, for the current month, on to its end: a line of
