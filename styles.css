@@ -1353,6 +1353,15 @@ dialog .sheet { overscroll-behavior: contain; }
 .srow.shead .num { font-weight: 700; }
 .c-save { color: color-mix(in srgb, var(--sav) var(--mixk, 100%), var(--ink)); }
 
-/* what is waiting for you to confirm: an amber edge and a pill-like word, so it stands out in any list */
-.move.is-pend { box-shadow: inset 3px 0 0 var(--warn); padding-left: 10px; background: color-mix(in srgb, var(--warn) 7%, transparent); border-radius: 8px; }
-.move .st-pend { color: var(--warn-ink, var(--warn)); font-weight: 700; }
+/* what is waiting for you to confirm: just the word, in amber */
+.move .st-pend { color: var(--warn-ink, var(--warn)); font-weight: 600; }
+.nextlist:not(.all) .move.x { display: none; }
+.move.rich { align-items: flex-start; padding: 10px 0; }
+.move.rich .grow { gap: 1px; }
+.move.rich .amtcol { flex: none; display: grid; justify-items: end; gap: 1px; }
+.move.rich .amtcol .num { font-weight: 700; font-size: 14px; }
+.move.rich .grow { min-width: 0; } .move.rich .grow .fine { overflow-wrap: anywhere; }
+.move.rich { width: 100%; box-sizing: border-box; }
+.moves { grid-template-columns: minmax(0, 1fr); }
+.move { white-space: normal; } .move .num { white-space: nowrap; }
+.move.rich .amtcol .fine { color: var(--muted); font-weight: 500; font-size: 12px; }

@@ -215,7 +215,7 @@ export function bindBalance(show, hide) {
  * Two cumulative lines over the months of the plan: the plan (reference) and what is saved, dashed from `projFrom` on
  * (the estimate). plan, real: arrays of the same length; labels: one per point (shown for a few).
  */
-export function cumLines({ plan, real, projFrom = null, nowIdx = null, labels = [], tips = [], aria = '', h = 170 }) {
+export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = null, labels = [], tips = [], aria = '', h = 170 }) {
   const W = 340, padL = 44, padR = 50, padT = 22, padB = 22, n = plan.length - 1;
   const all = [...plan, ...real, 0], mx = Math.max(...all), mn = Math.min(...all), span = mx - mn || 1, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / span * ph;
@@ -225,8 +225,19 @@ export function cumLines({ plan, real, projFrom = null, nowIdx = null, labels = 
   const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
   const lx = labels.map((l, i) => (l && (i === 1 || i === n || (i - 1) % 3 === 0) ? `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(l)}</text>` : '')).join('');
-  const now = nowIdx != null && nowIdx >= 0 && nowIdx <= n ? `<circle class="ch-dot cl-dot" cx="${xs[nowIdx].toFixed(1)}" cy="${pyR[nowIdx].toFixed(1)}" r="4"/>` : '';
-  const solid = curve(xs, pyR, tR, 0, k == null ? n : k - 1), dash = k == null ? '' : curve(xs, pyR, tR, k - 1, n);
+  // today sits between two month ends: what is behind it is real (solid), what is ahead is the estimate (dashed). Nothing that
+  // already happened is drawn as a projection.
+  const td = today && today.at > 0 && today.at < n ? today : null;
+  let now, solid, dash;
+  if (td) {
+    const i0 = Math.floor(td.at), xt = X(td.at), yt = Y(td.v);
+    const xr = [...xs.slice(0, i0 + 1), xt, ...xs.slice(i0 + 1)], yr2 = [...pyR.slice(0, i0 + 1), yt, ...pyR.slice(i0 + 1)], tr = tangents(xr, yr2);
+    solid = curve(xr, yr2, tr, 0, i0 + 1); dash = curve(xr, yr2, tr, i0 + 1, n + 1);
+    now = `<circle class="ch-dot cl-dot" cx="${xt.toFixed(1)}" cy="${yt.toFixed(1)}" r="4"/>`;
+  } else {
+    now = nowIdx != null && nowIdx >= 0 && nowIdx <= n ? `<circle class="ch-dot cl-dot" cx="${xs[nowIdx].toFixed(1)}" cy="${pyR[nowIdx].toFixed(1)}" r="4"/>` : '';
+    solid = curve(xs, pyR, tR, 0, k == null ? n : k - 1); dash = k == null ? '' : curve(xs, pyR, tR, k - 1, n);
+  }
   // the two end figures sit to the right of the lines, pushed apart when they are close
   let yp = pyP[n] + 4, yr = pyR[n] + 4;
   if (Math.abs(yp - yr) < 14) { const mid = (yp + yr) / 2; if (yp <= yr) { yp = mid - 7; yr = mid + 7; } else { yp = mid + 7; yr = mid - 7; } }

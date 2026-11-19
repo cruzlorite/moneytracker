@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  '{x} hasta fin de año': '{x} until year end',
+  'en {n} días': 'in {n} days',
+  'mañana': 'tomorrow',
   'Total a fin de año': 'Year-end total',
   'Ahorro de aquí a fin de año': 'Saving from now to year end',
   'Total a fin de mes': 'Month-end total',

@@ -548,7 +548,7 @@ function monthTypes(m, ym) {
   </section>`;
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */
-const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save, pend }) => `<button type="button" class="move${pend ? ' is-pend' : ''}" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + (pend ? `<span class="st-pend">${esc(sub)}</span>` : esc(sub)) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save, pend }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + (pend ? `<span class="st-pend">${esc(sub)}</span>` : esc(sub)) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
 /** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
@@ -585,15 +585,15 @@ function trailCard(m) {
   </section>`;
 }
 /** What a month still to come is expected to save: what comes in, less what the spending projection says goes out (the plan's target when there is no projection). */
-const futureSaved = (m, ym, i, sp) => (sp ? round2(m.incomeOf(ym) - sp.months[i]) : m.targetOf(ym));
+const futureSaved = (m, ym, i, sp, ip) => (sp ? round2((ip ? ip.months[i] : m.incomeOf(ym)) - sp.months[i]) : m.targetOf(ym));
 /** Savings running total over the year, as Año draws it: what each month saved, this one at its pace, the rest as planned.
  * The one source for the Año chart and the detail of "Ahorrado" in Análisis, so they are always the same line. */
 function savedSeries(m) {
-  const pc = m.season.includes(m.curYM) ? pace(m, m.curYM) : null, ps = pc ? projSaved(m, pc, m.curYM) : null, sp = spendProjection(m);
+  const pc = m.season.includes(m.curYM) ? pace(m, m.curYM) : null, ps = pc ? projSaved(m, pc, m.curYM) : null, sp = spendProjection(m), ip = incomeProjection(m);
   const planC = [], realC = []; let pa = 0, ra = 0;
   m.season.forEach((ym, i) => {
     pa += m.targetOf(ym);
-    ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : futureSaved(m, ym, i, sp);
+    ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : futureSaved(m, ym, i, sp, ip);
     planC.push(round2(pa)); realC.push(round2(ra));
   });
   return { planC, realC };
@@ -625,18 +625,18 @@ function metas(m) {
     const { planC, realC } = savedSeries(m);
     cumCard = `<section class="card" aria-label="${t('Ahorro e inversión acumulado')}">
       <div class="row between"><h2>${t('Ahorro e inversión acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [tipx(t('Inicio'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorrado'), v: fmt(0) }]), ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--sav)', k: i > m.curIdx ? 'hatch' : 'solid', l: i > m.curIdx ? t('Estimado') : t('Ahorrado'), v: i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i]) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i]) }], `${fmtSigned(Math.round(realC[i] - planC[i]))} ${t('sobre el plan')}`))], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
+      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, today: m.over || !pc ? null : { at: m.curIdx + pc.day / pc.dim, v: (realC[m.curIdx - 1] ?? 0) + m.savedOf(m.curYM) }, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [tipx(t('Inicio'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorrado'), v: fmt(0) }]), ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--sav)', k: i > m.curIdx ? 'hatch' : 'solid', l: i > m.curIdx ? t('Estimado') : t('Ahorrado'), v: i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i]) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i]) }], `${fmtSigned(Math.round(realC[i] - planC[i]))} ${t('sobre el plan')}`))], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
       ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), (i >= m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), diffCell(realC[i], planC[i], 'good')]))}
     </section>`;
   }
-  // the next planned expenses, soonest first, each item once (its next date), the first few
-  const NEXT_N = 5, nexts = [], seen = new Set();
+  // the next planned expenses, soonest first, each item once (its next date): ten to start with, a button for the rest
+  const NEXT_SHOW = 10, nexts = [], seen = new Set();
   for (const ym of m.season.filter((y) => y >= m.curYM)) for (const p of m.plannedIn(ym)) {
     if (p.it.kind !== 'out' || p.save || p.it.budget || p.state !== 'future' || seen.has(p.it.id)) continue;
-    seen.add(p.it.id); nexts.push(p);
+    seen.add(p.it.id); nexts.push({ p, ym });
   }
-  nexts.sort((a, b) => a.date.localeCompare(b.date)); nexts.length = Math.min(nexts.length, NEXT_N);
+  nexts.sort((a, b) => a.p.date.localeCompare(b.p.date));
   const last = m.season[11], ended = m.curYM > last;
   return `
   ${yearNav(m)}
@@ -653,7 +653,10 @@ function metas(m) {
     <div class="mgrid">${cells}</div>
   </section>
   ${cumCard}
-  ${nexts.length ? `<section class="card list" aria-label="${t('Próximos gastos planificados')}"><h2>${t('Próximos gastos planificados')}</h2>${nexts.map((p) => `<div class="trow"><span class="mm wide">${shortDate(p.date)}</span><span class="grow">${esc(p.it.name)}</span><b class="num">${p.it.vary ? '≈ ' : ''}${fmt(p.amount)}</b></div>`).join('')}</section>` : ''}
+  ${nexts.length ? `<section class="card nextlist${lsGet('hucha:nextall') ? ' all' : ''}" aria-label="${t('Próximos gastos planificados')}"><h2>${t('Próximos gastos planificados')}</h2>
+    <div class="moves">${nexts.map(({ p, ym }, k) => { const dd = Math.round((new Date(p.date + 'T12:00:00') - new Date(m.todayISO + 'T12:00:00')) / 864e5), when = dd <= 0 ? t('hoy') : dd === 1 ? t('mañana') : t('en {n} días', { n: dd }), yr = round2(m.season.filter((y) => y >= m.curYM).reduce((a, y) => a + (m.occurs(p.it, y) && (y > m.curYM || m.stateOf(p.it, y) === 'future') ? p.it.amount : 0), 0)), cat = itemCat(p.it);
+      return `<button type="button" class="move rich${k >= NEXT_SHOW ? ' x' : ''}" data-act="occ" data-id="${esc(p.it.id)}" data-ym="${ym}">${catEl(cat || '', 'sm')}<span class="grow"><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)} · ${when}</span><span class="fine">${cat ? esc(catName(cat)) + ' · ' : ''}${esc(freqText(p.it))}</span></span><span class="amtcol"><span class="num">${p.it.vary ? '≈ ' : ''}−${fmt(p.amount)}</span>${yr > p.amount + 0.5 ? `<span class="fine num">${t('{x} hasta fin de año', { x: fmt(yr) })}</span>` : ''}</span></button>`; }).join('')}</div>
+    ${nexts.length > NEXT_SHOW ? `<button type="button" class="movlink" data-act="nextmore" data-more="${t('Ver {n} más', { n: nexts.length - NEXT_SHOW })}" data-less="${t('Ver menos')}">${lsGet('hucha:nextall') ? t('Ver menos') : t('Ver {n} más', { n: nexts.length - NEXT_SHOW })}</button>` : ''}</section>` : ''}
   ${ended ? yearCard(m, off) : ''}`;
 }
 
@@ -922,12 +925,13 @@ function openLineDetail(kind) {
   ].join('');
   const planC = [0], realC = [0]; let pa = 0, ra = 0;
   m.season.forEach((ym, i) => { pa += planM[i] || 0; planC.push(round2(pa)); if (real[i] != null) { ra += real[i]; realC.push(round2(ra)); } else realC.push(null); });
-  const sp = kind === 'out' ? spendProjection(m) : null;
-  if (sp) { let acc = realC[ci + 1] - (real[ci] ?? 0) + sp.months[ci]; for (let i = ci + 1; i < n; i++) { acc += sp.months[i]; realC[i + 1] = round2(acc); } } // the dot stays where you are; from there, each month on what it is expected to cost
-  else for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
+  const sp = kind === 'out' ? spendProjection(m) : kind === 'in' ? incomeProjection(m) : null;
+  const nowV = realC[ci + 1]; // what you have to date: the dot. The month-end point after it is the estimate.
+  if (sp) { let acc = realC[ci + 1] - (real[ci] ?? 0) + sp.months[ci]; realC[ci + 1] = round2(acc); for (let i = ci + 1; i < n; i++) { acc += sp.months[i]; realC[i + 1] = round2(acc); } } // the dot stays where you are; from there, each month on what it is expected to cost
+  else if (kind !== 'sav') { const fr = pc ? pc.day / pc.dim : 0, share = (1 - fr) / Math.max(0.01, (1 - fr) + (n - ci - 1)); for (let i = ci + 1; i <= n; i++) realC[i] = round2(nowV + (x.proj - nowV) * (share + (i - ci - 1) * (1 - share) / Math.max(1, n - ci - 1))); }
   let sav = null;
   if (kind === 'sav') { const q = savedSeries(m); sav = { planC: [0, ...q.planC], realC: [0, ...q.realC] }; } // exactly the line Año draws
-  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: sav ? sav.planC : planC, real: sav ? sav.realC : realC.map((v) => v ?? 0), projFrom: live ? (sav ? ci + 1 : ci + 2) : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => { const RC = sav ? sav.realC : realC, PC = sav ? sav.planC : planC, est = sav ? i > ci : real[i] == null, near = sav && i === ci; return tipx(cap(ymLabel(ym)), [{ c: tone, k: est ? 'hatch' : 'solid', l: est ? t('Estimado') : word, v: (est || near ? '≈ ' : '') + fmt(est || near ? Math.round(RC[i + 1]) : RC[i + 1]) }, { k: 'dash', l: t('Planificado'), v: fmt(PC[i + 1]) }], sav ? `${fmtSigned(Math.round(RC[i + 1] - PC[i + 1]))} ${t('sobre el plan')}` : ''); })], aria: word })}
+  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: sav ? sav.planC : planC, real: sav ? sav.realC : realC.map((v) => v ?? 0), projFrom: live ? ci + 1 : null, nowIdx: live ? ci + 1 : null, today: live && pc ? { at: ci + pc.day / pc.dim, v: sav ? (sav.realC[ci] ?? 0) + m.savedOf(m.curYM) : nowV } : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => { const RC = sav ? sav.realC : realC, PC = sav ? sav.planC : planC, est = sav ? i > ci : real[i] == null, near = sav && i === ci; return tipx(cap(ymLabel(ym)), [{ c: tone, k: est ? 'hatch' : 'solid', l: est ? t('Estimado') : word, v: (est || near ? '≈ ' : '') + fmt(est || near ? Math.round(RC[i + 1]) : RC[i + 1]) }, { k: 'dash', l: t('Planificado'), v: fmt(PC[i + 1]) }], sav ? `${fmtSigned(Math.round(RC[i + 1] - PC[i + 1]))} ${t('sobre el plan')}` : ''); })], aria: word })}
     <div class="legend"><span><i class="sw" style="background: ${tone}"></i>${word.toLowerCase()}</span><span><i class="lg-proj" style="--pc: ${tone}"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div></section>`;
   // what makes it up
   let listHead = '', body = '';
@@ -973,8 +977,9 @@ function openCatDetail(c) {
     // the year as two running totals: what you have spent, and what the budget lets you spend, with the rest as it would go
     const planC = [0], realC = [0]; let pa = 0, ra = 0;
     m.season.forEach((ym, i) => { pa += x.amounts[i] || 0; planC.push(round2(pa)); if (per[i] != null) { ra += per[i]; realC.push(round2(ra)); } else realC.push(null); });
-    for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
-    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: per[i] != null ? 'solid' : 'hatch', l: per[i] != null ? t('Gastado') : t('Estimado'), v: (per[i] != null ? '' : '≈ ') + fmt(per[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Presupuesto'), v: fmt(planC[i + 1]) }]))], aria: t('Gastado acumulado frente al presupuesto') })}
+    const nowV2 = realC[ci + 1], fr2 = pc ? pc.day / pc.dim : 0, sh2 = (1 - fr2) / Math.max(0.01, (1 - fr2) + (n - ci - 1));
+    if (live) for (let i = ci + 1; i <= n; i++) realC[i] = round2(nowV2 + (x.proj - nowV2) * (sh2 + (i - ci - 1) * (1 - sh2) / Math.max(1, n - ci - 1)));
+    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 1 : null, nowIdx: live ? ci + 1 : null, today: live && pc ? { at: ci + fr2, v: nowV2 } : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: per[i] != null ? 'solid' : 'hatch', l: per[i] != null ? t('Gastado') : t('Estimado'), v: (per[i] != null ? '' : '≈ ') + fmt(per[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Presupuesto'), v: fmt(planC[i + 1]) }]))], aria: t('Gastado acumulado frente al presupuesto') })}
       <div class="legend"><span><i class="sw" style="background: var(--out)"></i>${t('gastado')}</span><span><i class="lg-proj" style="--pc: var(--out)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('presupuesto')}</span></div></section>`;
   } else {
     const tot = spendByType(m, m.season.filter((ym) => ym <= m.curYM)).tot, top = per.reduce((b, v, i) => (v != null && v > (per[b] ?? -1) ? i : b), 0);
@@ -1122,6 +1127,27 @@ function projSpent(m, ym) {
   return round2(outPlan + Math.max(0, m.spentAll(ym, m.todayISO) - outPaid) / days * total);
 }
 /**
+ * Where the year's income ends, month by month, like the spending projection: what came in as it was; this month, what came
+ * in plus what the plan still has to come, and the months to come as the plan has them. An income marked "varía" is
+ * carried at the proportion you have been receiving against what was planned (a pay that comes 10 % over keeps coming 10 % over).
+ */
+function incomeProjection(m) {
+  if (m.pre || m.over || !m.season.includes(m.curYM)) return null;
+  const cur = m.curYM, ci = m.season.indexOf(cur);
+  const ratio = (it) => {
+    if (!it.vary) return 1;
+    let a = 0, p = 0;
+    for (const ym of m.season) { if (ym > cur) break; if (m.occurs(it, ym) && m.stateOf(it, ym) === 'real') { a += m.amountIn(it, ym); p += it.amount; } }
+    return p > 0 ? a / p : 1;
+  };
+  const months = m.season.map((ym, i) => {
+    if (i < ci) return m.incomeTo(ym);
+    const todo = m.ins.filter((it) => m.occurs(it, ym) && (i > ci || m.stateOf(it, ym) === 'future')).reduce((a, it) => a + it.amount * ratio(it), 0);
+    return (i === ci ? m.incomeTo(ym, m.todayISO) : 0) + todo;
+  }).map(round2);
+  return { months, total: round2(months.reduce((a, v) => a + v, 0)) };
+}
+/**
  * Where the year's spending ends, month by month: what is done as it was; this month as in Hoy (what the plan expects
  * from it, plus your pace on the rest); the months to come as what the plan already expects in each one (the yearly
  * insurance in its month, the rent in all of them) plus your daily pace on everything else. Null when the year is not under way.
@@ -1229,11 +1255,11 @@ function planVsReal(m) {
   const line = (label, plan, real, proj, more, icon = '', word = 'planificado', isSav = false) => ({ label, plan: round2(plan), real: round2(real), proj: round2(proj), more, icon, word, isSav });
   const past = m.season.filter((ym) => ym < m.curYM), fut = m.season.filter((ym) => ym > m.curYM), inSeason = m.season.includes(m.curYM);
   const pc = inSeason ? pace(m, m.curYM, today) : null;
-  const ins = line(t('Ingresado'), sumItems(m.ins, (it) => it.amount), sumItems(m.ins, (it, ym) => (done(it, ym) ? m.amountIn(it, ym) : 0)), m.incomeY, 'good');
+  const ins = line(t('Ingresado'), sumItems(m.ins, (it) => it.amount), sumItems(m.ins, (it, ym) => (done(it, ym) ? m.amountIn(it, ym) : 0)), (incomeProjection(m) || {}).total ?? m.incomeY, 'good');
   // savings: what each month saved, this one at its pace, the rest as planned
   const curSaved = pc ? projSaved(m, pc, m.curYM) ?? Math.max(m.savedOf(m.curYM), m.targetOf(m.curYM)) : 0;
-  const sproj = spendProjection(m);
-  const sav = line(t('Ahorrado'), m.goal, m.saved, past.reduce((s, ym) => s + m.savedOf(ym), 0) + curSaved + fut.reduce((s, ym) => s + futureSaved(m, ym, m.season.indexOf(ym), sproj), 0), 'good', '', 'planificado', true);
+  const sproj = spendProjection(m), iproj = incomeProjection(m);
+  const sav = line(t('Ahorrado'), m.goal, m.saved, past.reduce((s, ym) => s + m.savedOf(ym), 0) + curSaved + fut.reduce((s, ym) => s + futureSaved(m, ym, m.season.indexOf(ym), sproj, iproj), 0), 'good', '', 'planificado', true);
   // spending: everything that isn't saved
   const spentReal = past.reduce((s, ym) => s + m.spentAll(ym), 0) + (inSeason ? m.spentAll(m.curYM, todayISO) : 0);
   const outs = line(t('Gastado'), ins.plan - m.goal, spentReal, sproj ? sproj.total : ins.proj - sav.proj, 'bad', '', 'planificado');
@@ -2176,6 +2202,7 @@ function onAct(b, sure = false) {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
     case 'donelist': openDone(b.dataset.kind); break;
+    case 'nextmore': { const box = b.closest('.nextlist'), on = box.classList.toggle('all'); lsSet('hucha:nextall', on ? '1' : ''); b.textContent = on ? b.dataset.less : b.dataset.more; break; }
     case 'catdetail': openCatDetail(b.dataset.cat); break;
     case 'linedetail': openLineDetail(b.dataset.kind); break;
     case 'movesall': UI.movesAll = true; render(true); break;
