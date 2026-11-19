@@ -1312,3 +1312,4 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 /* in a spending detail the running total is spending's orange, not savings' violet */
 #cat-sheet .ch-line.cl-real, #cat-sheet .cl-real { stroke: var(--out); }
 #cat-sheet .ch-dot.cl-dot, #cat-sheet .bl-dot.cl-dot { fill: var(--out); }
+.trow .mm.wide { width: auto; min-width: 52px; white-space: nowrap; }

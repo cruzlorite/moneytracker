@@ -365,7 +365,7 @@ function infoHTML(key) {
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
       ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
       t('Porcentajes: sobre tus ingresos. Lo que no gastes, también es ahorro.'));
-    case 'acumulado': return card(t('Ahorro acumulado'), [
+    case 'acumulado': return card(t('Ahorro e inversión acumulado'), [
       ixRow(IX.fill('var(--sav)'), t('Ahorrado'), t('suma de lo ahorrado mes a mes.')),
       ixRow(IX.proj('var(--sav)'), t('Estimado'), t('este mes a tu ritmo y los siguientes según lo planificado.')),
       ixRow('<i class="lg-plan"></i>', t('Planificado'), t('suma de lo planificado cada mes.'))],
@@ -576,15 +576,20 @@ function metas(m) {
       ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : m.targetOf(ym);
       planC.push(round2(pa)); realC.push(round2(ra));
     });
-    cumCard = `<section class="card" aria-label="${t('Ahorro acumulado')}">
-      <div class="row between"><h2>${t('Ahorro acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`)], aria: t('Ahorro acumulado frente al planificado, mes a mes') })}
+    cumCard = `<section class="card" aria-label="${t('Ahorro e inversión acumulado')}">
+      <div class="row between"><h2>${t('Ahorro e inversión acumulado')} ${info('acumulado')}</h2></div>
+      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`)], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
       ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), i > m.curIdx ? '—' : diffCell(realC[i], planC[i], 'good')]))}
     </section>`;
   }
-  const nexts = m.outs.filter((i) => i.freq !== 'monthly' && !i.budget).map((i) => ({ i, k: m.season.findIndex((s, ix) => ix >= m.curIdx && m.occurs(i, s)) }))
-    .filter((x) => x.k >= 0).sort((a, b) => a.k - b.k).slice(0, 4);
+  // the next planned expenses, soonest first, each item once (its next date), the first few
+  const NEXT_N = 5, nexts = [], seen = new Set();
+  for (const ym of m.season.filter((y) => y >= m.curYM)) for (const p of m.plannedIn(ym)) {
+    if (p.it.kind !== 'out' || p.save || p.it.budget || p.state !== 'future' || seen.has(p.it.id)) continue;
+    seen.add(p.it.id); nexts.push(p);
+  }
+  nexts.sort((a, b) => a.date.localeCompare(b.date)); nexts.length = Math.min(nexts.length, NEXT_N);
   const last = m.season[11], ended = m.curYM > last;
   return `
   ${yearNav(m)}
@@ -601,7 +606,7 @@ function metas(m) {
     <div class="mgrid">${cells}</div>
   </section>
   ${cumCard}
-  ${nexts.length ? `<section class="card list" aria-label="${t('Meses con más gasto')}">${nexts.map(({ i, k }) => `<div class="trow"><span class="mm">${MES3[+m.season[k].slice(5) - 1]}</span><span class="grow">${esc(i.name)}</span><b class="num">${fmt(i.amount)}</b></div>`).join('')}</section>` : ''}
+  ${nexts.length ? `<section class="card list" aria-label="${t('Próximos gastos planificados')}"><h2>${t('Próximos gastos planificados')}</h2>${nexts.map((p) => `<div class="trow"><span class="mm wide">${shortDate(p.date)}</span><span class="grow">${esc(p.it.name)}</span><b class="num">${p.it.vary ? '≈ ' : ''}${fmt(p.amount)}</b></div>`).join('')}</section>` : ''}
   ${ended ? yearCard(m, off) : ''}`;
 }
 

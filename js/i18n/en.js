@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Próximos gastos planificados': 'Upcoming planned expenses',
+  'Ahorro e inversión acumulado frente al planificado, mes a mes': 'Cumulative savings and investment against planned, month by month',
+  'Ahorro e inversión acumulado': 'Cumulative savings and investment',
   'del año': "of the year",
   'Aún no hay movimientos.': "No movements yet.",
   'Gasto de cada mes': "Spending each month",
