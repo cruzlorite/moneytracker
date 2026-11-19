@@ -1,5 +1,13 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Total a fin de año': 'Year-end total',
+  'Ahorro de aquí a fin de año': 'Saving from now to year end',
+  'Total a fin de mes': 'Month-end total',
+  'Gasto de aquí a fin de mes': 'Spending from now to month end',
+  'Proyectado hasta el presupuesto': 'Projected up to the budget',
+  'Exceso proyectado': 'Projected excess',
+  'Total proyectado': 'Projected total',
+  'Objetivo': 'Target',
   'Ahorro medio al mes': 'Average saving a month',
   'Ingreso medio al mes': 'Average income a month',
   'Gasto medio al mes': 'Average spending a month',

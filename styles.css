@@ -1315,7 +1315,7 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 .trow .mm.wide { width: auto; min-width: 52px; white-space: nowrap; }
 
 /* the plan's mark and the "today" triangle are thin: give them a comfortable area to touch */
-.g-mark::after, .g-today::after { content: ""; position: absolute; inset: -8px -10px; }
+.g-mark::after, .g-today::after { content: ""; position: absolute; inset: -8px -4px; }
 
 /* the detail's running total takes the colour of what it is (set by the view): blue incomes, orange spending, violet saving */
 #cat-sheet .ch-line.cl-real, #cat-sheet .cl-real { stroke: var(--dt, var(--out)); }
@@ -1344,3 +1344,11 @@ dialog .sheet { overscroll-behavior: contain; }
 .vrow[data-tip] { padding: 10px 0; margin: -4px 0; cursor: default; border-radius: 10px; }
 .vrow[data-tip]:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .vlist { gap: 2px; }
+
+/* the savings table in its detail: headers, then a month per row */
+.stable { display: grid; }
+.srow { display: grid; grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr)); gap: 8px; align-items: baseline; padding: 9px 2px; border-top: 1px solid var(--line); font-size: 14px; }
+.srow.shead { border-top: 0; padding: 0 2px 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.srow .num { text-align: right; white-space: nowrap; font-weight: 600; }
+.srow.shead .num { font-weight: 700; }
+.c-save { color: color-mix(in srgb, var(--sav) var(--mixk, 100%), var(--ink)); }
