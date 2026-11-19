@@ -1316,3 +1316,11 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 
 /* the plan's mark and the "today" triangle are thin: give them a comfortable area to touch */
 .g-mark::after, .g-today::after { content: ""; position: absolute; inset: -8px -10px; }
+
+/* the detail's running total takes the colour of what it is (set by the view): blue incomes, orange spending, violet saving */
+#cat-sheet .ch-line.cl-real, #cat-sheet .cl-real { stroke: var(--dt, var(--out)); }
+#cat-sheet .ch-dot.cl-dot, #cat-sheet .bl-dot.cl-dot { fill: var(--dt, var(--out)); }
+
+/* a sheet is on top of the page: the page behind does not move, and scrolling the sheet never carries on to it */
+html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; }
+dialog .sheet { overscroll-behavior: contain; }

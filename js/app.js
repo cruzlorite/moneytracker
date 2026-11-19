@@ -844,6 +844,56 @@ function doneRowsOf(m, kind) {
   if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, ym: m.monthOf(e.date), signed: -e.amount, html: spendRow(e) });
   return rows.sort((a, b) => b.date.localeCompare(a.date));
 }
+/** Ingresado, Gastado or Ahorrado over the year in one view: where you stand, the running total against the plan, and what makes it up. */
+function openLineDetail(kind) {
+  const m = computeYear(UI.yearOff || 0), pv = planVsReal(m), x = { in: pv.ins, out: pv.outs, sav: pv.sav }[kind];
+  const n = m.season.length, ci = Math.max(0, m.season.indexOf(m.curYM)), live = !m.over && m.season.includes(m.curYM), today = toISO(new Date());
+  const good = kind !== 'out', tone = { in: 'var(--in)', out: 'var(--out)', sav: 'var(--sav)' }[kind];
+  const real = m.season.map((ym) => (ym > m.curYM ? null : kind === 'in' ? m.incomeTo(ym, ym === m.curYM ? today : undefined) : kind === 'out' ? (ym === m.curYM ? m.spentAll(ym, today) : m.spentAll(ym)) : m.savedOf(ym)));
+  const planM = m.season.map((ym) => (kind === 'in' ? m.incomeOf(ym) : kind === 'out' ? planSpend(m, ym) : m.targetOf(ym)));
+  const pc = live ? pace(m, m.curYM) : null, elapsed = live ? ci + (pc ? pc.day / pc.dim : 0) : n, avg = x.real / Math.max(1, elapsed);
+  const tile = (label, val, sub, cls = '') => `<div class="tile"><span class="label">${label}</span><span class="v num ${cls}">${val}</span><span class="fine">${sub}</span></div>`;
+  const due = x.due ?? null, gap = due != null ? round2(x.real - due) : null, left = round2(x.plan - x.real);
+  const endGap = round2(x.proj - x.plan), endGood = good ? endGap >= -0.5 : endGap <= 0.5;
+  const word = { in: t('Ingresado'), out: t('Gastado'), sav: t('Ahorrado') }[kind];
+  const tiles = [
+    tile(word, fmt(x.real), t('de {x} planificados', { x: fmt(x.plan) })),
+    due != null ? tile(t('Deberías llevar'), fmt(due), t('hoy, según el plan')) : '',
+    gap != null ? (good
+      ? tile(gap > 0.5 ? t('Vas por delante') : gap < -0.5 ? t('Vas por detrás') : t('Vas al ritmo'), fmt(Math.abs(gap)), t('respecto a hoy'), gap > 0.5 ? 'c-ok' : gap < -0.5 ? 'c-spend' : '')
+      : tile(gap > 0.5 ? t('Has gastado de más') : gap < -0.5 ? t('Vas por debajo') : t('Vas al ritmo'), fmt(Math.abs(gap)), t('respecto a hoy'), gap > 0.5 ? 'c-spend' : gap < -0.5 ? 'c-ok' : '')) : '',
+    good
+      ? (left > 0.5 ? tile(t('Te falta'), fmt(left), t('para el plan del año')) : tile(t('Superado en'), fmt(-left), t('el plan del año'), 'c-ok'))
+      : (left >= -0.5 ? tile(t('Te queda'), fmt(Math.max(0, left)), t('del gasto planificado')) : tile(t('Te has pasado'), fmt(-left), t('del gasto planificado'), 'c-spend')),
+    tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, `${fmt(Math.abs(Math.round(endGap)))} ${endGap > 0 ? t('por encima del plan') : t('por debajo del plan')}`, endGood ? 'c-ok' : 'c-spend'),
+    tile(t('Media al mes'), fmt(Math.round(avg)), t('de lo que va del año')),
+  ].join('');
+  const planC = [0], realC = [0]; let pa = 0, ra = 0;
+  m.season.forEach((ym, i) => { pa += planM[i] || 0; planC.push(round2(pa)); if (real[i] != null) { ra += real[i]; realC.push(round2(ra)); } else realC.push(null); });
+  for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
+  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${real[i] != null ? fmt(realC[i + 1]) : '≈ ' + fmt(Math.round(realC[i + 1]))} / ${t('plan')} ${fmt(planC[i + 1])}`)], aria: word })}
+    <div class="legend"><span><i class="sw" style="background: ${tone}"></i>${word.toLowerCase()}</span><span><i class="lg-proj" style="--pc: ${tone}"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div></section>`;
+  // what makes it up
+  let listHead = '', body = '';
+  if (kind === 'in') {
+    listHead = t('Ingresos');
+    const rows = [];
+    for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.it.kind === 'in' && p.state !== 'future' && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl('', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: 'in', vary: p.it.vary && p.state !== 'real' }) });
+    rows.sort((a, b) => b.date.localeCompare(a.date));
+    body = `<div class="moves">${rows.map((r) => r.html).join('') || `<p class="fine">${t('Aún no hay ingresos.')}</p>`}</div>`;
+  } else if (kind === 'out') {
+    listHead = t('Gasto por tipo');
+    const { rows, tot } = spendByType(m, m.season.filter((ym) => ym <= m.curYM)), top1 = Math.max(1, ...rows.map(([, v]) => v));
+    body = `<div class="vlist">${rows.slice(0, 12).map(([c, v], i) => typeRow({ cat: c && c !== DIA ? c : '', icon: catEl(c === DIA ? '' : c, 'sm'), label: c === DIA ? t('Sin detallar') : catName(c), pct: Math.round(v / Math.max(1, tot) * 100), value: v }, top1, `ld-${i}`)).join('') || `<p class="fine">${t('Aún no hay gastos.')}</p>`}</div>`;
+  } else {
+    listHead = t('Mes a mes');
+    body = `<div class="moves">${m.season.map((ym, i) => (real[i] == null ? '' : `<div class="move"><span class="grow"><b>${esc(cap(ymLabel(ym)))}</b><span class="fine">${t('objetivo')} ${fmt(planM[i])}</span></span><span class="num c-save">${fmt(real[i])}</span><span class="num fine ${real[i] >= planM[i] ? 'c-ok' : 'c-spend'}">${fmtSigned(Math.round(real[i] - planM[i]))}</span></div>`)).reverse().join('')}</div>`;
+  }
+  dlg.classList.add('full');
+  dlg.innerHTML = `<div class="sheet donesheet" id="cat-sheet" style="--dt:${tone}"><div class="row between"><h2>${word}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="tiles t2 detiles">${tiles}</div>${chart}<section class="card"><h2>${listHead}</h2>${body}</section></div>`;
+  openDialog();
+}
 /** A type (a budget or not) in one view: where you stand, how the year went, and every movement in it. */
 function openCatDetail(c) {
   const m = computeYear(UI.yearOff || 0), pv = planVsReal(m), x = pv.buds.find((l) => l.cat === c) || null;
@@ -1132,6 +1182,7 @@ function planVsReal(m) {
     if (live && !monthly && x.due != null) x.proj = round2(spent + Math.max(0, plan - x.due));
     return x;
   }).filter(Boolean);
+  ins.kind = 'in'; outs.kind = 'out'; sav.kind = 'sav';
   return { ins, outs, buds, sav };
 }
 /**
@@ -1154,8 +1205,9 @@ function cmpRow(m, x, key) {
     : near ? t('≈ planificado')
       : t(d > 0 ? '≈ {x} por encima' : '≈ {x} por debajo', { x: fmt(Math.abs(d)) });
   const tip = fin ? `${x.label}: ${fmt(x.real)} / ${fmt(x.plan)}` : `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
-  return `<div class="cmp${x.cat ? ' hasdetail' : ''}" ${x.cat ? `data-act="catdetail" data-cat="${esc(x.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: x.label }))}"` : ''}>
-    <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b>${x.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>
+  const dact = x.cat ? `data-act="catdetail" data-cat="${esc(x.cat)}"` : x.kind ? `data-act="linedetail" data-kind="${x.kind}"` : '';
+  return `<div class="cmp${dact ? ' hasdetail' : ''}" ${dact ? `${dact} role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: x.label }))}"` : ''}>
+    <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b>${dact ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
     ${gauge({ names: { fill: fin ? t('Actual') : t('Hasta hoy') }, v: x.real, proj: fin ? null : x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
       marks: [...(x.due != null ? [{ at: Math.max(0, x.due), cls: 'today' }] : []), { at: x.plan }], label: tip })}
@@ -2031,6 +2083,7 @@ function onAct(b, sure = false) {
     case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
     case 'donelist': openDone(b.dataset.kind); break;
     case 'catdetail': openCatDetail(b.dataset.cat); break;
+    case 'linedetail': openLineDetail(b.dataset.kind); break;
     case 'movesall': UI.movesAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'notifyfold': case 'notifymore': {
