@@ -483,8 +483,8 @@ function home(m) {
       <span class="fine num">${toCome.length ? t('+{x} el {d}', { x: fmt(toCome.reduce((a, p) => a + p.amount, 0)), d: shortDate(toCome[0].date) }) : came ? `${esc(came.it.name.toLowerCase())} · ${shortDate(came.date)}` : ''}</span></section>
     <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
   </div>
-  ${monthTypes(m, ym)}
   ${trailCard(m)}
+  ${monthTypes(m, ym)}
   ${monthMoves(m, ym)}`;
 }
 /** One line of a spending-by-type list: icon and name (and its share) on the left, the amount on the right, a thin bar under it
@@ -539,7 +539,7 @@ function trailCard(m) {
   const pts = m.balanceTrail(days);
   if (pts.length < 2) return '';
   return `<section class="card" aria-label="${t('Saldo de tu cuenta')}" data-trail>
-    <div class="row between"><h2>${t('Saldo')} ${info('saldo')}</h2>
+    <div class="row between"><h2>${t('Evolución del saldo')} ${info('saldo')}</h2>
       <div class="seg trail" role="group" aria-label="${t('Periodo')}">${[30, 60, 90].map((d) => `<button data-act="trail" data-v="${d}" aria-pressed="${d === days}">${d} ${t('días')}</button>`).join('')}</div></div>
     ${balanceLine({ pts, aria: t('Saldo de tu cuenta en los últimos {n} días y estimación hasta fin de mes', { n: days }) })}
     <div class="legend"><span><i class="sw" style="background: var(--s1)"></i>${t('saldo')}</span><span><i class="lg-proj" style="--pc: var(--s1)"></i>${t('estimado')}</span></div>
