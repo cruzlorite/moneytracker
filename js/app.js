@@ -392,6 +392,10 @@ function infoHTML(key) {
       ixRow(IX.fill('var(--s1)'), t('Saldo'), t('lo que había en tu cuenta cada día.')),
       ixRow(IX.proj('var(--s1)'), t('Estimado'), t('desde hoy hasta fin de mes: lo planificado y tu ritmo de gasto desde tu último saldo.'))],
       t('Los días de meses cerrados se reparten a partes iguales entre el saldo inicial y el de cierre.'));
+    case 'curvaMes': return card(t('Tu dinero en el mes'), [
+      ixRow(IX.fill('var(--s1)'), t('Acumulado del mes'), t('lo que ha entrado menos lo que ha salido desde el primer día del mes. Empieza en 0.')),
+      ixRow(IX.proj('var(--s1)'), t('Proyectado'), t('desde hoy hasta fin de mes: lo planificado y tu ritmo de gasto desde tu último saldo.'))],
+      t('Cada punto es el acumulado de ese día, no el gasto de ese día.'));
     case 'cierre': return card(t('Cierre del mes'), [
       ixRow('', t('Saldo'), t('lo que hay hoy en tu cuenta.')),
       ixRow(IX.fill(O), t('Gastado'), t('saldo inicial + ingresos − ahorro − saldo final.')),
@@ -1697,16 +1701,17 @@ function moneyChart(m, ym, bal) {
   const first = cv.pts[0].day, dim = cv.pts[cv.pts.length - 1].day, name = monthName(ym), last = cv.pts.length - 1;
   const projFrom = live && cv.fromDay <= dim ? cv.fromDay - first : null;
   const evText = (e) => `${e.label} ${fmtSigned(e.amount)}`;
-  const evc = (e) => (e.kind === 'in' ? 'var(--in)' : e.kind === 'save' ? 'var(--sav)' : 'var(--out)');
-  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day
-    ? tipx(`${t('Día')} ${p.day}`, [{ c: 'var(--s1)', k: live && p.day >= cv.fromDay ? 'hatch' : 'solid', l: t('En el mes'), v: `${live && p.day >= cv.fromDay ? '≈ ' : ''}${fmtSigned(p.y)}` },
-      ...p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 3).map((e) => ({ c: evc(e), k: 'solid', l: e.label.length > 18 ? e.label.slice(0, 17) + '…' : e.label, v: fmtSigned(e.amount) }))])
-    : tipx(t('Empieza el mes'), [{ c: 'var(--s1)', k: 'solid', l: t('En el mes'), v: fmt(0) }]) }));
+  const pts = cv.pts.map((p) => {
+    const proj = live && p.day >= cv.fromDay;
+    return { y: p.y, tip: p.day
+      ? tipx(`${t('Día')} ${p.day}`, [{ c: 'var(--s1)', k: proj ? 'hatch' : 'solid', l: proj ? t('Proyectado') : t('Acumulado del mes'), v: `${proj ? '≈ ' : ''}${fmtSigned(p.y)}` }])
+      : tipx(t('Empieza el mes'), [{ c: 'var(--s1)', k: 'solid', l: t('Acumulado del mes'), v: fmt(0) }]) };
+  });
   const inDay = cv.pts.reduce((b, p, ix) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: ix, v } : b; }, { i: -1, v: 0 });
   const marks = [...(inDay.i > 0 && inDay.i !== last ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: last, text: (projFrom != null ? '≈ ' : '') + fmtSigned(cv.pts[last].y) }];
   const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmtSigned(p.y)]);
   return `<div class="cl-block">
-    <div><span class="label">${t('Tu dinero en {m}', { m: name })}</span>${live ? `<div class="fine">${t('estimado según tu último saldo')}</div>` : ''}</div>
+    <div><span class="label">${t('Tu dinero en {m}', { m: name })} ${info('curvaMes')}</span>${live ? `<div class="fine">${t('estimado según tu último saldo')}</div>` : ''}</div>
     ${line({ pts, marks, projFrom, xTicks: [1, 10, 20, dim].filter((d) => d >= first).map((d) => ({ i: d - first, text: d })), aria: t('Tu dinero a lo largo de {m}: empieza en 0 y termina en {x}', { m: name, x: fmtSigned(cv.pts[last].y) }) })}
     ${table([t('Día'), t('Movimientos'), t('Acumulado')], rows)}
   </div>`;

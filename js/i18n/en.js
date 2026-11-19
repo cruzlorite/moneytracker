@@ -1,5 +1,10 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Cada punto es el acumulado de ese día, no el gasto de ese día.': "Each point is the running total of that day, not that day's spending.",
+  'lo que ha entrado menos lo que ha salido desde el primer día del mes. Empieza en 0.': "what has come in minus what has gone out since the first day of the month. It starts at 0.",
+  'Tu dinero en el mes': "Your money this month",
+  'Acumulado del mes': "Month to date",
+  'Proyectado': "Projected",
   'Sin gastar': 'Left unspent',
   'En el mes': 'In the month',
   'A este ritmo, superarás el gasto planificado en ≈\u00a0{x}': 'At this pace, you will exceed planned spending by ≈ {x}',
