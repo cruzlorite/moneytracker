@@ -406,10 +406,10 @@ const vPill = (vd) => (vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : '
  * over shows as the bar running past the mark. fill: what is; proj: where it ends at this pace (hatched);
  * marks: the plan's references, each named under the bar ({ at, label }). thin: a list row (the row says the figures).
  */
-function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = false, tall = false, label = '', scale = 0, cap = null, note = null, names = {} }) {
+function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = false, tall = false, label = '', scale = 0, cap = null, note = null, names = {}, notip = false }) {
   // touching a part says what it is and its figure: the fill (what is), the hatched part (the projection), the marks (the plan)
   const nm = { fill: t('Actual'), proj: t('Proyección'), plan: t('Planificado'), over: t('Exceso'), ...names };
-  const NT = false; // every bar tells what a part is when touched (only the thick ones also dim the rest)
+  const NT = notip; // every bar tells what a part is when touched (only the thick ones also dim the rest); a row that carries its own tip turns these off
   // each part says the figure its own end stands for, so the number always matches the stretch you touched:
   // past a cap the solid orange ends AT the cap (not at what was spent), the red is what went over it
   const tip = (rows) => (NT ? '' : `data-tip="${esc(tipx('', rows))}"`);
@@ -434,9 +434,9 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   // a stretch of the bar named inside it (what would be left, what would go over): only when there's room for the words
   const noteEl = note && w(note.b) - w(note.a) >= 30 ? `<span class="g-note ${note.cls || ''}" style="left:${w(note.a)}%; width:${(w(note.b) - w(note.a)).toFixed(1)}%">${note.text}</span>` : '';
   return `<div class="gauge ${thin ? 'thin' : ''} ${tall ? 'tall' : ''}" role="img" aria-label="${esc(label)}">
-    <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}" ${label ? `data-tip="${esc(label)}"` : ''}>${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
-      ? `<span class="g-today" style="left:${w(k.at)}%" data-tip="${esc(tipx('', [{ k: 'dash', l: t('Planificado a hoy'), v: fmt(k.at) }]))}"><i></i></span>`
-      : `<b class="g-mark" style="left:${w(k.at)}%" data-tip="${esc(tipx('', [{ k: 'line', l: k.name || nm.plan, v: fmt(k.at) }]))}"></b>`).join('')}</div>
+    <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}" ${label && !notip ? `data-tip="${esc(label)}"` : ''}>${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
+      ? `<span class="g-today" style="left:${w(k.at)}%" ${notip ? '' : `data-tip="${esc(tipx('', [{ k: 'dash', l: t('Planificado a hoy'), v: fmt(k.at) }]))}"`}><i></i></span>`
+      : `<b class="g-mark" style="left:${w(k.at)}%" ${notip ? '' : `data-tip="${esc(tipx('', [{ k: 'line', l: k.name || nm.plan, v: fmt(k.at) }]))}"`}></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
 }
 const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
@@ -507,7 +507,7 @@ function home(m) {
 }
 /** One line of a spending-by-type list: icon and name (and its share) on the left, the amount on the right, a thin bar under it
  *  against the biggest one. The same in Hoy and in Análisis. */
-const typeRow = (r, scale, key) => `<div class="vrow${r.cat ? ' hasdetail' : ''}" ${r.cat ? `data-act="catdetail" data-cat="${esc(r.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: r.label }))}"` : ''}><span class="row between"><span class="vname">${r.icon}${esc(r.label)}${r.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}${r.pct != null ? ` <span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra || ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
+const typeRow = (r, scale, key) => `<div class="vrow${r.cat ? ' hasdetail' : ''}" tabindex="0" data-tip="${esc(tipx(r.label, [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(r.value) }, ...(r.pct != null ? [{ c: 'var(--muted)', k: 'solid', l: t('Del gasto total'), v: `${r.pct} %` }] : [])]))}" ${r.cat ? `data-act="catdetail" data-cat="${esc(r.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: r.label }))}"` : ''}><span class="row between"><span class="vname">${r.icon}${esc(r.label)}${r.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}${r.pct != null ? ` <span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra || ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, notip: true, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
 /** This month by type, budgets and the rest in one card: each budget against its limit, then what you spent on the other types. */
 function monthTypes(m, ym) {
   const buds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(buds.map((b) => b.cat));
@@ -523,7 +523,11 @@ function monthTypes(m, ym) {
   const budRows = buds.map((b) => {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     const tip = `${b.name}: ${fmt(x.spent)} ${t('de')} ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')} · ${x.left < -0.5 ? t('superado en {x}', { x: fmt(-x.left) }) : t('quedan {x}', { x: fmt(x.left) })}`;
-    return `<div class="vrow">
+    const rowsTip = [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(x.spent) },
+      ...(x.proj != null ? [{ c: x.proj > x.of + 0.5 ? 'var(--spend)' : 'var(--out)', k: 'hatch', l: t('Proyección a fin de mes'), v: `≈ ${fmt(Math.round(x.proj))}` }] : []),
+      x.left >= -0.5 ? { c: 'var(--muted)', k: 'solid', l: t('Sin gastar'), v: fmt(Math.max(0, x.left)) } : { c: 'var(--spend)', k: 'solid', l: t('Superado en'), v: fmt(-x.left) },
+      { k: 'line', l: t('Presupuesto'), v: `${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}` }];
+    return `<div class="vrow" tabindex="0" data-tip="${esc(tipx(b.name, rowsTip))}">
       <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
       ${budBar(x, 'v-' + b.id)}
       ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt(Math.round(x.proj))}</b></span>` : ''}</div>`;
@@ -816,7 +820,7 @@ function budInfo(m, b, ym) {
   }
   return { spent, of: b.amount, left: round2(b.amount - spent), r: b.amount ? spent / b.amount : 1, proj, tone: spendTone(spent, b.amount) };
 }
-const budBar = (x, key) => gauge({ names: { fill: t('Gastado'), plan: t('Presupuesto') }, v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
+const budBar = (x, key) => gauge({ notip: true, names: { fill: t('Gastado'), plan: t('Presupuesto') }, v: x.spent, proj: x.proj, cap: x.of, tone: x.tone, ptone: x.proj == null ? x.tone : spendTone(x.proj, x.of), key, thin: true, marks: [{ at: x.of }], label: t('{a} de {b}', { a: fmt(x.spent), b: fmt(x.of) }) });
 function openBudget(id) {
   const m = compute(store.data), ym = m.curYM, b = m.shown(ym).find((i) => i.id === id && i.budget);
   if (!b) return;

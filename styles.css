@@ -1328,7 +1328,7 @@ dialog .sheet { overscroll-behavior: contain; }
 /* tooltips: a white card, each series with its legend symbol and its figure */
 #tip { background: var(--panel); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 8px 24px rgb(0 0 0 / .18); font-weight: 600; border-radius: 12px; padding: 8px 11px; }
 #tip.tipx { min-width: 150px; font-size: 13px; line-height: 1.35; }
-#tip .tt { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: capitalize; margin-bottom: 4px; }
+#tip .tt { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
 #tip .tr { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
 #tip .tr > span { flex: 1; font-weight: 500; }
 #tip .tr b { font-weight: 700; white-space: nowrap; }
@@ -1339,3 +1339,8 @@ dialog .sheet { overscroll-behavior: contain; }
 #tip .tsw.dash { height: 0; border-top: 2px dashed var(--muted); background: none; border-radius: 0; }
 .hpsent { margin: 2px 0 0; font-size: 14px; font-weight: 700; line-height: 1.35; text-wrap: balance; }
 .card .balrow { margin: 2px 0 4px; }
+
+/* the whole row is the touch target for its tooltip: a comfortable area, not just the thin bar */
+.vrow[data-tip] { padding: 10px 0; margin: -4px 0; cursor: default; border-radius: 10px; }
+.vrow[data-tip]:active { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.vlist { gap: 2px; }

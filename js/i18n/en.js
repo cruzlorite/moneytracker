@@ -1,5 +1,6 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Sin gastar': 'Left unspent',
   'En el mes': 'In the month',
   'A este ritmo, superarás el gasto planificado en ≈\u00a0{x}': 'At this pace, you will exceed planned spending by ≈ {x}',
   'Gasto planificado superado en {x}': 'Planned spending exceeded by {x}',
