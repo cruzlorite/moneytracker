@@ -578,9 +578,9 @@ function metas(m) {
     });
     cumCard = `<section class="card" aria-label="${t('Ahorro e inversión acumulado')}">
       <div class="row between"><h2>${t('Ahorro e inversión acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('plan') + ' ' + fmt(planC[i]) : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]) + ' / ' + t('plan') + ' ' + fmt(planC[i])}`)], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
+      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('estimado') : t('ahorrado')} ${i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i])} / ${t('plan')} ${fmt(planC[i])} (${fmtSigned(Math.round(realC[i] - planC[i]))})`)], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
-      ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), i > m.curIdx ? '—' : (i === m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), i > m.curIdx ? '—' : diffCell(realC[i], planC[i], 'good')]))}
+      ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), (i >= m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), diffCell(realC[i], planC[i], 'good')]))}
     </section>`;
   }
   // the next planned expenses, soonest first, each item once (its next date), the first few
