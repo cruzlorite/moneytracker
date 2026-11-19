@@ -68,7 +68,7 @@ Si el objetivo del mes es cero o negativo, la distancia se mide con el objetivo 
 | naranja | hasta el 115 % (te has pasado un poco) |
 | rojo | más del 115 % |
 
-**A este ritmo, a fin de mes** = gastos previstos del mes (como están en el plan) + el resto de lo gastado por regla de tres con los días que llevas. Sale a partir del día 3. Los presupuestos mensuales también la tienen (cuando pasan del 85 %); los anuales no, porque un viaje se paga de golpe.
+**A este ritmo, a fin de mes** = gastos previstos del mes (como están en el plan) + el resto de lo gastado por regla de tres con los días que llevas. Sale a partir del día 3. Los presupuestos mensuales también la tienen (cuando pasan del 85 %). En Plan y realidad, un presupuesto anual se reparte por igual a lo largo del año: a este ritmo = lo gastado + lo que el presupuesto aún permite gastar de aquí a fin de año. Si hoy vas por delante del reparto, acabarás por encima; si vas por detrás, por debajo.
 
 El ahorro a este ritmo sale de la misma cuenta: objetivo del mes + lo que sobraría del presupuesto (o − lo que te pasarías).
 

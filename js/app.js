@@ -1061,6 +1061,9 @@ function planVsReal(m) {
     const x = line(last.name, plan, spent, proj, 'bad', catEl(last.cat, 'sm'), 'planificado');
     // "hoy" by the days gone: a yearly budget spread evenly over the year, like the rest of the spending
     if (live) x.due = round2(m.season.reduce((s, ym) => s + (at(ym) ? (monthly ? at(ym).amount : last.amount / 12) * frac(ym) : 0), 0));
+    // a yearly budget has no pace of its own, so it is judged against the even spread: what you have spent plus what the
+    // plan still lets you spend from here. Ahead of that spread today means ahead at the end too (and behind, behind).
+    if (live && !monthly && x.due != null) x.proj = round2(spent + Math.max(0, plan - x.due));
     return x;
   }).filter(Boolean);
   return { ins, outs, buds, sav };
