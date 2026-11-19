@@ -1012,12 +1012,18 @@ function expectedCard(m, ym) {
   const after = m.openAfter(ym), counted = (p) => !(after && p.date <= after);
   const pend = m.pendingIn(ym).filter(counted).length;
   const sum = (arr, k) => arr.filter((p) => p.it.kind === k && counted(p)).reduce((s, p) => s + p.amount, 0);
+  // the same compact line as every list of movements: icon, name, date and state, amount (a confirmed one keeps its ✕ and its difference)
+  const rowOf = (p) => {
+    const diff = p.state === 'real' ? round2(p.amount - p.it.amount) : 0;
+    const sub = !counted(p) ? t('ya en tu saldo inicial') : `${ST[p.state][0]}${diff ? ` (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})` : ''}`;
+    return moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(p.it.kind === 'in' ? '' : itemCat(p.it) || '', 'sm'), title: p.it.name, sub, date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save });
+  };
   const head = (arr) => { const i = sum(arr, 'in'), o = sum(arr, 'out'); return `<span class="fine num">${i ? ` <span class="c-in">+${fmt(i)}</span> ` : ''}${o ? `−${fmt(o)}` : ''}</span>`; };
   return `<section class="card" aria-label="${t('Planificado este mes')}">
     <div class="row between"><h2>${t('Planificado')}</h2>${pend ? `<span class="pill c-warn">${pend} ${t('por confirmar')}</span>` : ''}</div>
     ${!planned.length ? '<p class="fine">' + t('Nada planificado este mes.') + '</p>' : ''}
-    ${next.length ? `<div class="row between"><span class="label">${t('Próximos')}</span>${head(next)}</div><div class="flows">${next.map(flowRow(ym, after)).join('')}</div>` : ''}
-    ${past.length ? `<div class="row between"><span class="label">${t('Pasados')}</span>${head(past)}</div><div class="flows">${past.map(flowRow(ym, after)).join('')}</div>` : ''}
+    ${next.length ? `<div class="row between"><span class="label">${t('Próximos')}</span>${head(next)}</div><div class="moves">${next.map(rowOf).join('')}</div>` : ''}
+    ${past.length ? `<div class="row between"><span class="label">${t('Pasados')}</span>${head(past)}</div><div class="moves">${past.map(rowOf).join('')}</div>` : ''}
     ${planned.length ? '<p class="fine">' + t('Toca uno para poner el importe exacto.') + '</p>' : ''}
   </section>`;
 }
@@ -1872,6 +1878,7 @@ const ASK = {
     const x = (store.data.months[b.dataset.ym]?.checks || []).find((c) => c.date === b.dataset.date);
     return { title: t('¿Borrar esta actualización de saldo?'), yes: t('Borrar'), rows: x ? [[t('Saldo'), fmt(x.bal)], [t('Día'), longDate(x.date)], [t('Mes'), cap(ymLabel(b.dataset.ym))]] : [] };
   },
+  oclear: (b) => ASK.unconfirm(b),
   unconfirm: (b) => {
     const m = compute(store.data), it = m.itemAt(b.dataset.id, b.dataset.ym) || m.segmentsOf(b.dataset.id)[0], real = store.data.months[b.dataset.ym]?.real?.[b.dataset.id];
     return { title: t('¿Desconfirmar?'), text: t('Vuelve al importe y a la fecha planificados.'), yes: t('Desconfirmar'), rows: it ? [[t('Nombre'), it.name], [t('Confirmado'), fmt(real ?? it.amount)], [t('Planificado'), fmt(it.amount)], [t('Día'), longDate(m.dateOf(it, b.dataset.ym))]] : [] };
