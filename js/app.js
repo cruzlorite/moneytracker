@@ -584,14 +584,16 @@ function trailCard(m) {
     ${(() => { const x = m.curveNow(m.curYM)?.extra; return x ? `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.', { x: fmt(x) })}</p>` : ''; })()}
   </section>`;
 }
+/** What a month still to come is expected to save: what comes in, less what the spending projection says goes out (the plan's target when there is no projection). */
+const futureSaved = (m, ym, i, sp) => (sp ? round2(m.incomeOf(ym) - sp.months[i]) : m.targetOf(ym));
 /** Savings running total over the year, as Año draws it: what each month saved, this one at its pace, the rest as planned.
  * The one source for the Año chart and the detail of "Ahorrado" in Análisis, so they are always the same line. */
 function savedSeries(m) {
-  const pc = m.season.includes(m.curYM) ? pace(m, m.curYM) : null, ps = pc ? projSaved(m, pc, m.curYM) : null;
+  const pc = m.season.includes(m.curYM) ? pace(m, m.curYM) : null, ps = pc ? projSaved(m, pc, m.curYM) : null, sp = spendProjection(m);
   const planC = [], realC = []; let pa = 0, ra = 0;
   m.season.forEach((ym, i) => {
     pa += m.targetOf(ym);
-    ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : m.targetOf(ym);
+    ra += i < m.curIdx ? m.savedOf(ym) : i === m.curIdx ? (ps ?? m.savedOf(ym)) : futureSaved(m, ym, i, sp);
     planC.push(round2(pa)); realC.push(round2(ra));
   });
   return { planC, realC };
@@ -1230,10 +1232,10 @@ function planVsReal(m) {
   const ins = line(t('Ingresado'), sumItems(m.ins, (it) => it.amount), sumItems(m.ins, (it, ym) => (done(it, ym) ? m.amountIn(it, ym) : 0)), m.incomeY, 'good');
   // savings: what each month saved, this one at its pace, the rest as planned
   const curSaved = pc ? projSaved(m, pc, m.curYM) ?? Math.max(m.savedOf(m.curYM), m.targetOf(m.curYM)) : 0;
-  const sav = line(t('Ahorrado'), m.goal, m.saved, past.reduce((s, ym) => s + m.savedOf(ym), 0) + curSaved + fut.reduce((s, ym) => s + m.targetOf(ym), 0), 'good', '', 'planificado', true);
+  const sproj = spendProjection(m);
+  const sav = line(t('Ahorrado'), m.goal, m.saved, past.reduce((s, ym) => s + m.savedOf(ym), 0) + curSaved + fut.reduce((s, ym) => s + futureSaved(m, ym, m.season.indexOf(ym), sproj), 0), 'good', '', 'planificado', true);
   // spending: everything that isn't saved
   const spentReal = past.reduce((s, ym) => s + m.spentAll(ym), 0) + (inSeason ? m.spentAll(m.curYM, todayISO) : 0);
-  const sproj = spendProjection(m);
   const outs = line(t('Gastado'), ins.plan - m.goal, spentReal, sproj ? sproj.total : ins.proj - sav.proj, 'bad', '', 'planificado');
   // "hoy" on each line: what the plan expects by today. Dated items count from their day; undated ones, the
   // monthly targets and the limits count by the part of the month gone; past months count whole
