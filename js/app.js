@@ -726,7 +726,7 @@ function renderNewCat() {
     <div class="field"><span class="label">${t('Color')}</span>
       <div class="colorgrid" role="group" aria-label="${t('Color')}"><button type="button" class="colorpick auto" data-act="nccolor" data-color="" aria-pressed="${!n.color}" aria-label="${t('Automático')}">${t('Auto')}</button>${Array.from({ length: 12 }, (_, i) => `<button type="button" class="colorpick pc-p${i + 1}" data-act="nccolor" data-color="p${i + 1}" aria-pressed="${n.color === 'p' + (i + 1)}" aria-label="${t('Color {n}', { n: i + 1 })}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg></button>`).join('')}</div></div>
     <div class="formbtns"><button type="button" class="primary" data-act="ncsave">${n.id ? t('Guardar') : t('Crear')}</button>
-      ${n.id ? `<button type="button" class="danger" data-act="ncdel">${n.confirm ? t('Confirmar borrado') : t('Borrar')}</button>` : ''}</div>
+      ${n.id ? `<button type="button" class="danger" data-act="ncdel">${t('Borrar')}</button>` : ''}</div>
   </div>`;
 }
 /** Back to where the new type was asked for, with it chosen (id) or as it was (null). */
@@ -1407,7 +1407,7 @@ function renderForm() {
     <div class="formbtns">
       <button type="button" class="primary" data-act="fsave">${f._edit ? t('Guardar') : t('Añadir')}</button>
       ${f._edit ? `<button type="button" data-act="fdup">${t('Duplicar')}</button>` : ''}
-      ${f._edit ? `<button type="button" class="danger" data-act="fdel">${CONFIRM ? t('Confirmar borrado') : t('Terminar')}</button>` : ''}
+      ${f._edit ? `<button type="button" class="danger" data-act="fdel">${t('Terminar')}</button>` : ''}
     </div>
   </form>`;
 }
@@ -1705,16 +1705,37 @@ sortable(document, '.plist', reorder);
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]');
   if (!b || b.disabled) return;
+  onAct(b);
+});
+/** What deletes or undoes asks first, in a dialog above whatever is open. */
+const ASK = {
+  delspend: () => ({ title: t('¿Borrar este gasto?'), text: t('No se puede deshacer.'), yes: t('Borrar') }),
+  checkdel: () => ({ title: t('¿Borrar esta actualización de saldo?'), text: t('No se puede deshacer.'), yes: t('Borrar') }),
+  unconfirm: () => ({ title: t('¿Desconfirmar?'), text: t('Vuelve al importe y a la fecha planificados.'), yes: t('Desconfirmar') }),
+  closeundo: (b) => ({ title: t('¿Deshacer el cierre de {m}?', { m: monthName(b.dataset.ym) }), text: t('El mes vuelve a quedar sin cerrar.'), yes: t('Deshacer el cierre') }),
+  signout: () => ({ title: t('¿Desconectar de Google?'), text: t('Tus datos siguen en tu hoja de Drive. Esta copia del dispositivo se borra.'), yes: t('Desconectar') }),
+  fdel: () => ({ title: t('¿Terminar esta partida?'), text: t('Desde este mes ya no cuenta; los meses anteriores conservan lo que tenían.'), yes: t('Terminar') }),
+  ncdel: () => ({ title: t('¿Borrar este tipo?'), text: t('Los gastos de este tipo se quedan sin tipo.'), yes: t('Borrar') }),
+  leave: () => ({ title: t('¿Salir de la demo?'), text: t('Lo que hayas probado no se guarda.'), yes: t('Salir') }),
+};
+const confirmDlg = document.createElement('dialog');
+confirmDlg.id = 'confirm'; confirmDlg.setAttribute('aria-label', 'Confirmación');
+document.body.appendChild(confirmDlg);
+function askConfirm({ title, text, yes }) {
+  return new Promise((done) => {
+    confirmDlg.innerHTML = `<div class="sheet confirmbox"><h2>${esc(title)}</h2><p>${esc(text)}</p>
+      <div class="formbtns"><button type="button" class="ghost" data-c="no">${t('Cancelar')}</button><button type="button" class="danger" data-c="yes">${esc(yes)}</button></div></div>`;
+    const end = (v) => { confirmDlg.close(); done(v); };
+    confirmDlg.onclick = (e) => { const c = e.target.closest('[data-c]')?.dataset.c; if (c) end(c === 'yes'); else if (e.target === confirmDlg) end(false); };
+    confirmDlg.oncancel = (e) => { e.preventDefault(); end(false); };
+    confirmDlg.showModal();
+    confirmDlg.querySelector('[data-c="no"]').focus();
+  });
+}
+function onAct(b, sure = false) {
   const act = b.dataset.act, ym = b.dataset.ym;
   const val = (id) => document.getElementById(id)?.value;
-  // anything that deletes or undoes asks first: the button turns into the question, and a second tap does it
-  const ASK = { delspend: '¿Borrar?', checkdel: '¿Borrar?', unconfirm: '¿Desconfirmar?', closeundo: '¿Deshacer el cierre?', signout: '¿Desconectar?', leave: '¿Salir de la demo?' };
-  if (ASK[act] && b.dataset.sure !== '1') {
-    const html = b.innerHTML, cls = b.className, label = b.getAttribute('aria-label');
-    b.dataset.sure = '1'; b.classList.add('sure'); b.textContent = t(ASK[act]); b.setAttribute('aria-label', t(ASK[act]));
-    setTimeout(() => { if (b.isConnected && b.dataset.sure === '1') { delete b.dataset.sure; b.className = cls; b.innerHTML = html; label ? b.setAttribute('aria-label', label) : b.removeAttribute('aria-label'); } }, 4000);
-    return;
-  }
+  if (ASK[act] && !sure) { askConfirm(ASK[act](b)).then((ok) => { if (ok) onAct(b, true); }); return; }
   switch (act) {
     case 'tab': go(b.dataset.tab); break;
     case 'back': goBack(); break;
@@ -1831,7 +1852,6 @@ document.addEventListener('click', (e) => {
     }
     case 'ncsave': saveNewCat(); break;
     case 'ncdel': {
-      if (!UI.nc.confirm) { UI.nc.confirm = true; UI.nc.name = val('nc-name') || UI.nc.name; renderNewCat(); break; }
       const id = UI.nc.id;
       store.update('settings', (d) => { d.settings.cats = (d.settings.cats || []).filter((c) => c.id !== id); if (!d.settings.cats.length) delete d.settings.cats; });
       setCustomCats(store.data.settings.cats || []);
@@ -1973,7 +1993,6 @@ document.addEventListener('click', (e) => {
     case 'fsave': saveForm(); break;
     case 'fdup': { readForm(); const { id, real, _edit, ...rest } = FORM; FORM = { ...rest, _copy: rest.name || t('sin nombre') }; CONFIRM = false; renderForm(); break; }
     case 'fdel': {
-      if (!CONFIRM) { CONFIRM = true; readForm(); renderForm(); break; }
       readForm();
       const id = FORM.id, mm = compute(store.data), F = FORM._from || mm.curYM, before = mm.itemAt(id, F) || mm.segmentsOf(id)[0];
       store.update(['items', 'log'], (d) => { d.items = planDelete(d.items, id, F); d.log = [...(d.log || []), logEntry('delete', before, before, F, '')]; });
@@ -1983,7 +2002,7 @@ document.addEventListener('click', (e) => {
     case 'keeplocal': store.replaceAll(UI.chooseLocal); dlg.close(); toast(t('Subiendo el plan de este dispositivo')); break;
     case 'doimport': store.replaceAll(UI.importData); dlg.close(); toast(t('Plan importado')); break;
   }
-});
+}
 
 document.addEventListener('change', (e) => {
   const el = e.target;

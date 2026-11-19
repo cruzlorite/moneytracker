@@ -1279,5 +1279,8 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 .mdiv { position: sticky; top: -1px; z-index: 2; display: flex; justify-content: space-between; align-items: baseline; padding: 10px 2px 6px; margin-top: 6px; background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .mdiv .num { letter-spacing: 0; text-transform: none; font-weight: 600; }
 
-/* the second tap of a delete: the button becomes the question */
-.sure { background: var(--spend-bg) !important; color: var(--spend) !important; border: 1.5px solid var(--spend) !important; border-radius: 999px !important; padding: 4px 10px !important; width: auto !important; height: auto !important; min-width: 0 !important; font: 700 12px/1.2 inherit !important; white-space: nowrap; }
+/* confirmation dialog: centred, above everything */
+dialog#confirm { margin: auto; max-width: 360px; width: calc(100% - 32px); max-height: none; }
+dialog#confirm .sheet { border-radius: 16px; border-bottom: 2px solid var(--line); gap: 10px; padding: 18px; max-height: none; }
+dialog#confirm h2 { font-size: 18px; } dialog#confirm p { margin: 0; color: var(--muted); font-size: 14px; }
+dialog#confirm .formbtns { justify-content: flex-end; margin-top: 6px; }
