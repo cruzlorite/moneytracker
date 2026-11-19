@@ -1286,3 +1286,13 @@ dialog#confirm h2 { font-size: 18px; } dialog#confirm p { margin: 0; color: var(
 dialog#confirm .formbtns { justify-content: flex-end; margin-top: 6px; }
 dialog#confirm .cdet { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 4px 0; padding: 12px; border-radius: 12px; background: var(--panel-2); font-size: 14px; }
 dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }
+
+/* Plan sections: the add button is a small + in the header, Movimientos a light link at the foot */
+.hact { display: flex; align-items: center; gap: 10px; }
+.addmini { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); display: grid; place-items: center; padding: 0; cursor: pointer; flex: none; }
+.addmini svg { width: 16px; height: 16px; fill: currentColor; }
+.addmini:active { background: var(--line); }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--link, var(--accent)); font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+.movlink { display: inline-flex; align-items: center; gap: 6px; justify-self: end; margin-top: 2px; padding: 4px 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.movlink b { font-weight: 700; color: var(--ink); }
+.movlink svg { width: 14px; height: 14px; }

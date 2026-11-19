@@ -1219,10 +1219,9 @@ function plan(m) {
   const doneList = (kind) => doneRowsOf(m, kind);
   const group = (title, sub, all, preset, addLabel, total, kind) => { const list = all.filter((it) => !isDone(it)), done = doneList(kind);
     return `<section class="card">
-    <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div>${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}</div>
-    <div class="plist">${list.map((it) => planRow(it, m, list.length > 1)).join('') || '<p class="fine">' + t('Nada todavía.') + '</p>'}</div>
-    <button data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>+ ${addLabel}</button>
-    ${done.length ? `<button type="button" class="movbtn" data-act="donelist" data-kind="${kind}"><span>${t('Movimientos')}</span><span class="fine num">${done.length}</span>${ic('right')}</button>` : ''}</section>`; };
+    <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div><div class="hact">${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}<button type="button" class="addmini" data-act="additem" data-preset='${esc(JSON.stringify(preset))}' aria-label="${esc(addLabel)}" title="${esc(addLabel)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg></button></div></div>
+    <div class="plist">${list.map((it) => planRow(it, m, list.length > 1)).join('') || `<p class="fine">${t('Nada todavía.')} <button type="button" class="linkbtn" data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>${esc(addLabel)}</button></p>`}</div>
+    ${done.length ? `<button type="button" class="movlink" data-act="donelist" data-kind="${kind}">${t('Movimientos')} <b class="num">${done.length}</b>${ic('right')}</button>` : ''}</section>`; };
   return `${yearNav(m)}<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
     <div class="row between"><h2>${t('Ahorro e inversión planificados')} ${info('plan')}</h2></div>
     <button type="button" class="goalbtn" ${off === 0 ? 'data-act="goaledit"' : 'disabled'} aria-label="${t('Ahorro planificado')}: ${esc(fmt(m.goal))} ${t('al año')}">
