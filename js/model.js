@@ -445,8 +445,17 @@ export function compute(data, today = new Date()) {
     const extra = gap > 0.5 ? round2(gap) : 0, daily = chk && a > d0 && !extra ? gap / (a - d0) : 0;
     if (extra) ev[a].push({ label: t('Ingreso sin apuntar'), amount: extra, kind: 'in' });
     const y = (d) => (extra ? (d < a ? E[d] : ya + (E[d] - E[a])) : d <= a ? E[d] + daily * (d - d0) : ya + (E[d] - E[a]) + daily * (d - a));
+    // From today on, the balance follows the same projection as the month's spending (what the plan still has to come, plus your
+    // pace on everything else), so the line ends where "A este ritmo" says it will.
+    const tDay = ym === curYM ? at(todayISO) : dim;
+    let V = null;
+    if (ym === curYM && tDay - d0 >= 3) {
+      const paid = items.filter((it) => !it.budget && it.kind === 'out' && !isSave(it) && occ(it, ym) && dateOf(it, ym) <= todayISO && !(after && dateOf(it, ym) <= after)).reduce((a, it) => a + (realOf(it, ym) ?? it.amount), 0);
+      V = Math.max(0, spentAll(ym, todayISO) - paid) / (tDay - d0);
+    }
+    const yy = (d) => (V == null || d <= tDay ? y(d) : y(tDay) + (E[d] - E[tDay]) - V * (d - tDay));
     const pts = [];
-    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : isoAdd(cycleDate(ym, 1, D), -1), y: round2(d <= d0 ? 0 : y(d)), events: d > d0 ? ev[d] : [] });
+    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : isoAdd(cycleDate(ym, 1, D), -1), y: round2(d <= d0 ? 0 : yy(d)), events: d > d0 ? ev[d] : [] });
     return { pts, daily: round2(daily), extra, start: s, fromDay: ym === curYM ? at(todayISO) + 1 : dim + 1, d0 };
   };
   /**
