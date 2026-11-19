@@ -1313,3 +1313,6 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 #cat-sheet .ch-line.cl-real, #cat-sheet .cl-real { stroke: var(--out); }
 #cat-sheet .ch-dot.cl-dot, #cat-sheet .bl-dot.cl-dot { fill: var(--out); }
 .trow .mm.wide { width: auto; min-width: 52px; white-space: nowrap; }
+
+/* the plan's mark and the "today" triangle are thin: give them a comfortable area to touch */
+.g-mark::after, .g-today::after { content: ""; position: absolute; inset: -8px -10px; }

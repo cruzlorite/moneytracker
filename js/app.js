@@ -391,7 +391,7 @@ const vPill = (vd) => (vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : '
 function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = false, tall = false, label = '', scale = 0, cap = null, note = null, names = {} }) {
   // touching a part says what it is and its figure: the fill (what is), the hatched part (the projection), the marks (the plan)
   const nm = { fill: t('Actual'), proj: t('Proyección'), plan: t('Planificado'), over: t('Exceso'), ...names };
-  const NT = thin; // thin bars are not selectable: no tips on their parts
+  const NT = false; // every bar tells what a part is when touched (only the thick ones also dim the rest)
   // each part says the figure its own end stands for, so the number always matches the stretch you touched:
   // past a cap the solid orange ends AT the cap (not at what was spent), the red is what went over it
   const tip = (txt) => (NT ? '' : `data-tip="${esc(txt)}"`);
@@ -403,7 +403,7 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   const max = Math.max(1, scale, v, proj || 0, ...marks.map((k) => k.at));
   const w = (x) => +clamp(x / max * 100, 0, 100).toFixed(1);
   const lab = marks.filter((k) => k.label).map((k) => { const at = w(k.at); return `<span class="${at > 70 ? 'end' : at < 15 ? 'start' : ''}" style="left:${at}%">${k.label}</span>`; }).join('');
-  const seg = (a, b, c, hatch, tp = tipProj) => (b - a > 0.004 ? `<i class="${hatch ? 'g-proj' : 'g-over'}" ${hatch ? tp : tipOver} style=""left:${w(a)}%; width:${(w(b) - w(a)).toFixed(1)}%; ${hatch ? `--pc:${c}` : `background:${c}`}"></i>` : '');
+  const seg = (a, b, c, hatch, tp = tipProj) => (b - a > 0.004 ? `<i class="${hatch ? 'g-proj' : 'g-over'}" ${hatch ? tp : tipOver} style="left:${w(a)}%; width:${(w(b) - w(a)).toFixed(1)}%; ${hatch ? `--pc:${c}` : `background:${c}`}"></i>` : '');
   let bars;
   if (cap != null) {
     // spending against a cap: within it, spending's own orange; only what goes past it in red
@@ -416,9 +416,9 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   // a stretch of the bar named inside it (what would be left, what would go over): only when there's room for the words
   const noteEl = note && w(note.b) - w(note.a) >= 30 ? `<span class="g-note ${note.cls || ''}" style="left:${w(note.a)}%; width:${(w(note.b) - w(note.a)).toFixed(1)}%">${note.text}</span>` : '';
   return `<div class="gauge ${thin ? 'thin' : ''} ${tall ? 'tall' : ''}" role="img" aria-label="${esc(label)}">
-    <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}" ${label && !thin ? `data-tip="${esc(label)}"` : ''}>${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
-      ? `<span class="g-today" style="left:${w(k.at)}%" ${thin ? '' : `data-tip="${esc(`${t('Planificado a hoy')} ${fmt(k.at)}`)}"`}><i></i></span>`
-      : `<b class="g-mark" style="left:${w(k.at)}%" ${thin ? '' : `data-tip="${esc(`${k.name || nm.plan} ${fmt(k.at)}`)}"`}></b>`).join('')}</div>
+    <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}" ${label ? `data-tip="${esc(label)}"` : ''}>${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
+      ? `<span class="g-today" style="left:${w(k.at)}%" data-tip="${esc(`${t('Planificado a hoy')} ${fmt(k.at)}`)}"><i></i></span>`
+      : `<b class="g-mark" style="left:${w(k.at)}%" data-tip="${esc(`${k.name || nm.plan} ${fmt(k.at)}`)}"></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
 }
 const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
