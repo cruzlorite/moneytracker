@@ -1338,3 +1338,4 @@ dialog .sheet { overscroll-behavior: contain; }
 #tip .tsw.line { width: 3px; height: 14px; border-radius: 1px; background: var(--ink); margin: 0 8px; }
 #tip .tsw.dash { height: 0; border-top: 2px dashed var(--muted); background: none; border-radius: 0; }
 .hpsent { margin: 2px 0 0; font-size: 14px; font-weight: 700; line-height: 1.35; text-wrap: balance; }
+.card .balrow { margin: 2px 0 4px; }

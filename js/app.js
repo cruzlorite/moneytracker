@@ -477,6 +477,7 @@ function home(m) {
     }),
   ];
   const quick = pending.filter((p) => !p.it.vary);
+  const trail = trailCard(m); // the account balance lives in its card; without enough days for a chart, it stays in This month
   return `
   ${tasks.length ? `<section class="card list notify${notifyOn('fold') ? ' fold' : ''}${notifyOn('all') ? ' all' : ''}" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><button type="button" class="notify-t notify-tog" data-act="notifyfold" aria-expanded="${notifyOn('fold') ? 'false' : 'true'}" aria-label="${t('Mostrar u ocultar')}"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span><span class="chev" aria-hidden="true">${ic('right')}</span></button></div>${tasks.map((h, k) => (k >= 3 ? h.replace('class="trow', 'class="trow x') : h)).join('')}${tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore" data-more="${t('Ver {n} más', { n: tasks.length - 3 })}" data-less="${t('Ver menos')}">${notifyOn('all') ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
   ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`, 'homemonth')}
@@ -493,17 +494,14 @@ function home(m) {
     ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}</div>
     ${hpNote ? `<p class="hpsent" style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}${hpNote.over ? '' : ' <span aria-hidden="true">🎉</span>'}</p>` : ''}
-    <div class="row between balrow">${(() => {
-      const bs = m.balStart(ym), has = cm.check ? cm.check.bal : bs;
-      return has == null ? '<span></span>' : `<span class="balv"><span class="fine">${cm.check ? t('Saldo en cuenta a {d}', { d: shortDate(cm.check.date) }) : t('Saldo al empezar el mes')}</span><b class="num">${fmt(has)}</b></span>`;
-    })()}<button class="btn-sec sm" data-act="check" data-ym="${ym}">${t('Actualizar saldo')}</button></div>
+    ${trail ? '' : balanceBox(m, ym, cm)}
   </section>
   <div class="stats2">
     <section class="card stat"><span class="label"><i class="sdot in"></i>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym, iso))}</b>
       <span class="fine num">${toCome.length ? t('+{x} el {d}', { x: fmt(toCome.reduce((a, p) => a + p.amount, 0)), d: shortDate(toCome[0].date) }) : came ? `${esc(came.it.name.toLowerCase())} · ${shortDate(came.date)}` : ''}</span></section>
     <section class="card stat"><span class="label"><i class="sdot save"></i>${t('Ahorrado')} ${info('ahorroMes')}</span>${ps == null ? `<b class="num">—</b><span class="ofp-c">${t('planificado')} ${fmt(tgt)}</span>` : ofPlan(ps, tgt, t('proyección / planificado'), { approx: true, signed: ps < 0, tone: ps < 0 ? 'var(--spend)' : 'var(--sav)' })}</section>
   </div>
-  ${trailCard(m)}
+  ${trail}
   ${monthTypes(m, ym)}
   ${monthMoves(m, ym)}`;
 }
@@ -553,6 +551,11 @@ function monthMoves(m, ym) {
     <div class="moves">${(more ? rows.slice(0, 10) : rows).map((r) => r.html).join('')}</div>
     ${more ? `<button type="button" class="ghost small center-self" data-act="movesall">${t('Ver los {n}', { n: rows.length })}</button>` : ''}</section>`;
 }
+/** Where your account stands: the figure with its date, and the button to update it. */
+function balanceBox(m, ym, cm = m.mon(ym)) {
+  const bs = m.balStart(ym), has = cm.check ? cm.check.bal : bs;
+  return `<div class="row between balrow">${has == null ? '<span></span>' : `<span class="balv"><span class="fine">${cm.check ? t('Saldo en cuenta a {d}', { d: shortDate(cm.check.date) }) : t('Saldo al empezar el mes')}</span><b class="num">${fmt(has)}</b></span>`}<button class="btn-sec sm" data-act="check" data-ym="${ym}">${t('Actualizar saldo')}</button></div>`;
+}
 /** The account balance over the last 30, 60 or 90 days, and on to the end of the month (an estimate). */
 function trailCard(m) {
   const n = [30, 60, 90].includes(UI.trail) ? UI.trail : +lsGet('hucha:trail') || 60, days = [30, 60, 90].includes(n) ? n : 60;
@@ -561,6 +564,7 @@ function trailCard(m) {
   return `<section class="card" aria-label="${t('Saldo de tu cuenta')}" data-trail>
     <div class="row between"><h2>${t('Evolución del saldo')} ${info('saldo')}</h2>
       <div class="seg trail" role="group" aria-label="${t('Periodo')}">${[30, 60, 90].map((d) => `<button data-act="trail" data-v="${d}" aria-pressed="${d === days}">${d} ${t('días')}</button>`).join('')}</div></div>
+    ${balanceBox(m, m.curYM)}
     ${balanceLine({ pts, aria: t('Saldo de tu cuenta en los últimos {n} días y estimación hasta fin de mes', { n: days }) })}
     <div class="legend"><span><i class="sw" style="background: var(--s1)"></i>${t('saldo')}</span><span><i class="lg-proj" style="--pc: var(--s1)"></i>${t('estimado')}</span></div>
     ${(() => { const x = m.curveNow(m.curYM)?.extra; return x ? `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.', { x: fmt(x) })}</p>` : ''; })()}
@@ -1689,7 +1693,11 @@ function moneyChart(m, ym, bal) {
   const first = cv.pts[0].day, dim = cv.pts[cv.pts.length - 1].day, name = monthName(ym), last = cv.pts.length - 1;
   const projFrom = live && cv.fromDay <= dim ? cv.fromDay - first : null;
   const evText = (e) => `${e.label} ${fmtSigned(e.amount)}`;
-  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day ? `${t('Día')} ${p.day}: ${live && p.day >= cv.fromDay ? '≈ ' : ''}${fmtSigned(p.y)}${p.events.length ? ' · ' + p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 1).map((e) => `${e.label.length > 16 ? e.label.slice(0, 15) + '…' : e.label} ${fmtSigned(e.amount)}`).join('') : ''}` : `${t('Empieza el mes')}: ${fmt(0)}` }));
+  const evc = (e) => (e.kind === 'in' ? 'var(--in)' : e.kind === 'save' ? 'var(--sav)' : 'var(--out)');
+  const pts = cv.pts.map((p) => ({ y: p.y, tip: p.day
+    ? tipx(`${t('Día')} ${p.day}`, [{ c: 'var(--s1)', k: live && p.day >= cv.fromDay ? 'hatch' : 'solid', l: t('En el mes'), v: `${live && p.day >= cv.fromDay ? '≈ ' : ''}${fmtSigned(p.y)}` },
+      ...p.events.slice().sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).slice(0, 3).map((e) => ({ c: evc(e), k: 'solid', l: e.label.length > 18 ? e.label.slice(0, 17) + '…' : e.label, v: fmtSigned(e.amount) }))])
+    : tipx(t('Empieza el mes'), [{ c: 'var(--s1)', k: 'solid', l: t('En el mes'), v: fmt(0) }]) }));
   const inDay = cv.pts.reduce((b, p, ix) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: ix, v } : b; }, { i: -1, v: 0 });
   const marks = [...(inDay.i > 0 && inDay.i !== last ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: last, text: (projFrom != null ? '≈ ' : '') + fmtSigned(cv.pts[last].y) }];
   const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmtSigned(p.y)]);
