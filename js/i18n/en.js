@@ -1,5 +1,12 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Sin nombre': 'No name',
+  'gastos o partidas': 'expenses or items',
+  'gasto o partida': 'expense or item',
+  'Usado en': 'Used in',
+  'Faltó': 'Missing',
+  'Sobró': 'Left over',
+  'Saldo del cierre': 'Closing balance',
   'Los gastos de este tipo se quedan sin tipo.': 'Spends of this type are left with no type.',
   '¿Borrar este tipo?': 'Delete this type?',
   'Desde este mes ya no cuenta; los meses anteriores conservan lo que tenían.': 'From this month on it stops counting; earlier months keep what they had.',

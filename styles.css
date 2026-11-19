@@ -1284,3 +1284,5 @@ dialog#confirm { margin: auto; max-width: 360px; width: calc(100% - 32px); max-h
 dialog#confirm .sheet { border-radius: 16px; border-bottom: 2px solid var(--line); gap: 10px; padding: 18px; max-height: none; }
 dialog#confirm h2 { font-size: 18px; } dialog#confirm p { margin: 0; color: var(--muted); font-size: 14px; }
 dialog#confirm .formbtns { justify-content: flex-end; margin-top: 6px; }
+dialog#confirm .cdet { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 4px 0; padding: 12px; border-radius: 12px; background: var(--panel-2); font-size: 14px; }
+dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margin: 0; text-align: right; font-weight: 600; overflow-wrap: anywhere; }

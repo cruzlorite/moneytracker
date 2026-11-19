@@ -298,6 +298,7 @@ function emptyPlanCard(m) {
 }
 
 // ---------- page bits ----------
+const longDate = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 const shortDate = (iso) => `${+iso.slice(8, 10)} ${MES3[+iso.slice(5, 7) - 1]}`;
 const rangeText = (m, ym) => { const r = m.range(ym); return `${shortDate(r.from)} – ${shortDate(r.to)}`; };
 const pageHead = (title, sub = '', kicker = '', side = '') => `<div class="phead"><div class="phead-t">${kicker ? `<span class="kicker">${kicker}</span>` : ''}<h1>${title}</h1>${sub ? `<span class="psub">${sub}</span>` : ''}</div>${side}</div>`;
@@ -1709,21 +1710,40 @@ document.addEventListener('click', (e) => {
 });
 /** What deletes or undoes asks first, in a dialog above whatever is open. */
 const ASK = {
-  delspend: () => ({ title: t('¿Borrar este gasto?'), text: t('No se puede deshacer.'), yes: t('Borrar') }),
-  checkdel: () => ({ title: t('¿Borrar esta actualización de saldo?'), text: t('No se puede deshacer.'), yes: t('Borrar') }),
-  unconfirm: () => ({ title: t('¿Desconfirmar?'), text: t('Vuelve al importe y a la fecha planificados.'), yes: t('Desconfirmar') }),
-  closeundo: (b) => ({ title: t('¿Deshacer el cierre de {m}?', { m: monthName(b.dataset.ym) }), text: t('El mes vuelve a quedar sin cerrar.'), yes: t('Deshacer el cierre') }),
-  signout: () => ({ title: t('¿Desconectar de Google?'), text: t('Tus datos siguen en tu hoja de Drive. Esta copia del dispositivo se borra.'), yes: t('Desconectar') }),
-  fdel: () => ({ title: t('¿Terminar esta partida?'), text: t('Desde este mes ya no cuenta; los meses anteriores conservan lo que tenían.'), yes: t('Terminar') }),
-  ncdel: () => ({ title: t('¿Borrar este tipo?'), text: t('Los gastos de este tipo se quedan sin tipo.'), yes: t('Borrar') }),
-  leave: () => ({ title: t('¿Salir de la demo?'), text: t('Lo que hayas probado no se guarda.'), yes: t('Salir') }),
+  delspend: (b) => {
+    const e = store.data.spends.find((x) => x.id === b.dataset.id);
+    return { title: t('¿Borrar este gasto?'), yes: t('Borrar'), rows: e ? [[t('Tipo'), e.cat ? catName(e.cat) : t('Sin tipo')], ...(e.note ? [[t('Nota'), e.note]] : []), [t('Importe'), fmtSigned(-e.amount)], [t('Día'), longDate(e.date)]] : [] };
+  },
+  checkdel: (b) => {
+    const x = (store.data.months[b.dataset.ym]?.checks || []).find((c) => c.date === b.dataset.date);
+    return { title: t('¿Borrar esta actualización de saldo?'), yes: t('Borrar'), rows: x ? [[t('Saldo'), fmt(x.bal)], [t('Día'), longDate(x.date)], [t('Mes'), cap(ymLabel(b.dataset.ym))]] : [] };
+  },
+  unconfirm: (b) => {
+    const m = compute(store.data), it = m.itemAt(b.dataset.id, b.dataset.ym) || m.segmentsOf(b.dataset.id)[0], real = store.data.months[b.dataset.ym]?.real?.[b.dataset.id];
+    return { title: t('¿Desconfirmar?'), text: t('Vuelve al importe y a la fecha planificados.'), yes: t('Desconfirmar'), rows: it ? [[t('Nombre'), it.name], [t('Confirmado'), fmt(real ?? it.amount)], [t('Planificado'), fmt(it.amount)], [t('Día'), longDate(m.dateOf(it, b.dataset.ym))]] : [] };
+  },
+  closeundo: (b) => {
+    const mo = store.data.months[b.dataset.ym] || {};
+    return { title: t('¿Deshacer el cierre de {m}?', { m: monthName(b.dataset.ym) }), text: t('El mes vuelve a quedar sin cerrar.'), yes: t('Deshacer el cierre'), rows: [...(mo.bal != null ? [[t('Saldo del cierre'), fmt(mo.bal)]] : []), ...(mo.close ? [[mo.close.amount >= 0 ? t('Sobró') : t('Faltó'), fmt(Math.abs(mo.close.amount))]] : [])] };
+  },
+  signout: () => ({ title: t('¿Desconectar de Google?'), text: t('Tus datos siguen en tu hoja de Drive. Esta copia del dispositivo se borra.'), yes: t('Desconectar'), rows: [] }),
+  fdel: () => {
+    readForm();
+    const f = FORM || {};
+    return { title: t('¿Terminar esta partida?'), text: t('Desde este mes ya no cuenta; los meses anteriores conservan lo que tenían.'), yes: t('Terminar'), rows: [[t('Nombre'), f.name || t('Sin nombre')], [t('Importe'), fmt(num(f.amount) || 0)], [t('Cuándo'), freqText({ freq: f.freq, month: +f.month, day: +f.day, year: +f.year, kind: f.kind })]] };
+  },
+  ncdel: () => {
+    const id = UI.nc?.id, n = store.data.spends.filter((x) => x.cat === id).length + store.data.items.filter((x) => x.cat === id).length;
+    return { title: t('¿Borrar este tipo?'), text: t('Los gastos de este tipo se quedan sin tipo.'), yes: t('Borrar'), rows: [[t('Nombre'), CAT[id]?.name || UI.nc?.name || ''], [t('Usado en'), `${n} ${tn(n, 'gasto o partida', 'gastos o partidas')}`]] };
+  },
+  leave: () => ({ title: t('¿Salir de la demo?'), text: t('Lo que hayas probado no se guarda.'), yes: t('Salir'), rows: [] }),
 };
 const confirmDlg = document.createElement('dialog');
 confirmDlg.id = 'confirm'; confirmDlg.setAttribute('aria-label', 'Confirmación');
 document.body.appendChild(confirmDlg);
-function askConfirm({ title, text, yes }) {
+function askConfirm({ title, text = '', yes, rows = [] }) {
   return new Promise((done) => {
-    confirmDlg.innerHTML = `<div class="sheet confirmbox"><h2>${esc(title)}</h2><p>${esc(text)}</p>
+    confirmDlg.innerHTML = `<div class="sheet confirmbox"><h2>${esc(title)}</h2>${rows.length ? `<dl class="cdet">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}${text ? `<p>${esc(text)}</p>` : ''}
       <div class="formbtns"><button type="button" class="ghost" data-c="no">${t('Cancelar')}</button><button type="button" class="danger" data-c="yes">${esc(yes)}</button></div></div>`;
     const end = (v) => { confirmDlg.close(); done(v); };
     confirmDlg.onclick = (e) => { const c = e.target.closest('[data-c]')?.dataset.c; if (c) end(c === 'yes'); else if (e.target === confirmDlg) end(false); };
