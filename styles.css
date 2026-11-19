@@ -1324,3 +1324,16 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 /* a sheet is on top of the page: the page behind does not move, and scrolling the sheet never carries on to it */
 html:has(dialog[open]), body:has(dialog[open]) { overflow: hidden; }
 dialog .sheet { overscroll-behavior: contain; }
+
+/* tooltips: a white card, each series with its legend symbol and its figure */
+#tip { background: var(--panel); color: var(--ink); border: 1px solid var(--line); box-shadow: 0 8px 24px rgb(0 0 0 / .18); font-weight: 600; border-radius: 12px; padding: 8px 11px; }
+#tip.tipx { min-width: 150px; font-size: 13px; line-height: 1.35; }
+#tip .tt { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: capitalize; margin-bottom: 4px; }
+#tip .tr { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+#tip .tr > span { flex: 1; font-weight: 500; }
+#tip .tr b { font-weight: 700; white-space: nowrap; }
+#tip .tf { margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); font-weight: 600; }
+#tip .tsw { flex: none; display: inline-block; width: 20px; height: 9px; border-radius: 2px; background: var(--c); }
+#tip .tsw.hatch { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, var(--panel)) 0 3px, color-mix(in srgb, var(--c) 25%, var(--panel)) 3px 6px); }
+#tip .tsw.line { width: 3px; height: 14px; border-radius: 1px; background: var(--ink); margin: 0 8px; }
+#tip .tsw.dash { height: 0; border-top: 2px dashed var(--muted); background: none; border-radius: 0; }

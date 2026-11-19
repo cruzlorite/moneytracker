@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Ingresos y gastos': 'Income and spending',
+  'gastado ÷ {n} meses que van': 'spent ÷ {n} months so far',
+  '{x} ÷ {n} meses que van': '{x} ÷ {n} months so far',
   'por debajo del plan': 'below the plan',
   'por encima del plan': 'above the plan',
   'del gasto planificado': 'of the planned spending',
@@ -539,7 +542,7 @@ export default {
   'Sin detallar': 'Not itemised',
   'Aún no hay gastos en este periodo. Cierra el mes con tu saldo, o apunta con el + lo que quieras vigilar.': 'No spending in this period yet. Close the month with your balance, or log with + what you want to watch.',
   'Tu año, mes a mes': 'Your year, month by month',
-  'Ahorrado cada mes': 'Saved each month',
+  'Ahorro cada mes': 'Saved each month',
   'ahorrado (de peor a mejor)': 'saved (worst to best)',
   'planificado del mes': 'planned for the month',
   'Ingresado y gastado': 'Earned and spent',

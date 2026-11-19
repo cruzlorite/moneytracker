@@ -174,7 +174,7 @@ export function balanceLine({ pts, aria = '', h = 170 }) {
   const day = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   const xs = [...new Set([0, Math.round(n / 2), n])].map((i) => `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(day(pts[i].date))}</text>`).join('');
   // touching or dragging over it shows a guide, a dot and the figure inside the chart (see bindBalance)
-  const geo = { w: W, x: px.map((v) => +v.toFixed(1)), y: py.map((v) => +v.toFixed(1)), l: pts.map((p) => `${day(p.date)}${p.proj ? ' · ≈ ' : ' · '}${fmt(p.bal)}`), top: padT, bottom: padT + ph };
+  const geo = { w: W, x: px.map((v) => +v.toFixed(1)), y: py.map((v) => +v.toFixed(1)), l: pts.map((p) => tipx(day(p.date), [{ c: 'var(--s1)', k: p.proj ? 'hatch' : 'solid', l: p.proj ? t('Estimado') : t('Saldo'), v: `${p.proj ? '≈ ' : ''}${fmt(p.bal)}` }])), top: padT, bottom: padT + ph };
   const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
     <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${padT + ph}"/><circle class="bl-dot" r="5"/><g class="bl-label"><rect rx="6"/><text/></g></g>`;
   const cx = X(tp), cy = Y(pts[tp].bal), end = pts[n];
@@ -186,24 +186,28 @@ export function balanceLine({ pts, aria = '', h = 170 }) {
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 /** One listener for every balance chart: the nearest day follows your finger or the mouse. */
-export function bindBalance() {
+
+/** A tooltip with a title and one line per series: its legend symbol, its name and its figure. Rows: { c: colour, k: 'solid'|'hatch'|'line'|'dash', l: name, v: figure }. */
+export const tipx = (title, rows, foot = '') => JSON.stringify({ tx: 1, t: title || '', r: rows, f: foot });
+export function bindBalance(show, hide) {
   const NS = 'http://www.w3.org/2000/svg';
   const at = (svg, e) => {
     const g = JSON.parse(svg.dataset.geo), r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * g.w;
     let k = 0; for (let i = 1; i < g.x.length; i++) if (Math.abs(g.x[i] - x) < Math.abs(g.x[k] - x)) k = i;
     const hv = svg.querySelector('.bl-hover'), line = hv.querySelector('.bl-guide'), dot = hv.querySelector('.bl-dot'), lab = hv.querySelector('.bl-label');
-    const tx = lab.querySelector('text'), bg = lab.querySelector('rect');
     line.setAttribute('x1', g.x[k]); line.setAttribute('x2', g.x[k]); dot.setAttribute('cx', g.x[k]); dot.setAttribute('cy', g.y[k]);
     const d2 = hv.querySelector('.bl-dot2'); if (d2) { if (g.y2) { d2.setAttribute('cx', g.x[k]); d2.setAttribute('cy', g.y2[k]); d2.removeAttribute('hidden'); } else d2.setAttribute('hidden', ''); }
-    tx.textContent = g.l[k]; hv.removeAttribute('hidden');
-    const bb = tx.getBBox(), w = bb.width + 14, hgt = bb.height + 8, lx = Math.max(2, Math.min(g.w - w - 2, g.x[k] - w / 2));
-    bg.setAttribute('x', lx); bg.setAttribute('y', 2); bg.setAttribute('width', w); bg.setAttribute('height', hgt);
-    tx.setAttribute('x', lx + 7); tx.setAttribute('y', 2 + hgt / 2 + 4);
+    hv.removeAttribute('hidden');
+    lab.setAttribute('hidden', '');
+    // the figure(s) of this point, in a tooltip above it (the same card as everywhere else)
+    const vb = svg.viewBox.baseVal, sx = r.width / g.w, sy = r.height / vb.height;
+    show?.(g.l[k], r.left + g.x[k] * sx, r.top + Math.min(g.y[k], g.y2 ? g.y2[k] : g.y[k]) * sy);
   };
-  const hideAll = () => document.querySelectorAll('.bl-hover').forEach((h) => h.setAttribute('hidden', ''));
-  document.addEventListener('pointerdown', (e) => { const svg = e.target.closest?.('svg.bal-chart'); if (!svg) return hideAll(); try { svg.setPointerCapture(e.pointerId); } catch { /* no capture */ } at(svg, e); });
+  const hideHover = () => document.querySelectorAll('.bl-hover').forEach((h) => h.setAttribute('hidden', ''));
+  const hideAll = () => { hideHover(); hide?.(); };
+  document.addEventListener('pointerdown', (e) => { const svg = e.target.closest?.('svg.bal-chart'); if (!svg) return hideHover(); try { svg.setPointerCapture(e.pointerId); } catch { /* no capture */ } at(svg, e); });
   document.addEventListener('pointermove', (e) => { const svg = e.target.closest?.('svg.bal-chart'); if (svg && (e.pointerType === 'mouse' || e.buttons)) at(svg, e); });
-  document.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') hideAll(); }, true);
+  document.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && e.target.matches?.('svg.bal-chart')) hideAll(); }, true); // only when the pointer leaves the chart itself
   document.addEventListener('scroll', hideAll, { passive: true, capture: true });
 }
 

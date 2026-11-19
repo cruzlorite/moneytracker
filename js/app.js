@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, tipx } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
@@ -24,7 +24,7 @@ const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localSt
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const pct = (a, b) => (b ? clamp(a / b * 100, 0, 100) : 0);
 
-const UI = { tab: ({ cal: 'metas', months: 'metas', mes: 'home' })[lsGet('hucha:tab')] || lsGet('hucha:tab') || 'home', mesYM: null, anaPer: lsGet('hucha:ana'), pending: false, lastTab: null, undo: [] };
+const UI = { tab: ({ cal: 'metas', months: 'metas', mes: 'home' })[lsGet('hucha:tab')] || lsGet('hucha:tab') || 'home', mesYM: null, anaPer: lsGet('hucha:ana2'), pending: false, lastTab: null, undo: [] };
 const store = new Store(() => render(), () => renderStatus());
 
 // ---------- icons: 24 px strokes ----------
@@ -73,19 +73,37 @@ function toast(msg, ms = 2200) {
 const tipEl = Object.assign(document.createElement('div'), { id: 'tip', hidden: true });
 tipEl.setAttribute('role', 'status');
 document.body.appendChild(tipEl);
-function showTip(t) {
-  const rich = t.dataset.info ? infoHTML(t.dataset.info) : '', txt = t.dataset.tip;
-  if (!rich && !txt) return hideTip();
-  document.querySelectorAll('.tipon').forEach((x) => x.classList.remove('tipon'));
-  const host = t.closest('dialog') || document.body; // an open dialog sits on top of everything else
-  if (tipEl.parentNode !== host) host.appendChild(tipEl);
-  if (rich) tipEl.innerHTML = rich; else tipEl.textContent = txt;
-  tipEl.classList.toggle('rich', !!rich); tipEl.hidden = false; t.classList.add('tipon');
-  const r = t.getBoundingClientRect(), w = tipEl.offsetWidth, h = tipEl.offsetHeight;
-  const left = clamp(r.left + r.width / 2 - w / 2, 8, innerWidth - w - 8), top = r.top - h - 8 < 60 ? r.bottom + 8 : r.top - h - 8;
+/** The HTML of a structured tip (see tipx in charts.js): a title, a line per series with its legend symbol, and an optional foot. */
+function tipHTML(txt) {
+  let d; try { d = JSON.parse(txt); } catch { return null; }
+  if (!d?.tx) return null;
+  const sw = (r) => `<i class="tsw ${r.k || 'solid'}" style="--c:${esc(r.c || 'var(--muted)')}"></i>`;
+  return `${d.t ? `<div class="tt">${esc(d.t)}</div>` : ''}${d.r.map((r) => `<div class="tr">${sw(r)}<span>${esc(r.l)}</span><b class="num">${esc(r.v)}</b></div>`).join('')}${d.f ? `<div class="tf">${esc(d.f)}</div>` : ''}`;
+}
+function placeTip(r) {
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  const left = clamp(r.left + r.width / 2 - w / 2, 8, innerWidth - w - 8), top = r.top - h - 8 < 8 ? r.bottom + 8 : r.top - h - 8;
   tipEl.style.left = left + 'px'; tipEl.style.top = top + 'px';
   const at = tipEl.getBoundingClientRect(); // a transformed dialog moves fixed children: correct for it
   if (Math.abs(at.left - left) > 1 || Math.abs(at.top - top) > 1) { tipEl.style.left = 2 * left - at.left + 'px'; tipEl.style.top = 2 * top - at.top + 'px'; }
+}
+function showTip(t) {
+  const rich = t.dataset.info ? infoHTML(t.dataset.info) : '', txt = t.dataset.tip, x = !rich && txt ? tipHTML(txt) : null;
+  if (!rich && !txt) return hideTip();
+  document.querySelectorAll('.tipon').forEach((q) => q.classList.remove('tipon'));
+  const host = t.closest('dialog') || document.body; // an open dialog sits on top of everything else
+  if (tipEl.parentNode !== host) host.appendChild(tipEl);
+  if (rich || x) tipEl.innerHTML = rich || x; else tipEl.textContent = txt;
+  tipEl.classList.toggle('rich', !!rich); tipEl.classList.toggle('tipx', !!x); tipEl.hidden = false; t.classList.add('tipon');
+  placeTip(t.getBoundingClientRect());
+}
+/** A tip at a point of the screen (a chart's scrubbed point). */
+function showTipAt(txt, px, py) {
+  const el = document.elementFromPoint(px, py), host = el?.closest?.('dialog') || document.body, x = tipHTML(txt);
+  if (tipEl.parentNode !== host) host.appendChild(tipEl);
+  if (x) tipEl.innerHTML = x; else tipEl.textContent = txt;
+  tipEl.classList.remove('rich'); tipEl.classList.toggle('tipx', !!x); tipEl.hidden = false;
+  placeTip({ left: px, top: py - 6, width: 0, height: 0, bottom: py + 6 });
 }
 function hideTip() { tipEl.hidden = true; document.querySelectorAll('.tipon').forEach((x) => x.classList.remove('tipon')); }
 document.addEventListener('pointerover', (e) => { if (e.pointerType === 'mouse') { const t = e.target.closest?.('[data-tip],[data-info]'); if (t) showTip(t); } });
@@ -103,7 +121,7 @@ document.addEventListener('focusin', (e) => {
 });
 document.addEventListener('scroll', hideTip, { passive: true, capture: true });
 
-bindBalance();
+bindBalance(showTipAt, hideTip);
 
 // ---------- updates: the installed app keeps old files; say so when a newer version is published ----------
 function refreshApp(btn) {
@@ -353,7 +371,7 @@ function infoHTML(key) {
       ixRow(IX.today, t('Planificado a hoy'), t('lo que deberías llevar hoy según el plan.')),
       ixRow(IX.proj(M), t('Proyección'), t('cantidad estimada a fin de año.'))],
       t('Cada fila tiene su escala.'));
-    case 'ahorradoMes': return card(t('Ahorrado cada mes'), [
+    case 'ahorradoMes': return card(t('Ahorro cada mes'), [
       ixRow(IX.chip(scaleOf(100, 100).c), t('Columna'), t('ahorrado del mes.')),
       ixRow('<i class="lg-tick"></i>', t('Raya'), t('planificado del mes.')),
       ...scaleRows()], t('Color: ahorrado frente a planificado.'));
@@ -394,12 +412,12 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   const NT = false; // every bar tells what a part is when touched (only the thick ones also dim the rest)
   // each part says the figure its own end stands for, so the number always matches the stretch you touched:
   // past a cap the solid orange ends AT the cap (not at what was spent), the red is what went over it
-  const tip = (txt) => (NT ? '' : `data-tip="${esc(txt)}"`);
-  const overCap = cap != null && v > cap;
-  const tipFill = tip(overCap ? `${t('Dentro del presupuesto')} ${fmt(cap)}` : `${nm.fill} ${fmt(v)}`);
-  const tipOver = cap != null ? tip(`${nm.over} ${fmt(v - cap)}`) : '';
-  const tipProj = proj != null ? tip(`${nm.proj} ≈ ${fmt(proj)}`) : '';
-  const tipProjIn = proj != null ? tip(cap != null && proj > cap ? `${t('Proyección hasta el presupuesto')} ${fmt(cap)}` : `${nm.proj} ≈ ${fmt(proj)}`) : '';
+  const tip = (rows) => (NT ? '' : `data-tip="${esc(tipx('', rows))}"`);
+  const overCap = cap != null && v > cap, solid = cap != null ? 'var(--out)' : tone, pt = cap != null ? 'var(--out)' : ptone;
+  const tipFill = tip([overCap ? { c: solid, k: 'solid', l: t('Dentro del presupuesto'), v: fmt(cap) } : { c: solid, k: 'solid', l: nm.fill, v: fmt(v) }]);
+  const tipOver = cap != null ? tip([{ c: 'var(--spend)', k: 'solid', l: nm.over, v: fmt(v - cap) }]) : '';
+  const tipProj = proj != null ? tip([{ c: pt, k: 'hatch', l: nm.proj, v: `≈ ${fmt(proj)}` }]) : '';
+  const tipProjIn = proj != null ? tip(cap != null && proj > cap ? [{ c: 'var(--out)', k: 'hatch', l: t('Proyección hasta el presupuesto'), v: fmt(cap) }] : [{ c: pt, k: 'hatch', l: nm.proj, v: `≈ ${fmt(proj)}` }]) : '';
   const max = Math.max(1, scale, v, proj || 0, ...marks.map((k) => k.at));
   const w = (x) => +clamp(x / max * 100, 0, 100).toFixed(1);
   const lab = marks.filter((k) => k.label).map((k) => { const at = w(k.at); return `<span class="${at > 70 ? 'end' : at < 15 ? 'start' : ''}" style="left:${at}%">${k.label}</span>`; }).join('');
@@ -417,8 +435,8 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
   const noteEl = note && w(note.b) - w(note.a) >= 30 ? `<span class="g-note ${note.cls || ''}" style="left:${w(note.a)}%; width:${(w(note.b) - w(note.a)).toFixed(1)}%">${note.text}</span>` : '';
   return `<div class="gauge ${thin ? 'thin' : ''} ${tall ? 'tall' : ''}" role="img" aria-label="${esc(label)}">
     <div class="g-track"><div class="g-bars" data-bar="100" data-reveal data-key="${key}" ${label ? `data-tip="${esc(label)}"` : ''}>${bars}${noteEl}</div>${marks.map((k) => k.cls === 'today'
-      ? `<span class="g-today" style="left:${w(k.at)}%" data-tip="${esc(`${t('Planificado a hoy')} ${fmt(k.at)}`)}"><i></i></span>`
-      : `<b class="g-mark" style="left:${w(k.at)}%" data-tip="${esc(`${k.name || nm.plan} ${fmt(k.at)}`)}"></b>`).join('')}</div>
+      ? `<span class="g-today" style="left:${w(k.at)}%" data-tip="${esc(tipx('', [{ k: 'dash', l: t('Planificado a hoy'), v: fmt(k.at) }]))}"><i></i></span>`
+      : `<b class="g-mark" style="left:${w(k.at)}%" data-tip="${esc(tipx('', [{ k: 'line', l: k.name || nm.plan, v: fmt(k.at) }]))}"></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
 }
 const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
@@ -578,7 +596,7 @@ function metas(m) {
     });
     cumCard = `<section class="card" aria-label="${t('Ahorro e inversión acumulado')}">
       <div class="row between"><h2>${t('Ahorro e inversión acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [`${t('Inicio')} · ${fmt(0)}`, ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${i > m.curIdx ? t('estimado') : t('ahorrado')} ${i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i])} / ${t('plan')} ${fmt(planC[i])} (${fmtSigned(Math.round(realC[i] - planC[i]))})`)], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
+      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [tipx(t('Inicio'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorrado'), v: fmt(0) }]), ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--sav)', k: i > m.curIdx ? 'hatch' : 'solid', l: i > m.curIdx ? t('Estimado') : t('Ahorrado'), v: i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i]) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i]) }], `${fmtSigned(Math.round(realC[i] - planC[i]))} ${t('sobre el plan')}`))], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
       ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), (i >= m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), diffCell(realC[i], planC[i], 'good')]))}
     </section>`;
@@ -866,12 +884,12 @@ function openLineDetail(kind) {
       ? (left > 0.5 ? tile(t('Te falta'), fmt(left), t('para el plan del año')) : tile(t('Superado en'), fmt(-left), t('el plan del año'), 'c-ok'))
       : (left >= -0.5 ? tile(t('Te queda'), fmt(Math.max(0, left)), t('del gasto planificado')) : tile(t('Te has pasado'), fmt(-left), t('del gasto planificado'), 'c-spend')),
     tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, `${fmt(Math.abs(Math.round(endGap)))} ${endGap > 0 ? t('por encima del plan') : t('por debajo del plan')}`, endGood ? 'c-ok' : 'c-spend'),
-    tile(t('Media al mes'), fmt(Math.round(avg)), t('de lo que va del año')),
+    tile(t('Media al mes'), fmt(Math.round(avg)), t('{x} ÷ {n} meses que van', { x: word.toLowerCase(), n: elapsed.toFixed(1).replace('.', ',') })),
   ].join('');
   const planC = [0], realC = [0]; let pa = 0, ra = 0;
   m.season.forEach((ym, i) => { pa += planM[i] || 0; planC.push(round2(pa)); if (real[i] != null) { ra += real[i]; realC.push(round2(ra)); } else realC.push(null); });
   for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
-  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${real[i] != null ? fmt(realC[i + 1]) : '≈ ' + fmt(Math.round(realC[i + 1]))} / ${t('plan')} ${fmt(planC[i + 1])}`)], aria: word })}
+  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: tone, k: real[i] != null ? 'solid' : 'hatch', l: real[i] != null ? word : t('Estimado'), v: (real[i] != null ? '' : '≈ ') + fmt(real[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i + 1]) }]))], aria: word })}
     <div class="legend"><span><i class="sw" style="background: ${tone}"></i>${word.toLowerCase()}</span><span><i class="lg-proj" style="--pc: ${tone}"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div></section>`;
   // what makes it up
   let listHead = '', body = '';
@@ -911,23 +929,23 @@ function openCatDetail(c) {
       gap != null ? tile(gap > 0.5 ? t('Te has pasado') : t('Vas por debajo'), fmt(Math.abs(gap)), t('respecto a hoy'), gap > 0.5 ? 'c-spend' : 'c-ok') : '',
       tile(over ? t('Te has pasado') : t('Te queda'), fmt(Math.abs(left)), over ? t('del presupuesto del año') : t('del presupuesto del año'), over ? 'c-spend' : ''),
       tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, x.proj > x.plan + 0.5 ? t('≈ {x} por encima', { x: fmt(Math.round(x.proj - x.plan)) }) : t('≈ {x} por debajo', { x: fmt(Math.round(x.plan - x.proj)) }), x.proj > x.plan + 0.5 ? 'c-spend' : 'c-ok'),
-      tile(t('Media al mes'), fmt(Math.round(avg)), t('de lo gastado hasta hoy')),
+      tile(t('Media al mes'), fmt(Math.round(avg)), t('gastado ÷ {n} meses que van', { n: elapsed.toFixed(1).replace('.', ',') })),
     ].join('');
     // the year as two running totals: what you have spent, and what the budget lets you spend, with the rest as it would go
     const planC = [0], realC = [0]; let pa = 0, ra = 0;
     m.season.forEach((ym, i) => { pa += x.amounts[i] || 0; planC.push(round2(pa)); if (per[i] != null) { ra += per[i]; realC.push(round2(ra)); } else realC.push(null); });
     for (let i = ci + 2; i <= n; i++) realC[i] = round2(realC[ci + 1] + (x.proj - realC[ci + 1]) * (i - ci - 1) / Math.max(1, n - ci - 1));
-    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => `${cap(MES3[+ym.slice(5) - 1])} · ${per[i] != null ? fmt(realC[i + 1]) + ' / ' : ''}${t('plan')} ${fmt(planC[i + 1])}`)], aria: t('Gastado acumulado frente al presupuesto') })}
+    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 2 : null, nowIdx: live ? ci + 1 : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: per[i] != null ? 'solid' : 'hatch', l: per[i] != null ? t('Gastado') : t('Estimado'), v: (per[i] != null ? '' : '≈ ') + fmt(per[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Presupuesto'), v: fmt(planC[i + 1]) }]))], aria: t('Gastado acumulado frente al presupuesto') })}
       <div class="legend"><span><i class="sw" style="background: var(--out)"></i>${t('gastado')}</span><span><i class="lg-proj" style="--pc: var(--out)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('presupuesto')}</span></div></section>`;
   } else {
     const tot = spendByType(m, m.season.filter((ym) => ym <= m.curYM)).tot, top = per.reduce((b, v, i) => (v != null && v > (per[b] ?? -1) ? i : b), 0);
     tiles = [
       tile(t('Gastado'), fmt(spent), t('en lo que va del año')),
       tile(t('Del gasto total'), `${Math.round(spent / Math.max(1, tot) * 100)} %`, t('de {x}', { x: fmt(tot) })),
-      tile(t('Media al mes'), fmt(Math.round(avg)), t('de lo gastado hasta hoy')),
+      tile(t('Media al mes'), fmt(Math.round(avg)), t('gastado ÷ {n} meses que van', { n: elapsed.toFixed(1).replace('.', ',') })),
       per.some((v) => v) ? tile(t('Mes de más gasto'), cap(MES3[+m.season[top].slice(5) - 1]), fmt(per[top] || 0)) : '',
     ].join('');
-    chart = `<section class="card"><h2>${t('Mes a mes')}</h2>${columns({ cols: m.season.map((ym, i) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: per[i], now: ym === m.curYM, fill: 'var(--out)', tip: `${cap(ymLabel(ym))}: ${per[i] != null ? fmt(per[i]) : t('aún no')}` })), labels: [], aria: t('Gasto de cada mes') })}</section>`;
+    chart = `<section class="card"><h2>${t('Mes a mes')}</h2>${columns({ cols: m.season.map((ym, i) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: per[i], now: ym === m.curYM, fill: 'var(--out)', tip: tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: per[i] != null ? fmt(per[i]) : t('aún no') }]) })), labels: [], aria: t('Gasto de cada mes') })}</section>`;
   }
   // every movement in the type: what you logged and what the plan expected that already came, by month
   const rows = [];
@@ -1226,7 +1244,7 @@ function planCard(m) {
     ${m.over ? table(['', t('Plan'), t('Actual'), t('Dif.')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), diffCell(x.real, x.plan, x.more)])) : table(['', t('Plan'), t('Hoy'), t('Proy.'), t('Dif. ≈')], rows.map((x) => [esc(x.label), fmtN(Math.round(x.plan)), fmtN(Math.round(x.real)), fmtN(Math.round(x.proj)), diffCell(x.proj, x.plan, x.more)]))}
   </section>`;
 }
-const PERIODS = { mes: t('Este mes'), '3m': t('3 meses'), ano: t('Todo el plan') };
+const PERIODS = { ano: t('Todo el plan'), '3m': t('3 meses'), mes: t('Este mes') }; // the whole plan first, and the one you land on
 /** What was spent in those months, by type (logged spends + the plan's expenses that already came + what the balance says
  * you spent beyond what you logged): { rows: [[type, amount]] biggest first, tot }. */
 function spendByType(m, yms) {
@@ -1249,7 +1267,7 @@ function spendByType(m, yms) {
 }
 function analisis(m) {
   if (!m.items.length) return emptyPlanCard(m);
-  const per = (UI.yearOff || 0) !== 0 ? 'ano' : PERIODS[UI.anaPer] ? UI.anaPer : 'mes'; // another year: the whole year
+  const per = (UI.yearOff || 0) !== 0 ? 'ano' : PERIODS[UI.anaPer] ? UI.anaPer : 'ano'; // another year: the whole year
   // only months of the plan that have begun: before its start there is nothing to count
   const yms = per === 'mes' ? [m.curYM] : per === '3m' ? [ymAdd(m.curYM, -2), ymAdd(m.curYM, -1), m.curYM].filter((ym) => m.season.includes(ym) || ym === m.curYM)
     : m.season.filter((ym) => ym <= m.curYM);
@@ -1265,13 +1283,12 @@ function analisis(m) {
   const left = sm.map(({ ym, has, i }) => {
     const show = has && (i < m.curIdx || m.savedOf(ym) !== 0), v = show ? m.savedOf(ym) : null;
     return { label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: v, now: ym === m.curYM, fill: v == null ? null : scaleOf(v, m.targetOf(ym), m.target).c, mark: m.targetOf(ym),
-      tip: `${cap(ymLabel(ym))}: ${v == null ? t('aún no') : t('ahorrado') + ' ' + fmt(v)} · ${t('planificado')} ${fmt(m.targetOf(ym))}` };
+      tip: tipx(cap(ymLabel(ym)), [{ c: v == null ? 'var(--sav)' : scaleOf(v, m.targetOf(ym), m.target).c, k: 'solid', l: t('Ahorrado'), v: v == null ? t('aún no') : fmt(v) }, { k: 'line', l: t('Planificado'), v: fmt(m.targetOf(ym)) }]) };
   });
-  const nowLine = (html) => (m.pre || m.over ? '' : `<p class="nowline num"><span class="muted">${cap(monthName(m.curYM))}:</span> ${html}</p>`);
   const lastI = left.map((c) => c.value != null).lastIndexOf(true);
   const outOfM = (ym) => (ym === m.curYM ? m.spentAll(ym, toISO(new Date())) : m.spentAll(ym));
   const io = sm.map(({ ym, has }) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), a: m.incomeTo(ym), b: has ? outOfM(ym) : null, now: ym === m.curYM,
-    tip: `${cap(ymLabel(ym))}: ${t('ingresado')} ${fmt(m.incomeTo(ym))}${has ? ` · ${t('gastado')} ${fmt(outOfM(ym))}` : ` (${t('planificado')})`}` }));
+    tip: tipx(cap(ymLabel(ym)), [{ c: 'var(--in)', k: 'solid', l: has ? t('Ingresado') : t('Ingresos planificados'), v: fmt(m.incomeTo(ym)) }, ...(has ? [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(outOfM(ym)) }] : [])]) }));
 
   return `
   ${yearNav(m)}
@@ -1301,18 +1318,16 @@ function analisis(m) {
   </div>
   <h2 class="section-h">${t('Tu año, mes a mes')}</h2>
 
-  <section class="card" aria-label="${t('Ahorrado cada mes')}">
-    <h2>${t('Ahorrado cada mes')} ${info('ahorradoMes')}</h2>
+  <section class="card" aria-label="${t('Ahorro cada mes')}">
+    <h2>${t('Ahorro cada mes')} ${info('ahorradoMes')}</h2>
     <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span></div>
     ${columns({ cols: left, labels: lastI >= 0 ? [lastI] : [], aria: t('Ahorrado / planificado de cada mes') })}
-    ${nowLine(`${t('ahorrado')} <b>${fmt(m.savedOf(m.curYM))}</b> · ${t('planificado')} <b>${fmt(m.targetOf(m.curYM))}</b>`)}
     ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], sm.map(({ ym }, i) => [esc(cap(ymLabel(ym))), left[i].value == null ? '—' : fmt(left[i].value), fmt(m.targetOf(ym)), left[i].value == null ? '—' : diffCell(left[i].value, m.targetOf(ym), 'good')]))}
   </section>
 
-  <section class="card" aria-label="${t('Ingresado y gastado')}">
-    <div class="row between"><h2>${t('Ingresado y gastado')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span></span></div>
+  <section class="card" aria-label="${t('Ingresos y gastos')}">
+    <div class="row between"><h2>${t('Ingresos y gastos')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span></span></div>
     ${pairs({ cols: io, aria: t('Ingresos y gastos de cada mes') })}
-    ${nowLine(`${t('ingresado')} <b>${fmt(m.incomeTo(m.curYM, m.todayISO))}</b> · ${t('gastado')} <b>${fmt(outOfM(m.curYM))}</b>`)}
     ${table([t('Mes'), t('Ingresado'), t('Gastado'), t('Diferencia')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—', has ? diffCell(m.incomeTo(ym), outOfM(ym), 'good') : '—']))}
   </section>`;
 }
@@ -2027,7 +2042,7 @@ function onAct(b, sure = false) {
       break;
     }
     case 'anaper': {
-      UI.anaPer = b.dataset.v; lsSet('hucha:ana', UI.anaPer);
+      UI.anaPer = b.dataset.v; lsSet('hucha:ana2', UI.anaPer);
       const box = $('#ana-per');
       if (!box) { render(true); break; }
       // only the part that depends on the period is drawn again: the rest of the page stays as it is
