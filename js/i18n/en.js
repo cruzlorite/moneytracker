@@ -1,5 +1,7 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Más lo que sobrará a fin de mes': 'Plus what will be left at month end',
+  'Ahorro ya registrado y materializado': 'Saving already logged and made',
   'Objetivo del mes': 'Month target',
   'Lo que sobrará a fin de mes': 'What will be left at month end',
   'Ya ahorrado': 'Already saved',
