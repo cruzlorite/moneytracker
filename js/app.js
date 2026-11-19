@@ -815,6 +815,38 @@ const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
 };
 
 // ---------- Mes ----------
+/** What has been done in the year on view, newest first: the incomes and expenses you confirmed and, for budgets, the spends you
+ *  logged in types that have one. Each row: { date, ym, signed (its effect on the account), html }. */
+function doneRowsOf(m, kind) {
+  const rows = [];
+  for (const [ym, mo] of Object.entries(store.data.months)) for (const [id, amount] of Object.entries(mo.real || {})) {
+    if (!m.season.includes(ym)) continue; // the year you are looking at
+    const it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
+    if (!it || it.kind !== kind || it.budget) continue;
+    const date = m.dateOf(it, ym);
+    rows.push({ date, ym: m.monthOf(date), signed: it.kind === 'in' ? amount : -amount, html: doneRow(it, ym, date, amount) });
+  }
+  if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, ym: m.monthOf(e.date), signed: -e.amount, html: spendRow(e) });
+  return rows.sort((a, b) => b.date.localeCompare(a.date));
+}
+const DONE_TITLE = { in: 'Ingresos cumplidos', out: 'Gastos cumplidos', bud: 'Gastos de tus presupuestos' };
+/** The movements of one section of the Plan, in a sheet: by date, newest first, a divider for each month. */
+function openDone(kind) {
+  const m = computeYear(UI.yearOff || 0), rows = doneRowsOf(m, kind);
+  let cur = '', body = '';
+  for (const r of rows) {
+    if (r.ym !== cur) {
+      cur = r.ym;
+      const sum = rows.filter((x) => x.ym === cur).reduce((a, x) => a + x.signed, 0);
+      body += `<div class="mdiv"><span>${esc(cap(ymLabel(cur)))}</span><span class="num">${fmtSigned(Math.round(sum))}</span></div>`;
+    }
+    body += r.html;
+  }
+  dlg.classList.add('full');
+  dlg.innerHTML = `<div class="sheet donesheet" id="done-sheet" data-kind="${kind}"><div class="row between"><h2>${t(DONE_TITLE[kind])}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    ${rows.length ? `<div class="flows">${body}</div>` : `<p class="fine">${t('Nada todavía.')}</p>`}</div>`;
+  openDialog();
+}
 /** A confirmed planned item in the Cumplidos lists: the same compact line as a logged spend (icon, name · date, amount), tap to edit, ✕ to un-confirm. */
 const doneRow = (it, ym, date, amount) => {
   const diff = round2(amount - it.amount), save = it.kind === 'out' && it.cat === SAVE_CAT && !it.budget;
@@ -1183,28 +1215,13 @@ function plan(m) {
   // no longer sits in the list above.
   const confirmedIds = new Set(Object.values(store.data.months).flatMap((mo) => Object.keys(mo.real || {})));
   const isDone = (it) => it.freq === 'once' && !it.budget && confirmedIds.has(it.id);
-  const doneList = (kind) => {
-    const rows = [];
-    for (const [ym, mo] of Object.entries(store.data.months)) for (const [id, amount] of Object.entries(mo.real || {})) {
-      if (!m.season.includes(ym)) continue; // the year you are looking at
-      const it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
-      if (!it || it.kind !== kind || it.budget) continue;
-      const date = m.dateOf(it, ym);
-      rows.push({ date, html: doneRow(it, ym, date, amount) });
-    }
-    // under the limits: the spends you logged in the categories that have a limit
-    if (kind === 'bud') for (const e of m.allSpends) if (m.season.includes(m.monthOf(e.date)) && m.budFor(e.cat, m.monthOf(e.date))) rows.push({ date: e.date, html: spendRow(e) });
-    return rows.sort((a, b) => b.date.localeCompare(a.date));
-  };
-  const DONE_MAX = 40;
-  const group = (title, sub, all, preset, addLabel, total, kind) => { const list = all.filter((it) => !isDone(it)), done = doneList(kind), more = done.length > DONE_MAX && !UI.doneAll;
+  const doneList = (kind) => doneRowsOf(m, kind);
+  const group = (title, sub, all, preset, addLabel, total, kind) => { const list = all.filter((it) => !isDone(it)), done = doneList(kind);
     return `<section class="card">
     <div class="row between"><div><h2>${title}</h2>${sub ? `<div class="fine">${sub}</div>` : ''}</div>${total != null ? `<span class="fine num nowrap">${total}</span>` : ''}</div>
     <div class="plist">${list.map((it) => planRow(it, m, list.length > 1)).join('') || '<p class="fine">' + t('Nada todavía.') + '</p>'}</div>
     <button data-act="additem" data-preset='${esc(JSON.stringify(preset))}'>+ ${addLabel}</button>
-    ${done.length ? `<details class="tview donelist" ${UI.doneOpen?.[kind] ? 'open' : ''} data-done="${kind}"><summary>${t('Cumplidos')} (${done.length})</summary>
-      <div class="flows">${(more ? done.slice(0, DONE_MAX) : done).map((r) => r.html).join('')}</div>
-      ${more ? `<button type="button" class="ghost small center-self" data-act="doneall">${t('Ver los {n}', { n: done.length })}</button>` : ''}</details>` : ''}</section>`; };
+    ${done.length ? `<button type="button" class="movbtn" data-act="donelist" data-kind="${kind}"><span>${t('Movimientos')}</span><span class="fine num">${done.length}</span>${ic('right')}</button>` : ''}</section>`; };
   return `${yearNav(m)}<section class="card" aria-label="${t('Ahorro e inversión planificados')}">
     <div class="row between"><h2>${t('Ahorro e inversión planificados')} ${info('plan')}</h2></div>
     <button type="button" class="goalbtn" ${off === 0 ? 'data-act="goaledit"' : 'disabled'} aria-label="${t('Ahorro planificado')}: ${esc(fmt(m.goal))} ${t('al año')}">
@@ -1894,8 +1911,8 @@ document.addEventListener('click', (e) => {
       render(true); break;
     }
     case 'occ': openOcc(b.dataset.id, ym); break;
-    case 'unconfirm': setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); break;
-    case 'doneall': UI.doneAll = true; render(true); break;
+    case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
+    case 'donelist': openDone(b.dataset.kind); break;
     case 'movesall': UI.movesAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'notifyfold': case 'notifymore': {
@@ -1991,7 +2008,6 @@ document.addEventListener('keydown', (e) => {
   scope.querySelector(`[data-act="${act}"]`)?.click();
 });
 // the close and the look at the balance work out the month as you type
-document.addEventListener('toggle', (e) => { const d = e.target; if (d?.dataset?.done) { UI.doneOpen = { ...(UI.doneOpen || {}), [d.dataset.done]: d.open }; } }, true);
 document.addEventListener('input', (e) => {
   const id = e.target.id;
   if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open') closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();

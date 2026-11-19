@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Gastos de tus presupuestos': "Your budgets' spending",
+  'Gastos cumplidos': 'Expenses done',
+  'Ingresos cumplidos': 'Incomes done',
   'Sin presupuestar: tipos sin límite; la barra los compara con el que más has gastado.': 'Unbudgeted: types with no limit; the bar compares them with the one you spent most on.',
   'lo que llevarías a fin de mes a este ritmo. Solo en presupuestos mensuales, y desde el tercer día.': 'where you would be at the end of the month at this pace. Only for monthly budgets, from the third day.',
   'quedan {x}': '{x} left',

@@ -1270,3 +1270,11 @@ dialog.full .sheet { max-height: var(--vvh, 96dvh); min-height: min(70dvh, var(-
 .ch-col { transition: filter .15s ease; }
 .ch-band:hover .ch-col, .ch-band.tipon .ch-col { filter: brightness(1.15); }
 .nw { white-space: nowrap; }
+
+/* Plan: a button that opens the movements of a section; inside, by date with a divider for each month */
+.movbtn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.movbtn > span:first-child { flex: 1; text-align: left; }
+.movbtn svg { width: 16px; height: 16px; color: var(--muted); }
+.donesheet .flows { display: grid; gap: 0; }
+.mdiv { position: sticky; top: -1px; z-index: 2; display: flex; justify-content: space-between; align-items: baseline; padding: 10px 2px 6px; margin-top: 6px; background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.mdiv .num { letter-spacing: 0; text-transform: none; font-weight: 600; }
