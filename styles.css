@@ -1296,3 +1296,9 @@ dialog#confirm .cdet dt { color: var(--muted); } dialog#confirm .cdet dd { margi
 .movlink { display: inline-flex; align-items: center; gap: 6px; justify-self: end; margin-top: 2px; padding: 4px 0; border: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .movlink b { font-weight: 700; color: var(--ink); }
 .movlink svg { width: 14px; height: 14px; }
+
+/* saving is not spending: its own look in the sheet */
+.seg.qmode { width: 100%; }
+.sheet.savemode .amt input, .sheet.savemode .amt span { color: var(--sav); }
+.sheet.savemode .primary.big { background: var(--sav); color: #fff; border-color: var(--sav); }
+.sheet.savemode .seg.qmode button[aria-pressed="true"] { color: var(--sav); }

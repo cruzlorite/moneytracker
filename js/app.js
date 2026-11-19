@@ -625,20 +625,24 @@ function mes(m) {
 function openQuick(keep = {}) {
   const m = compute(store.data), today = toISO(new Date());
   const date = keep.date || UI.quickDate || today;
-  dlg.innerHTML = `<div class="sheet quick${UI.kmore ? ' more' : ''}" id="quick-sheet">
-    <div class="row between"><h2>${UI.editSpend ? t('Editar gasto') : t('Apuntar un gasto')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+  const save = UI.qcat === SAVE_CAT; // saving or investing is not spending: its own mode, with its own look
+  const head = UI.editSpend ? (save ? t('Editar ahorro') : t('Editar gasto')) : save ? t('Apuntar ahorro') : t('Apuntar un gasto');
+  dlg.innerHTML = `<div class="sheet quick${UI.kmore ? ' more' : ''}${save ? ' savemode' : ''}" id="quick-sheet">
+    <div class="row between"><h2>${head}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="seg qmode" role="group" aria-label="${t('Qué apuntas')}"><button type="button" data-act="qmode" data-v="spend" aria-pressed="${!save}">${t('Gasto')}</button><button type="button" data-act="qmode" data-v="save" aria-pressed="${save}">${t('Ahorro e inversión')}</button></div>
     <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
-    <div class="seg qdir" id="k-dir" role="group" aria-label="${t('Ahorro e inversión')}" ${UI.qcat === SAVE_CAT ? '' : 'hidden'}><button type="button" data-act="qdir" data-v="in" aria-pressed="${UI.qdir !== 'out'}">${t('Aportar')}</button><button type="button" data-act="qdir" data-v="out" aria-pressed="${UI.qdir === 'out'}">${t('Retirar')}</button></div>
-    ${catRow(m, true)}
-    ${UI.kmore ? catGrid(UI.qcat, 'kpick', true) : ''}
+    ${save ? `<div class="seg qdir" id="k-dir" role="group" aria-label="${t('Ahorro e inversión')}"><button type="button" data-act="qdir" data-v="in" aria-pressed="${UI.qdir !== 'out'}">${t('Aportar')}</button><button type="button" data-act="qdir" data-v="out" aria-pressed="${UI.qdir === 'out'}">${t('Retirar')}</button></div>
+      <p class="cathint">${t('Sale de tu cuenta, pero no es gasto: suma a lo que ahorras.')}</p>`
+      : `${catRow(m, true)}
+    ${UI.kmore ? catGrid(UI.qcat, 'kpick', true) : ''}`}
     <div class="fields2">
       <label class="field"><span class="label">${t('Nota')}</span><input id="k-note" value="${esc(keep.note || '')}" placeholder="${t('Opcional')}" autocomplete="off"></label>
       <label class="field"><span class="label">${t('Día')}</span><input type="date" id="k-date" value="${date}"></label>
     </div>
     ${UI.editSpend ? `<button type="button" class="primary big" data-act="kgo">${t('Guardar')}</button>
-    <button type="button" class="ghost small danger" data-act="delspend" data-id="${esc(UI.editSpend)}">${t('Borrar gasto')}</button>`
-      : `<button type="button" class="primary big" data-act="kgo">${t('Apuntar')}</button>
-    <button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Un ingreso puntual? Añádelo al plan')}</button>`}
+    <button type="button" class="ghost small danger" data-act="delspend" data-id="${esc(UI.editSpend)}">${save ? t('Borrar') : t('Borrar gasto')}</button>`
+      : `<button type="button" class="primary big" data-act="kgo">${save ? t('Apuntar ahorro') : t('Apuntar')}</button>
+    ${save ? '' : `<button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Un ingreso puntual? Añádelo al plan')}</button>`}`}
   </div>`;
   openDialog();
   // no automatic focus: the keyboard opens only when you tap the amount
@@ -659,14 +663,12 @@ const itemCat = (it) => it.cat || guessCat(it.name);
 /** The short row when logging: your budgets' types, then the ones you use most, then a starter set. */
 function quickCats(m) {
   const ids = [], add = (id) => { if (CAT[id] && !ids.includes(id)) ids.push(id); };
-  add(SAVE_CAT); // after "Más", always first
   add(UI.qcat);
   // the most used come first (last 90 days), then your budgets, savings and the usual starters
   const since = toISO(new Date(Date.now() - 90 * 864e5)), n = {};
   for (const e of m.allSpends) if (e.cat && e.cat !== SAVE_CAT && e.date >= since) n[e.cat] = (n[e.cat] || 0) + 1;
   Object.entries(n).sort((a, b) => b[1] - a[1]).forEach(([id]) => add(id));
   m.shown().filter((b) => b.budget && activeIn(b, m.curYM)).forEach((b) => add(b.cat));
-  add(SAVE_CAT);
   STARTERS.forEach(add);
   return ids.slice(0, 8);
 }
@@ -683,7 +685,7 @@ const PLUS = '<span class="ct none" aria-hidden="true"><svg viewBox="0 0 24 24">
 const catChip = (c, act, sel) => `<button type="button" class="catchip ${catCls(c)}" data-act="${act}" data-cat="${c.id}" aria-pressed="${sel === c.id}">${catEl(c.id)}<span>${esc(c.short)}</span></button>`;
 function catGrid(sel, act, none) {
   const by = {};
-  for (const c of CATS) (by[c.group] ||= []).push(c);
+  for (const c of CATS) if (!(act === 'kpick' && c.id === SAVE_CAT)) (by[c.group] ||= []).push(c); // saving is its own mode when logging, not a type to pick
   const chip = (c) => catChip(c, act, sel);
   return `<div class="catgrid" data-act-pick="${act}" data-sel="${esc(sel || '')}">
     <div class="catsearch"><input type="search" id="cat-search" placeholder="${t('Buscar tipo: dentista, netflix, gasolina…')}" aria-label="${t('Buscar tipo')}" autocomplete="off" autocapitalize="off" enterkeyhint="go">
@@ -1856,6 +1858,7 @@ function onAct(b, sure = false) {
       document.querySelectorAll('.cathint').forEach((h) => { h.textContent = hint; });
       break;
     }
+    case 'qmode': { const k = quickKeep(); UI.qcat = b.dataset.v === 'save' ? SAVE_CAT : null; UI.kmore = false; openQuick(k); break; }
     case 'qdir': UI.qdir = b.dataset.v; document.querySelectorAll('#k-dir [data-act="qdir"]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === UI.qdir))); break;
     case 'catmore': openCatPicker(); break;
     case 'catnew': if (b.dataset.from === 'fcat') readForm(); openNewCat(b.dataset.from); break;

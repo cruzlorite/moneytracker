@@ -1,5 +1,9 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Sale de tu cuenta, pero no es gasto: suma a lo que ahorras.': 'It leaves your account, but it is not spending: it adds to what you save.',
+  'Qué apuntas': 'What are you logging',
+  'Apuntar ahorro': 'Log saving',
+  'Editar ahorro': 'Edit saving',
   'Sin nombre': 'No name',
   'gastos o partidas': 'expenses or items',
   'gasto o partida': 'expense or item',
