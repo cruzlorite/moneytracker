@@ -32,7 +32,7 @@ async function due() {
   let any = false;
   for (const r of list) {
     const at = Date.parse(r.at);
-    if (!(at <= now) || now - at > 3 * 864e5 || shown.has(r.key)) continue; // not yet, too old, or already said
+    if (!(at <= now) || now - at > 10 * 864e5 || shown.has(r.key)) continue; // not yet, more than ten days ago, or already said
     await self.registration.showNotification(r.title, { body: r.body, icon: 'icons/icon-192.png', badge: 'icons/badge-96.png', tag: r.key, data: { url: r.url || './#hoy' } });
     shown.add(r.key); any = true;
   }

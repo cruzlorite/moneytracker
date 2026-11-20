@@ -2429,18 +2429,19 @@ function swPost(msg) { return REM_SUPPORT() ? navigator.serviceWorker.ready.then
 /** What is worth a notification, with its date: closing the month that just ended, and what is due in the next days. */
 function remindersList(m) {
   if (!m.items.length || store.mode === 'demo') return [];
-  const out = [], at9 = (iso) => `${iso}T09:00:00`;
+  const out = [], at9 = (iso) => `${iso}T09:00:00`, today = toISO(new Date());
+  // the closes of this month and the two after it: if you don't open the app for weeks, the notes are already there
   const due = closeDue(m);
-  const prev = ymAdd(m.curYM, -1);
-  // the month that ended and is still open, or this one once it ends
-  const closeYM = due || m.curYM;
-  if (m.balStart(closeYM) != null && !m.mon(closeYM).close) {
-    const day = due ? toISO(new Date()) : (() => { const d = new Date(m.range(m.curYM).to + 'T12:00:00'); d.setDate(d.getDate() + 1); return toISO(d); })();
-    out.push({ key: `close-${closeYM}`, at: at9(day), title: t('Cierre de {m}', { m: monthName(closeYM) }), body: t('Ya puedes cerrar el mes: apunta tu saldo del último día.'), url: './#hoy' });
+  const closes = due ? [due, m.curYM, ymAdd(m.curYM, 1)] : [m.curYM, ymAdd(m.curYM, 1), ymAdd(m.curYM, 2)];
+  for (const ym of closes) {
+    if (ym <= m.curYM && m.balStart(ym) == null) continue; // nothing to close from
+    if (m.mon(ym).close) continue;
+    const late = ym < m.curYM, day = late ? today : (() => { const d = new Date(m.range(ym).to + 'T12:00:00'); d.setDate(d.getDate() + 1); return toISO(d); })();
+    out.push({ key: `close-${ym}`, at: at9(day), title: t('Cierre de {m}', { m: monthName(ym) }), body: t('Ya puedes cerrar el mes: apunta tu saldo del último día.'), url: './#hoy' });
   }
-  void prev;
-  const today = toISO(new Date()), lim = (() => { const d = new Date(); d.setDate(d.getDate() + 14); return toISO(d); })();
-  for (const ym of [m.curYM, ymAdd(m.curYM, 1)]) {
+  // what asks to be confirmed or is awaited, in the next 45 days
+  const lim = (() => { const d = new Date(); d.setDate(d.getDate() + 45); return toISO(d); })();
+  for (const ym of [m.curYM, ymAdd(m.curYM, 1), ymAdd(m.curYM, 2)]) {
     for (const p of m.plannedIn(ym)) {
       if (p.date < today || p.date > lim || p.state === 'real') continue;
       if (!(p.it.vary || p.it.kind === 'in')) continue; // what asks to be confirmed, and what you are waiting for
