@@ -237,7 +237,7 @@ function render(force) {
   afterRender(m);
 }
 function afterRender(m) {
-  syncReminders();
+  syncReminders(); adoptLook();
   // the app icon shows how many amounts are waiting to be confirmed (installed app, where supported)
   const n = m.items.length ? m.pendingIn(m.curYM).length : 0;
   try { n ? navigator.setAppBadge?.(n) : navigator.clearAppBadge?.(); } catch { /* not supported */ }
@@ -2021,7 +2021,7 @@ function onAct(b, sure = false) {
     case 'signout': signOut(); store.reset(); break;
     case 'wipe': if (!UI.wipe) { UI.wipe = true; render(true); break; } UI.wipe = false; if (store.mode === 'google') signOut(); store.reset(); break;
     case 'export': exportFile(); break;
-    case 'lang': setLang(b.dataset.v); break;
+    case 'lang': rememberLook({ lang: b.dataset.v }).then(() => setLang(b.dataset.v)); break;
     case 'theme': lsSet('hucha:theme', b.dataset.v === 'auto' ? null : b.dataset.v); applyTheme(b.dataset.v); render(true); break;
 
     case 'openclose': openClose(ym); break;
@@ -2279,7 +2279,7 @@ document.addEventListener('change', (e) => {
     readForm();
     if (FORM.freq !== 'monthly' && !FORM.month) FORM.month = new Date().getMonth() + 1;
     renderForm();
-  } else if (el.id === 'p-cur') { setCurrency(el.value);
+  } else if (el.id === 'p-cur') { rememberLook({ cur: el.value }).then(() => setCurrency(el.value));
   } else if (el.id === 'p-cycle') {
     const v = Math.round(num(el.value) ?? 0);
     if (v < 1 || v > 28) { toast(t('Un día del 1 al 28')); return; }
@@ -2398,6 +2398,27 @@ document.addEventListener('focusin', (e) => {
   go(); setTimeout(go, 300); // again once the keyboard has finished opening
 });
 
+// ---------- the look you chose (language, currency) survives the browser forgetting ----------
+// They live on the device, and browsers can clear a device's storage after a long time unused. So they are also kept with
+// the data (the sheet): when the device has none of its own, it takes them from there.
+try { navigator.storage?.persist?.(); } catch { /* not supported */ } // ask the browser not to clear this app's storage
+async function rememberLook(patch) {
+  if (!store.mode || store.mode === 'demo') return;
+  store.update('settings', (d) => { Object.assign(d.settings, patch); });
+  try { await store.sync(); } catch { /* it is sent later */ }
+}
+function adoptLook() {
+  const s = store.data?.settings;
+  if (!store.mode || store.mode === 'demo' || !s) return;
+  const lsLang = lsGet('hucha:lang'), lsCur = lsGet('hucha:cur');
+  let changed = false;
+  if (s.lang && LANGS[s.lang] && !lsLang && s.lang !== lang) { lsSet('hucha:lang', s.lang); changed = true; }
+  if (s.cur && CURRENCIES.includes(s.cur) && !lsCur && s.cur !== cur) { lsSet('hucha:cur', s.cur); changed = true; }
+  let once = null; try { once = sessionStorage.getItem('hucha:adopted'); } catch { /* blocked */ }
+  if (changed && !once) { try { sessionStorage.setItem('hucha:adopted', '1'); location.reload(); return; } catch { /* no reload without a guard */ } }
+  // an existing device with its choices and a sheet without them: save them there
+  if ((!s.lang || !s.cur) && !changed) store.update('settings', (d) => { d.settings.lang ||= lang; d.settings.cur ||= cur; });
+}
 // ---------- service worker and reminders ----------
 // The service worker makes the app installable with its own icon and open offline. Reminders are dated notes the page
 // leaves in it; when the browser wakes it up (periodic sync, installed Chrome on Android) the due ones become system notifications.

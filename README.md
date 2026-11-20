@@ -40,7 +40,7 @@ It's a **frontend-only** app: HTML, CSS and JavaScript with no build step and no
 
   | Tab | Columns |
   |---|---|
-  | `_hucha` | `key, value`: `schema`, `goal`, `start` (first month, `YYYY-MM`), `cycle_day` (the day your month starts; empty: from your pay), `cats` (JSON: your own spending types `{id, name, icon, color}`), `years` (JSON: past years' closes) |
+  | `_hucha` | `key, value`: `schema`, `goal`, `start` (first month, `YYYY-MM`), `cycle_day` (the day your month starts; empty: from your pay), `lang` and `currency` (your language and currency, kept here so a device that forgets them gets them back), `cats` (JSON: your own spending types `{id, name, icon, color}`), `years` (JSON: past years' closes) |
   | `items` | `id, kind (in/out), name, amount, freq (monthly/quarterly/yearly/once), month, year, day, pot, vary, note, real, budget, cat, from, to, at` (an item is several rows with the same `id`: its versions, each with the months it was in force and when it was changed) |
   | `meses` | `ym, saved, pots, pot_spent, real, close, challenge, bal, open, check, open_date, dates, checks`: put aside; (unused, older versions); (older versions: exact amounts of funded expenses); JSON item id → exact amount that month; the close `{amount}` (left over, or missing if negative: it counts as saved); (unused, older versions); account balance when the month ended; balance when it began (only needed once); the last look at the balance `{date, bal}` |
   | `cambios` | `at, what…`: the plan's change history (what changed, when, from which month) |

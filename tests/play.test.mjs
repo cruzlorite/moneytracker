@@ -49,3 +49,11 @@ test('closeDue: last month of the plan, until it is closed', () => {
   assert.equal(closeDue(compute(base({ months: { '2027-02': { ...open, saved: 100, close: { to: 'save', amount: 0 } } } }), t), t), null);
 });
 
+
+test('the sheet keeps the language and currency of the device', () => {
+  const d = base({ settings: { goal: 0, start: '2027-01', lang: 'en', cur: 'GBP' } });
+  const rows = toRows(d);
+  const back = parseSheet(Object.entries(TABS).map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
+  assert.equal(back.settings.lang, 'en');
+  assert.equal(back.settings.cur, 'GBP');
+});

@@ -156,7 +156,7 @@ export function parseSheet(valueRanges) {
     .map((r) => normSpend({ ...r, date: cellDate(r.date) })).filter(Boolean);
   const json = (v) => { try { return v ? JSON.parse(v) : undefined; } catch { return undefined; } };
   return {
-    settings: normSettings({ goal: settings.goal, start: cellYM(settings.start), years: json(settings.years), cats: json(settings.cats), cycleDay: settings.cycle_day }),
+    settings: normSettings({ goal: settings.goal, start: cellYM(settings.start), years: json(settings.years), cats: json(settings.cats), cycleDay: settings.cycle_day, lang: settings.lang, cur: settings.currency }),
     items, months, spends,
     log: normLog(rowsToObjects(get('log'), TABS.log.head).map((r) => ({ ...r, from: cellYM(r.from), to: cellYM(r.to), before: parseJ(r.before), after: parseJ(r.after) }))),
   };
@@ -166,7 +166,7 @@ export function toRows(data) {
   const b = (v) => (v ? true : '');
   return {
     settings: [TABS.settings.head, ['schema', SCHEMA], ['goal', data.settings.goal], ['start', data.settings.start],
-      ['cycle_day', data.settings.cycleDay ?? ''], ['cats', data.settings.cats?.length ? JSON.stringify(data.settings.cats) : ''], ['years', data.settings.years?.length ? JSON.stringify(data.settings.years) : '']],
+      ['cycle_day', data.settings.cycleDay ?? ''], ['lang', data.settings.lang ?? ''], ['currency', data.settings.cur ?? ''], ['cats', data.settings.cats?.length ? JSON.stringify(data.settings.cats) : ''], ['years', data.settings.years?.length ? JSON.stringify(data.settings.years) : '']],
     items: [TABS.items.head, ...data.items.map((i) => [i.id, i.kind, i.name, i.amount, i.freq, i.month ?? '', i.year ?? '', i.day ?? '', b(i.pot), b(i.vary), i.note || '', i.real ?? '', b(i.budget), i.cat || '', i.from || '', i.to || '', i.at || ''])],
     months: [TABS.months.head, ...Object.keys(data.months).sort().map((ym) => {
       const m = data.months[ym];

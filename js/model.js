@@ -599,6 +599,9 @@ export function normSettings(o = {}) {
   const st = { goal: Math.max(0, num(o.goal) ?? 0), start: isYM(o.start) ? o.start : toYM(new Date()) };
   const cd = Math.round(num(o.cycleDay) ?? 0);
   if (cd >= 1 && cd <= 28) st.cycleDay = cd;
+  // the look you chose (language, currency), kept with the data so it comes back when the browser forgets this device
+  if (/^[a-z]{2}$/.test(String(o.lang || ''))) st.lang = o.lang;
+  if (/^[A-Z]{3}$/.test(String(o.cur || ''))) st.cur = o.cur;
   if (Array.isArray(o.cats)) {
     const cats = o.cats.filter((c) => c && isCustomCat(c.id) && String(c.name || '').trim())
       .map((c) => ({ id: String(c.id), name: String(c.name).trim().slice(0, 24), icon: String(c.icon || 'otros'), ...(/^p([1-9]|1[0-2])$/.test(c.color) ? { color: c.color } : {}) }));
