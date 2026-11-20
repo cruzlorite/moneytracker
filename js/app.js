@@ -2008,6 +2008,7 @@ function onAct(b, sure = false) {
     case 'retrysave': store.sync(); break;
     case 'remindon': enableReminders(); break;
     case 'remindoff': disableReminders(); break;
+    case 'remindkind': { const k = b.dataset.k, on2 = !remindKind(k); lsSet('hucha:remind:' + k, on2 ? '' : '0'); b.setAttribute('aria-pressed', String(on2)); syncReminders(); break; }
     case 'remindtest': swPost({ type: 'test', title: t('MoneyTracker'), body: t('Así te avisaré.') }); break;
     case 'reauth': case 'sync':
       if (act === 'sync' && store.status === 'error') { toast(store.error, 4000); store.sync(); break; }
@@ -2423,6 +2424,8 @@ function adoptLook() {
 // The service worker makes the app installable with its own icon and open offline. Reminders are dated notes the page
 // leaves in it; when the browser wakes it up (periodic sync, installed Chrome on Android) the due ones become system notifications.
 function remindersOn() { return !!lsGet('hucha:remind'); }
+/** Which kinds of reminder you want: the close of the month, incomes, expenses (each on unless you turned it off). */
+const remindKind = (k) => lsGet('hucha:remind:' + k) !== '0';
 function REM_SUPPORT() { return 'serviceWorker' in navigator && 'Notification' in window; }
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('./sw.js').catch(() => { /* no worker: it works the same, just not offline */ });
 function swPost(msg) { return REM_SUPPORT() ? navigator.serviceWorker.ready.then((r) => (r.active || navigator.serviceWorker.controller)?.postMessage(msg)).catch(() => {}) : Promise.resolve(); }
@@ -2432,7 +2435,7 @@ function remindersList(m) {
   const out = [], at9 = (iso) => `${iso}T09:00:00`, today = toISO(new Date());
   // the closes of this month and the two after it: if you don't open the app for weeks, the notes are already there
   const due = closeDue(m);
-  const closes = due ? [due, m.curYM, ymAdd(m.curYM, 1)] : [m.curYM, ymAdd(m.curYM, 1), ymAdd(m.curYM, 2)];
+  const closes = !remindKind('close') ? [] : due ? [due, m.curYM, ymAdd(m.curYM, 1)] : [m.curYM, ymAdd(m.curYM, 1), ymAdd(m.curYM, 2)];
   for (const ym of closes) {
     if (ym <= m.curYM && m.balStart(ym) == null) continue; // nothing to close from
     if (m.mon(ym).close) continue;
@@ -2444,8 +2447,12 @@ function remindersList(m) {
   for (const ym of [m.curYM, ymAdd(m.curYM, 1), ymAdd(m.curYM, 2)]) {
     for (const p of m.plannedIn(ym)) {
       if (p.date < today || p.date > lim || p.state === 'real') continue;
-      if (!(p.it.vary || p.it.kind === 'in')) continue; // what asks to be confirmed, and what you are waiting for
-      out.push({ key: `item-${p.it.id}-${p.date}`, at: at9(p.date), title: p.it.kind === 'in' ? t('Hoy toca: {n}', { n: p.it.name }) : t('Confirma {n}', { n: p.it.name }), body: p.it.kind === 'in' ? t('¿Ha llegado? Confírmalo en la app.') : t('Pon el importe de este mes.'), url: './#hoy' });
+      const isIn = p.it.kind === 'in', isSave = !!p.save;
+      if (isIn ? !remindKind('in') : !remindKind('out')) continue;
+      const key = `item-${p.it.id}-${p.date}`;
+      if (isIn) out.push({ key, at: at9(p.date), title: t('Hoy toca: {n}', { n: p.it.name }), body: t('¿Ha llegado? Confírmalo en la app.'), url: './#hoy' });
+      else if (p.it.vary) out.push({ key, at: at9(p.date), title: t('Confirma {n}', { n: p.it.name }), body: t('Pon el importe de este mes.'), url: './#hoy' });
+      else out.push({ key, at: at9(p.date), title: isSave ? t('Hoy toca pasar al ahorro: {n}', { n: p.it.name }) : t('Hoy se paga: {n}', { n: p.it.name }), body: isSave ? t('Traspaso planificado.') : t('Gasto planificado. Si cambia el importe, confírmalo en la app.'), url: './#hoy' });
     }
   }
   return out;
@@ -2473,6 +2480,7 @@ function remindersCard() {
   return `<section class="card"><h2>${t('Avisos')}</h2>
     <p class="fine">${perm === 'unsupported' ? t('Tu navegador no admite avisos. Instala la app desde el menú del navegador.') : perm === 'denied' ? t('Los avisos están bloqueados: actívalos en los ajustes del navegador para este sitio.')
       : t('Te avisa de «Cierre de {m}» y de lo que toca confirmar. En Android, con la app instalada, el móvil decide cuándo mirar: puede tardar unas horas.', { m: monthName(compute(store.data).curYM) })}</p>
+    ${on ? `<div class="kindpills" role="group" aria-label="${t('Qué avisar')}">${[['close', t('Cierre del mes')], ['in', t('Ingresos')], ['out', t('Gastos planificados')]].map(([k, l]) => `<button type="button" class="kindpill" data-act="remindkind" data-k="${k}" aria-pressed="${remindKind(k)}">${l}</button>`).join('')}</div>` : ''}
     ${perm === 'unsupported' || perm === 'denied' ? '' : `<div class="row wrap-row">${on ? `<button data-act="remindoff">${t('Desactivar avisos')}</button><button class="ghost" data-act="remindtest">${t('Enviar un aviso de prueba')}</button>` : `<button class="primary" data-act="remindon">${t('Activar avisos')}</button>`}</div>`}
   </section>`;
 }

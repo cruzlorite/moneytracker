@@ -1,5 +1,10 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Qué avisar': 'What to remind',
+  'Gasto planificado. Si cambia el importe, confírmalo en la app.': 'Planned expense. If the amount changes, confirm it in the app.',
+  'Traspaso planificado.': 'Planned transfer.',
+  'Hoy se paga: {n}': 'Due today: {n}',
+  'Hoy toca pasar al ahorro: {n}': 'Time to move to savings: {n}',
   'Gastos este mes': 'Spending this month',
   'lo que ya has pasado a ahorro e inversión este mes. Es dinero contabilizado, no una estimación.': "what you have already moved to savings and investment this month. It is counted money, not an estimate.",
   'registrado este mes': "logged this month",

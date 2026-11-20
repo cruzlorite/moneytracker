@@ -1365,3 +1365,7 @@ dialog .sheet { overscroll-behavior: contain; }
 .moves { grid-template-columns: minmax(0, 1fr); }
 .move { white-space: normal; } .move .num { white-space: nowrap; }
 .move.rich .amtcol .fine { color: var(--muted); font-weight: 500; font-size: 12px; }
+
+.kindpills { display: flex; flex-wrap: wrap; gap: 8px; }
+.kindpill { border: 1.5px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.kindpill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
