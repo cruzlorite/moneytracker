@@ -1416,3 +1416,75 @@ dialog .sheet { overscroll-behavior: contain; }
 .ss-part i.ss-assumed { background: repeating-linear-gradient(135deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 35%, var(--panel)) 3px 6px); }
 .ss-n { display: grid; } .ss-n .fine { font-size: 11.5px; }
 .ss-n { display: block; } .ss-note { margin: -2px 0 2px 20px; font-size: 11.5px; }
+
+/* Long texts: a word is never split in two, names take at most two lines (the full text on hover), figures stay on one line */
+.notify .trow .tbody .grow b, .move .grow b, .stats2 .stat .fine, .move.rich .grow .fine:last-child {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; }
+.spend .grow { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; }
+.ss-row { grid-template-columns: 12px minmax(0, 1fr) auto; align-items: start; }
+.ss-n { overflow-wrap: break-word; word-break: normal; padding-top: 1px; }
+.ss-v { text-align: right; white-space: nowrap; display: grid; justify-items: end; }
+.ss-st { font-weight: 700; font-size: 12px; }
+.card[data-trail] > .row.between { flex-wrap: wrap; row-gap: 8px; }
+.card[data-trail] > .row.between h2 { white-space: nowrap; }
+.hero-ofp .ofp { flex-wrap: nowrap; white-space: nowrap; }
+.hero-ofp .ofp b { font-size: min(44px, 10.5vw); }
+.hero-ofp .ofp-d { font-size: min(26px, 5.6vw); }
+
+/* narrow phones: the confirm button keeps only its icon, titles shrink a little, figures never break */
+.notify .trow .okbtn .oki { display: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 380px) {
+  .notify .trow .okbtn, .notify .trow .okbtn[data-act="occ"] { min-width: 0; width: 38px; height: 34px; padding: 0; justify-content: center; }
+  .notify .trow .okbtn .okt { display: none; } .notify .trow .okbtn .oki { display: block; }
+  .ss-row { grid-template-columns: 12px minmax(0, 1fr); } .ss-v { grid-column: 2; justify-items: start; text-align: left; }
+}
+.ofp-d { white-space: nowrap; }
+.hero-ofp .ofp b { font-size: min(44px, 10vw); } .hero-ofp .ofp-d { font-size: min(26px, 5vw); }
+.mhead-t h1 { font-size: min(28px, 7.6vw); white-space: nowrap; }
+#hp > .row.between { flex-wrap: wrap; row-gap: 6px; } #hp > .row.between h2 { white-space: nowrap; }
+.stats2 .stat > b.num, .stats2 .stat .ofp b { font-size: min(28px, 7vw); white-space: nowrap; }
+.ss-v { display: block; } .ss-v .ss-st { display: block; }
+/* Plan rows on narrow phones: the name gets the whole width, the amount goes under it */
+.prow .n { overflow-wrap: break-word; }
+@media (max-width: 380px) {
+  .prow { grid-template-columns: minmax(0, 1fr); }
+  .prow .a { text-align: left; }
+}
+.goalbtn .gb-v { font-size: min(32px, 8.4vw); white-space: nowrap; }
+
+/* Lists with a name and figures (Plan y realidad, gasto por tipo): the figures move to the next line before a word is split */
+.cmp > .row.between, .vrow > .row.between { flex-wrap: wrap; column-gap: 10px; row-gap: 2px; }
+.cmp .bn { flex: 0 1 auto; min-width: 0; white-space: nowrap; }
+.cmp .bn b { overflow-wrap: normal; }
+.cmp > .row.between > .num { flex: 1 1 auto; text-align: right; }
+.vname { flex: 0 1 auto; min-width: 0; flex-wrap: wrap; row-gap: 0; column-gap: 6px; }
+.vname .vn { min-width: 0; overflow-wrap: break-word; }
+.vname .rk-pct, .vname .vx, .vname .vx * { white-space: nowrap; }
+.vrow > .row.between > .num { flex: 1 0 auto; text-align: right; white-space: nowrap; }
+/* tiles: figures shrink with the screen instead of being cut */
+.tiles.t3 .tile .v { font-size: min(22px, 5.4vw); }
+.tiles.t2 .tile .v { font-size: min(28px, 7vw); }
+.vn .dchev { display: inline-grid; vertical-align: -2px; margin-left: 2px; }
+
+/* the months grid on narrow phones: smaller text, nothing cut */
+@media (max-width: 380px) {
+  .mcell { padding-left: 7px; padding-right: 5px; }
+  .mcell span { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .mcell b { font-size: min(16px, 4.4vw); }
+  .mcell.due b { font-size: 10.5px; white-space: normal; line-height: 1.1; }
+  .mcell small { font-size: 10px; }
+}
+.move.rich .grow .fine:last-child { -webkit-line-clamp: unset; display: block; }
+.move.rich .grow .fine.num { white-space: normal; color: var(--muted); font-weight: 600; }
+.detiles .tile .v { font-size: min(26px, 5.6vw); white-space: nowrap; }
+/* tiles: the figure scales with the screen so it always fits its box; labels and notes wrap between words */
+.tiles.t3 .tile .v, .tiles .tile .v { font-size: clamp(15px, 4.7vw, 24px); }
+.tiles.t2 .tile .v, .detiles .tile .v { font-size: clamp(16px, 5.1vw, 26px); }
+.tile .label, .tile .fine { white-space: normal; overflow-wrap: break-word; min-width: 0; }
+.tile { min-width: 0; overflow: hidden; }
+/* the savings table in its detail: tighter on narrow screens */
+.srow { grid-template-columns: minmax(0, .8fr) repeat(3, minmax(0, 1fr)); gap: 6px; font-size: 13px; }
+@media (max-width: 380px) { .srow { font-size: 12px; } .srow.shead { font-size: 10px; letter-spacing: 0; } }
+@media (max-width: 340px) { .srow { font-size: 11px; gap: 4px; } }
+.banner .grow { white-space: normal; min-width: 0; overflow-wrap: break-word; }
+@media (max-width: 340px) { .srow { grid-template-columns: minmax(0, .7fr) repeat(3, minmax(0, 1fr)); } }
