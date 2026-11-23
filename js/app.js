@@ -11,7 +11,7 @@ import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, 
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
-import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency } from './i18n.js';
+import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency, readLook, writeLook } from './i18n.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const app = $('#app'), dlg = $('#modal'), toastEl = $('#toast');
@@ -155,7 +155,8 @@ function applyTheme(t) {
     m.setAttribute('content', bg[t === 'light' || t === 'dark' ? t : scheme]);
   });
 }
-applyTheme(lsGet('hucha:theme'));
+applyTheme(lsGet('hucha:theme') || readLook().theme || null);
+writeLook({ theme: lsGet('hucha:theme') || readLook().theme || '' });
 
 // ---------- frame ----------
 function ensureFrame() {
@@ -477,7 +478,7 @@ function home(m) {
   // a full sentence under the bar: where this month stands against the planned spending
   const hpNote = gapMoney < 1 ? null : end <= plan
     ? { a: end, b: plan, text: proj != null ? t('A este ritmo, el gasto quedará ≈\u00a0{x} por debajo de lo planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }) : t('Te quedan {x} de gasto planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'gap' }
-    : { a: plan, b: end, text: spent > plan + 0.5 ? t('Gasto planificado superado en {x}', { x: fmt(Math.round(spent - plan)).replace(/\s/g, '\u00a0') }) : t('A este ritmo, superarás el gasto planificado en ≈\u00a0{x}', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'over', over: true };
+    : { a: plan, b: end, text: spent > plan + 0.5 ? t('Gasto planificado superado en {x}', { x: fmt((spent - plan)).replace(/\s/g, '\u00a0') }) : t('A este ritmo, superarás el gasto planificado en ≈\u00a0{x}', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'over', over: true };
   const w = (v) => (plan > 0 ? clamp(v / plan * 100, 0, 100) : 0).toFixed(1);
   const tasks = [
     ...pending.map((p) => {
@@ -502,7 +503,7 @@ function home(m) {
     <div class="row between"><h2>${t('Gastos este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
     ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado'), proj: t('Gasto de aquí a fin de mes'), projTotal: t('Total a fin de mes') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
-    <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt(Math.round(proj))}</span>` : '<span></span>'}</div>
+    <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt((proj))}</span>` : '<span></span>'}</div>
     ${hpNote ? `<p class="hpsent" style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}${hpNote.over ? '' : ' <span aria-hidden="true">🎉</span>'}</p>` : ''}
     ${trail ? '' : balanceBox(m, ym, cm)}
   </section>
@@ -534,13 +535,13 @@ function monthTypes(m, ym) {
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     const tip = `${b.name}: ${fmt(x.spent)} ${t('de')} ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')} · ${x.left < -0.5 ? t('superado en {x}', { x: fmt(-x.left) }) : t('quedan {x}', { x: fmt(x.left) })}`;
     const rowsTip = [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(x.spent) },
-      ...(x.proj != null ? [{ c: x.proj > x.of + 0.5 ? 'var(--spend)' : 'var(--out)', k: 'hatch', l: t('Proyección a fin de mes'), v: `≈ ${fmt(Math.round(x.proj))}` }] : []),
+      ...(x.proj != null ? [{ c: x.proj > x.of + 0.5 ? 'var(--spend)' : 'var(--out)', k: 'hatch', l: t('Proyección a fin de mes'), v: `≈ ${fmt((x.proj))}` }] : []),
       x.left >= -0.5 ? { c: 'var(--muted)', k: 'solid', l: t('Sin gastar'), v: fmt(Math.max(0, x.left)) } : { c: 'var(--spend)', k: 'solid', l: t('Superado en'), v: fmt(-x.left) },
       { k: 'line', l: t('Presupuesto'), v: `${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}` }];
     return `<div class="vrow" tabindex="0" data-tip="${esc(tipx(b.name, rowsTip))}">
       <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b class="${x.spent > x.of + 0.5 ? 'c-spend' : ''}">${fmtN(x.spent)}</b> <span class="muted">/ ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')}</span></span></span>
       ${budBar(x, 'v-' + b.id)}
-      ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt(Math.round(x.proj))}</b></span>` : ''}</div>`;
+      ${x.proj != null && x.proj > x.of * SPEND_NEAR ? `<span class="fine num">${t('Proyección a fin de mes ≈')} <b style="${toneText(pt)}">${fmt((x.proj))}</b></span>` : ''}</div>`;
   }).join('');
   return `<section class="card" aria-label="${t('Gasto por tipo')}"><div class="row between"><h2>${t('Gasto por tipo')} ${info('limites')}</h2><span class="fine num">${fmt(tot)}</span></div>
     ${buds.length ? `<span class="label">${t('Presupuestos')}</span><div class="vlist">${budRows}</div>` : ''}
@@ -625,7 +626,7 @@ function metas(m) {
     const { planC, realC } = savedSeries(m);
     cumCard = `<section class="card" aria-label="${t('Ahorro e inversión acumulado')}">
       <div class="row between"><h2>${t('Ahorro e inversión acumulado')} ${info('acumulado')}</h2></div>
-      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, today: m.over || !pc ? null : { at: m.curIdx + pc.day / pc.dim, v: (realC[m.curIdx - 1] ?? 0) + m.savedOf(m.curYM) }, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [tipx(t('Inicio'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorrado'), v: fmt(0) }]), ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--sav)', k: i > m.curIdx ? 'hatch' : 'solid', l: i > m.curIdx ? t('Estimado') : t('Ahorrado'), v: i >= m.curIdx ? '≈ ' + fmt(Math.round(realC[i])) : fmt(realC[i]) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i]) }], `${fmtSigned(Math.round(realC[i] - planC[i]))} ${t('sobre el plan')}`))], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
+      ${cumLines({ plan: [0, ...planC], real: [0, ...realC], projFrom: m.over ? null : m.curIdx + 1, nowIdx: m.over ? null : m.curIdx + 1, today: m.over || !pc ? null : { at: m.curIdx + pc.day / pc.dim, v: (realC[m.curIdx - 1] ?? 0) + m.savedOf(m.curYM) }, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: [tipx(t('Inicio'), [{ c: 'var(--sav)', k: 'solid', l: t('Ahorrado'), v: fmt(0) }]), ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--sav)', k: i > m.curIdx ? 'hatch' : 'solid', l: i > m.curIdx ? t('Estimado') : t('Ahorrado'), v: i >= m.curIdx ? '≈ ' + fmt((realC[i])) : fmt(realC[i]) }, { k: 'dash', l: t('Planificado'), v: fmt(planC[i]) }], `${fmtSigned((realC[i] - planC[i]))} ${t('sobre el plan')}`))], aria: t('Ahorro e inversión acumulado frente al planificado, mes a mes') })}
       <div class="legend"><span><i class="sw" style="background: var(--sav)"></i>${t('ahorrado')}</span><span><i class="lg-proj" style="--pc: var(--sav)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div>
       ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], m.season.map((ym, i) => [esc(cap(ymLabel(ym))), (i >= m.curIdx ? '≈ ' : '') + fmt(realC[i]), fmt(planC[i]), diffCell(realC[i], planC[i], 'good')]))}
     </section>`;
@@ -646,7 +647,7 @@ function metas(m) {
     <div class="heroval big-ofp hero-ofp">${ofPlan(m.saved, m.goal, t('ahorrado / planificado'), { tone: 'var(--sav)' })}</div>
     <div id="goal-meter">${gauge({ names: { fill: t('Ahorrado'), proj: t('Ahorro de aquí a fin de año'), projTotal: t('Total a fin de año') }, v: m.saved, proj: m.pre || m.over ? null : proj, tone: 'var(--sav)', ptone: 'var(--sav)', tall: true, key: 'goal',
       marks: [{ at: m.goal, label: `${t('planificado')} ${fmt(m.goal)}` }], note: yNote, label: t('Ahorrado {a} de {b}', { a: fmt(m.saved), b: fmt(m.goal) }) + '; ' + t('proyección a fin de año {x}', { x: fmt(proj) }) })}</div>
-    <div class="barleg small num">${m.pre || m.over ? '<span></span>' : `<span><i class="lg-proj" style="--pc:var(--sav)"></i>${t('Proyección a fin de año')} ≈ ${fmt(Math.round(proj))}</span>`}${yNote && !yNoteFits ? `<b style="${toneText(scaleOf(proj, m.goal).c)}">${yNote.text}</b>` : ''}</div>
+    <div class="barleg small num">${m.pre || m.over ? '<span></span>' : `<span><i class="lg-proj" style="--pc:var(--sav)"></i>${t('Proyección a fin de año')} ≈ ${fmt((proj))}</span>`}${yNote && !yNoteFits ? `<b style="${toneText(scaleOf(proj, m.goal).c)}">${yNote.text}</b>` : ''}</div>
   </section>
   <section class="card" aria-label="${t('Mes a mes')}">
     <div class="row between"><div><h2>${t('Mes a mes')} ${info('meses')}</h2><span class="fine">${t('ahorrado / planificado de cada mes')}</span></div><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span></div>
@@ -683,6 +684,23 @@ function mes(m) {
   ${d.close ? `<button class="ghost small center-self" data-act="closeundo" data-ym="${ym}">${t('Deshacer el cierre de {m}', { m: monthName(ym) })}</button>` : ''}`;
 }
 
+/** The account balance as estimated today (the line's point for today), or null while there is no start balance. */
+function balanceToday(m) {
+  const cv = m.curveNow(m.curYM); if (!cv) return null;
+  const p = cv.pts.find((q) => q.day === m.dayOf(m.todayISO, m.curYM));
+  return p ? round2(cv.start + p.y) : null;
+}
+/** Put the balance where it is after `amount` left the account (a negative amount: came back): a new look at it, today. */
+function bumpBalance(amount) {
+  const m = compute(store.data), bal = balanceToday(m); if (bal == null) return null;
+  const nb = round2(bal - amount), ym = m.curYM, chk = { date: m.todayISO, bal: nb };
+  store.update('months', (d) => {
+    const prev = d.months[ym] || {}, list = [...(prev.checks || (prev.check ? [prev.check] : []))].filter((x) => x.date !== chk.date);
+    list.push(chk); list.sort((x, y) => x.date.localeCompare(y.date));
+    d.months[ym] = { ...prev, check: list[list.length - 1], checks: list };
+  });
+  return nb;
+}
 // ---------- quick add: the "+" button ----------
 function openQuick(keep = {}) {
   const m = compute(store.data), today = toISO(new Date());
@@ -701,6 +719,7 @@ function openQuick(keep = {}) {
       <label class="field"><span class="label">${t('Nota')}</span><input id="k-note" value="${esc(keep.note || '')}" placeholder="${t('Opcional')}" autocomplete="off"></label>
       <label class="field"><span class="label">${t('Día')}</span><input type="date" id="k-date" value="${date}"></label>
     </div>
+    ${!UI.editSpend && m.balStart(m.curYM) != null ? `<label class="updbal" id="k-updrow" ${date === today ? '' : 'hidden'}><input type="checkbox" id="k-upd" ${lsGet('hucha:updbal') !== '0' ? 'checked' : ''}><span>${t('Actualizar saldo')}<span class="fine">${save ? (UI.qdir === 'out' ? t('el saldo sube lo que retiras') : t('el saldo baja lo que apuntas')) : t('el saldo baja lo que apuntas')}</span></span></label>` : ''}
     ${UI.editSpend ? `<button type="button" class="primary big" data-act="kgo">${t('Guardar')}</button>
     <button type="button" class="ghost small danger" data-act="delspend" data-id="${esc(UI.editSpend)}">${save ? t('Borrar') : t('Borrar gasto')}</button>`
       : `<button type="button" class="primary big" data-act="kgo">${save ? t('Apuntar ahorro') : t('Apuntar')}</button>
@@ -896,8 +915,8 @@ function doneRowsOf(m, kind) {
 }
 /** "Media al mes" said with its numbers: the total, the months it covers (this one counted by the days gone) and what the plan allows a month. */
 const avgTile = (label, total, elapsed, planYear, nMonths = 12) => {
-  const n = elapsed.toFixed(1).replace('.', ','), per = planYear != null ? ` · ${t('plan: {x} al mes', { x: fmt(Math.round(planYear / nMonths)) })}` : '';
-  return `<div class="tile"><span class="label">${label}</span><span class="v num">${fmt(Math.round(total / Math.max(1, elapsed)))}</span><span class="fine">${t('{x} en {n} meses', { x: fmt(Math.round(total)), n })}${per}</span></div>`;
+  const n = elapsed.toFixed(1).replace('.', ','), per = planYear != null ? ` · ${t('plan: {x} al mes', { x: fmt((planYear / nMonths)) })}` : '';
+  return `<div class="tile"><span class="label">${label}</span><span class="v num">${fmt((total / Math.max(1, elapsed)))}</span><span class="fine">${t('{x} en {n} meses', { x: fmt((total)), n })}${per}</span></div>`;
 };
 /** Ingresado, Gastado or Ahorrado over the year in one view: where you stand, the running total against the plan, and what makes it up. */
 function openLineDetail(kind) {
@@ -920,7 +939,7 @@ function openLineDetail(kind) {
     good
       ? (left > 0.5 ? tile(t('Te falta'), fmt(left), t('para el plan del año')) : tile(t('Superado en'), fmt(-left), t('el plan del año'), 'c-ok'))
       : (left >= -0.5 ? tile(t('Te queda'), fmt(Math.max(0, left)), t('del gasto planificado')) : tile(t('Te has pasado'), fmt(-left), t('del gasto planificado'), 'c-spend')),
-    tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, `${fmt(Math.abs(Math.round(endGap)))} ${endGap > 0 ? t('por encima del plan') : t('por debajo del plan')}`, endGood ? 'c-ok' : 'c-spend'),
+    tile(t('A fin de año'), `≈ ${fmt((x.proj))}`, `${fmt(Math.abs((endGap)))} ${endGap > 0 ? t('por encima del plan') : t('por debajo del plan')}`, endGood ? 'c-ok' : 'c-spend'),
     avgTile(kind === 'out' ? t('Gasto medio al mes') : kind === 'in' ? t('Ingreso medio al mes') : t('Ahorro medio al mes'), x.real, elapsed, x.plan, n),
   ].join('');
   const planC = [0], realC = [0]; let pa = 0, ra = 0;
@@ -931,7 +950,7 @@ function openLineDetail(kind) {
   else if (kind !== 'sav') { const fr = pc ? pc.day / pc.dim : 0, share = (1 - fr) / Math.max(0.01, (1 - fr) + (n - ci - 1)); for (let i = ci + 1; i <= n; i++) realC[i] = round2(nowV + (x.proj - nowV) * (share + (i - ci - 1) * (1 - share) / Math.max(1, n - ci - 1))); }
   let sav = null;
   if (kind === 'sav') { const q = savedSeries(m); sav = { planC: [0, ...q.planC], realC: [0, ...q.realC] }; } // exactly the line Año draws
-  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: sav ? sav.planC : planC, real: sav ? sav.realC : realC.map((v) => v ?? 0), projFrom: live ? ci + 1 : null, nowIdx: live ? ci + 1 : null, today: live && pc ? { at: ci + pc.day / pc.dim, v: sav ? (sav.realC[ci] ?? 0) + m.savedOf(m.curYM) : nowV } : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => { const RC = sav ? sav.realC : realC, PC = sav ? sav.planC : planC, est = sav ? i > ci : real[i] == null, near = sav && i === ci; return tipx(cap(ymLabel(ym)), [{ c: tone, k: est ? 'hatch' : 'solid', l: est ? t('Estimado') : word, v: (est || near ? '≈ ' : '') + fmt(est || near ? Math.round(RC[i + 1]) : RC[i + 1]) }, { k: 'dash', l: t('Planificado'), v: fmt(PC[i + 1]) }], sav ? `${fmtSigned(Math.round(RC[i + 1] - PC[i + 1]))} ${t('sobre el plan')}` : ''); })], aria: word })}
+  const chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: sav ? sav.planC : planC, real: sav ? sav.realC : realC.map((v) => v ?? 0), projFrom: live ? ci + 1 : null, nowIdx: live ? ci + 1 : null, today: live && pc ? { at: ci + pc.day / pc.dim, v: sav ? (sav.realC[ci] ?? 0) + m.savedOf(m.curYM) : nowV } : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => { const RC = sav ? sav.realC : realC, PC = sav ? sav.planC : planC, est = sav ? i > ci : real[i] == null, near = sav && i === ci; return tipx(cap(ymLabel(ym)), [{ c: tone, k: est ? 'hatch' : 'solid', l: est ? t('Estimado') : word, v: (est || near ? '≈ ' : '') + fmt(est || near ? (RC[i + 1]) : RC[i + 1]) }, { k: 'dash', l: t('Planificado'), v: fmt(PC[i + 1]) }], sav ? `${fmtSigned((RC[i + 1] - PC[i + 1]))} ${t('sobre el plan')}` : ''); })], aria: word })}
     <div class="legend"><span><i class="sw" style="background: ${tone}"></i>${word.toLowerCase()}</span><span><i class="lg-proj" style="--pc: ${tone}"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('planificado')}</span></div></section>`;
   // what makes it up
   let listHead = '', body = '';
@@ -948,7 +967,7 @@ function openLineDetail(kind) {
   } else {
     listHead = t('Mes a mes');
     // a small table with its headers: month, target, saved, difference
-    body = `<div class="stable" role="table"><div class="srow shead" role="row"><span role="columnheader">${t('Mes')}</span><span role="columnheader" class="num">${t('Objetivo')}</span><span role="columnheader" class="num">${t('Ahorrado')}</span><span role="columnheader" class="num">${t('Diferencia')}</span></div>${m.season.map((ym, i) => (real[i] == null ? '' : `<div class="srow" role="row"><b role="cell">${esc(cap(MES3[+ym.slice(5) - 1]))} <span class="fine">${ym.slice(2, 4)}</span></b><span role="cell" class="num">${fmt(planM[i])}</span><span role="cell" class="num c-save">${fmt(real[i])}</span><span role="cell" class="num ${real[i] >= planM[i] ? 'c-ok' : 'c-spend'}">${fmtSigned(Math.round(real[i] - planM[i]))}</span></div>`)).reverse().join('')}</div>`;
+    body = `<div class="stable" role="table"><div class="srow shead" role="row"><span role="columnheader">${t('Mes')}</span><span role="columnheader" class="num">${t('Objetivo')}</span><span role="columnheader" class="num">${t('Ahorrado')}</span><span role="columnheader" class="num">${t('Diferencia')}</span></div>${m.season.map((ym, i) => (real[i] == null ? '' : `<div class="srow" role="row"><b role="cell">${esc(cap(MES3[+ym.slice(5) - 1]))} <span class="fine">${ym.slice(2, 4)}</span></b><span role="cell" class="num">${fmt(planM[i])}</span><span role="cell" class="num c-save">${fmt(real[i])}</span><span role="cell" class="num ${real[i] >= planM[i] ? 'c-ok' : 'c-spend'}">${fmtSigned((real[i] - planM[i]))}</span></div>`)).reverse().join('')}</div>`;
   }
   dlg.classList.add('full');
   dlg.innerHTML = `<div class="sheet donesheet" id="cat-sheet" style="--dt:${tone}"><div class="row between"><h2>${word}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
@@ -971,7 +990,7 @@ function openCatDetail(c) {
       due != null ? tile(t('Deberías llevar'), fmt(due), t('hoy, repartido por igual')) : tile(t('Presupuesto'), fmt(x.plan), t('del año')),
       gap != null ? tile(gap > 0.5 ? t('Te has pasado') : t('Vas por debajo'), fmt(Math.abs(gap)), t('respecto a hoy'), gap > 0.5 ? 'c-spend' : 'c-ok') : '',
       tile(over ? t('Te has pasado') : t('Te queda'), fmt(Math.abs(left)), over ? t('del presupuesto del año') : t('del presupuesto del año'), over ? 'c-spend' : ''),
-      tile(t('A fin de año'), `≈ ${fmt(Math.round(x.proj))}`, x.proj > x.plan + 0.5 ? t('≈ {x} por encima', { x: fmt(Math.round(x.proj - x.plan)) }) : t('≈ {x} por debajo', { x: fmt(Math.round(x.plan - x.proj)) }), x.proj > x.plan + 0.5 ? 'c-spend' : 'c-ok'),
+      tile(t('A fin de año'), `≈ ${fmt((x.proj))}`, x.proj > x.plan + 0.5 ? t('≈ {x} por encima', { x: fmt((x.proj - x.plan)) }) : t('≈ {x} por debajo', { x: fmt((x.plan - x.proj)) }), x.proj > x.plan + 0.5 ? 'c-spend' : 'c-ok'),
       avgTile(t('Gasto medio al mes'), spent, elapsed, x.plan, x.monthly ? n : 12),
     ].join('');
     // the year as two running totals: what you have spent, and what the budget lets you spend, with the rest as it would go
@@ -979,7 +998,7 @@ function openCatDetail(c) {
     m.season.forEach((ym, i) => { pa += x.amounts[i] || 0; planC.push(round2(pa)); if (per[i] != null) { ra += per[i]; realC.push(round2(ra)); } else realC.push(null); });
     const nowV2 = realC[ci + 1], fr2 = pc ? pc.day / pc.dim : 0, sh2 = (1 - fr2) / Math.max(0.01, (1 - fr2) + (n - ci - 1));
     if (live) for (let i = ci + 1; i <= n; i++) realC[i] = round2(nowV2 + (x.proj - nowV2) * (sh2 + (i - ci - 1) * (1 - sh2) / Math.max(1, n - ci - 1)));
-    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 1 : null, nowIdx: live ? ci + 1 : null, today: live && pc ? { at: ci + fr2, v: nowV2 } : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: per[i] != null ? 'solid' : 'hatch', l: per[i] != null ? t('Gastado') : t('Estimado'), v: (per[i] != null ? '' : '≈ ') + fmt(per[i] != null ? realC[i + 1] : Math.round(realC[i + 1])) }, { k: 'dash', l: t('Presupuesto'), v: fmt(planC[i + 1]) }]))], aria: t('Gastado acumulado frente al presupuesto') })}
+    chart = `<section class="card"><h2>${t('Evolución en el año')}</h2>${cumLines({ plan: planC, real: realC.map((v) => v ?? 0), projFrom: live ? ci + 1 : null, nowIdx: live ? ci + 1 : null, today: live && pc ? { at: ci + fr2, v: nowV2 } : null, labels: ['', ...m.season.map((ym) => MES3[+ym.slice(5) - 1])], tips: ['', ...m.season.map((ym, i) => tipx(cap(ymLabel(ym)), [{ c: 'var(--out)', k: per[i] != null ? 'solid' : 'hatch', l: per[i] != null ? t('Gastado') : t('Estimado'), v: (per[i] != null ? '' : '≈ ') + fmt(per[i] != null ? realC[i + 1] : (realC[i + 1])) }, { k: 'dash', l: t('Presupuesto'), v: fmt(planC[i + 1]) }]))], aria: t('Gastado acumulado frente al presupuesto') })}
       <div class="legend"><span><i class="sw" style="background: var(--out)"></i>${t('gastado')}</span><span><i class="lg-proj" style="--pc: var(--out)"></i>${t('estimado')}</span><span><i class="lg-plan"></i>${t('presupuesto')}</span></div></section>`;
   } else {
     const tot = spendByType(m, m.season.filter((ym) => ym <= m.curYM)).tot, top = per.reduce((b, v, i) => (v != null && v > (per[b] ?? -1) ? i : b), 0);
@@ -998,7 +1017,7 @@ function openCatDetail(c) {
   rows.sort((a, b) => b.date.localeCompare(a.date));
   let cur = '', body = '';
   for (const r of rows) {
-    if (r.ym !== cur) { cur = r.ym; const sum = rows.filter((q) => q.ym === cur).reduce((a, q) => a + q.signed, 0); body += `<div class="mdiv"><span>${esc(cap(ymLabel(cur)))}</span><span class="num">${fmtSigned(Math.round(sum))}</span></div>`; }
+    if (r.ym !== cur) { cur = r.ym; const sum = rows.filter((q) => q.ym === cur).reduce((a, q) => a + q.signed, 0); body += `<div class="mdiv"><span>${esc(cap(ymLabel(cur)))}</span><span class="num">${fmtSigned((sum))}</span></div>`; }
     body += r.html;
   }
   dlg.classList.add('full');
@@ -1016,7 +1035,7 @@ function openDone(kind) {
     if (r.ym !== cur) {
       cur = r.ym;
       const sum = rows.filter((x) => x.ym === cur).reduce((a, x) => a + x.signed, 0);
-      body += `<div class="mdiv"><span>${esc(cap(ymLabel(cur)))}</span><span class="num">${fmtSigned(Math.round(sum))}</span></div>`;
+      body += `<div class="mdiv"><span>${esc(cap(ymLabel(cur)))}</span><span class="num">${fmtSigned((sum))}</span></div>`;
     }
     body += r.html;
   }
@@ -1252,7 +1271,7 @@ const DIA = '__dia';
 const diffCell = (real, plan, more = 'good') => {
   const d = round2(real - plan);
   if (Math.abs(d) < 0.5) return { v: '0', tone: '' };
-  return { v: fmtSigned(Math.round(d)), tone: (d > 0) === (more === 'good') ? 'ok' : 'bad' };
+  return { v: fmtSigned((d)), tone: (d > 0) === (more === 'good') ? 'ok' : 'bad' };
 };
 function planVsReal(m) {
   const today = new Date(), todayISO = toISO(today), done = (it, ym) => m.stateOf(it, ym) !== 'future';
@@ -1323,7 +1342,7 @@ function cmpRow(m, x, key) {
   const overNow = spendLine && x.real > x.plan + 0.5;
   const fin = m.over, dr = Math.round(x.real - x.plan), nearR = Math.abs(dr) < Math.max(1, x.plan * 0.02); // a finished year: it is what it was
   const what = fin ? (overNow ? t('superado en {x}', { x: fmt(dr) }) : nearR ? t('Cumplido') : t(dr > 0 ? '{x} por encima' : '{x} por debajo', { x: fmt(Math.abs(dr)) }))
-    : overNow ? t('superado en {x}', { x: fmt(Math.round(x.real - x.plan)) })
+    : overNow ? t('superado en {x}', { x: fmt((x.real - x.plan)) })
     : near ? t('≈ planificado')
       : t(d > 0 ? '≈ {x} por encima' : '≈ {x} por debajo', { x: fmt(Math.abs(d)) });
   const tip = fin ? `${x.label}: ${fmt(x.real)} / ${fmt(x.plan)}` : `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
@@ -1333,7 +1352,7 @@ function cmpRow(m, x, key) {
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
     ${gauge({ names: { fill: fin ? t('Actual') : t('Hasta hoy') }, v: x.real, proj: fin ? null : x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
       marks: [...(x.due != null ? [{ at: Math.max(0, x.due), cls: 'today' }] : []), { at: x.plan }], label: tip })}
-    <div class="barleg small num">${fin ? '<span></span>' : `<span><i class="lg-proj" style="--pc:${spendLine ? (x.proj > x.plan + 0.5 ? 'var(--spend)' : 'var(--out)') : ptone}"></i>${t('Proyección')} ≈ ${fmt(Math.round(x.proj))}</span>`}<b style="${toneText(wtone)}">${what}</b></div>
+    <div class="barleg small num">${fin ? '<span></span>' : `<span><i class="lg-proj" style="--pc:${spendLine ? (x.proj > x.plan + 0.5 ? 'var(--spend)' : 'var(--out)') : ptone}"></i>${t('Proyección')} ≈ ${fmt((x.proj))}</span>`}<b style="${toneText(wtone)}">${what}</b></div>
   </div>`;
 }
 function planCard(m) {
@@ -1345,7 +1364,7 @@ function planCard(m) {
     ${m.over ? `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('Actual')}</span><span><i class="lg-mark"></i>${t('planificado')}</span></div>` : `<div class="legend tight"><span><i class="sw" style="background: var(--muted)"></i>${t('hasta hoy')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('proyección')}</span><span class="lg-group">${t('planificado:')}<span><i class="lg-mark"></i>${t('año')}</span><span><i class="lg-today"></i>${t('a hoy')}</span></span></div>`}
     ${[c.ins, c.outs, c.sav].map((x, i) => cmpRow(m, x, 'm' + i)).join('')}
     ${c.buds.length ? `<span class="label">${t('Tus presupuestos')}</span>${c.buds.map((x, i) => cmpRow(m, x, 'b' + i)).join('')}` : ''}
-    ${m.over ? table(['', t('Plan'), t('Actual'), t('Dif.')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), diffCell(x.real, x.plan, x.more)])) : table(['', t('Plan'), t('Hoy'), t('Proy.'), t('Dif. ≈')], rows.map((x) => [esc(x.label), fmtN(Math.round(x.plan)), fmtN(Math.round(x.real)), fmtN(Math.round(x.proj)), diffCell(x.proj, x.plan, x.more)]))}
+    ${m.over ? table(['', t('Plan'), t('Actual'), t('Dif.')], rows.map((x) => [esc(x.label), fmt(x.plan), fmt(x.real), diffCell(x.real, x.plan, x.more)])) : table(['', t('Plan'), t('Hoy'), t('Proy.'), t('Dif. ≈')], rows.map((x) => [esc(x.label), fmtN((x.plan)), fmtN((x.real)), fmtN((x.proj)), diffCell(x.proj, x.plan, x.more)]))}
   </section>`;
 }
 const PERIODS = { ano: t('Todo el plan'), '3m': t('3 meses'), mes: t('Este mes') }; // the whole plan first, and the one you land on
@@ -1435,7 +1454,7 @@ function analisis(m) {
     ${table([t('Mes'), t('Ingresado'), t('Gastado'), t('Diferencia')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—', has ? diffCell(m.incomeTo(ym), outOfM(ym), 'good') : '—']))}
   </section>`;
 }
-const compactMoney = (v) => (v < 10000 ? fmt(Math.round(v)) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
+const compactMoney = (v) => (v < 10000 ? fmt((v)) : fmt(1).replace('1', (v / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K'));
 
 // ---------- Plan ----------
 // Plan once: the yearly goal, what comes in, what you know will go out, and budgets for what you want to keep an eye on.
@@ -2023,7 +2042,7 @@ function onAct(b, sure = false) {
     case 'wipe': if (!UI.wipe) { UI.wipe = true; render(true); break; } UI.wipe = false; if (store.mode === 'google') signOut(); store.reset(); break;
     case 'export': exportFile(); break;
     case 'lang': rememberLook({ lang: b.dataset.v }).then(() => setLang(b.dataset.v)); break;
-    case 'theme': lsSet('hucha:theme', b.dataset.v === 'auto' ? null : b.dataset.v); applyTheme(b.dataset.v); render(true); break;
+    case 'theme': lsSet('hucha:theme', b.dataset.v === 'auto' ? null : b.dataset.v); writeLook({ theme: b.dataset.v === 'auto' ? '' : b.dataset.v }); applyTheme(b.dataset.v); rememberLook({ theme: b.dataset.v }); render(true); break;
 
     case 'openclose': openClose(ym); break;
     case 'startbal': {
@@ -2140,8 +2159,12 @@ function onAct(b, sure = false) {
         toast(t('Gasto guardado'));
         break;
       }
+      const upd = $('#k-upd'), want = !!upd && upd.checked && !$('#k-updrow')?.hidden && date === toISO(new Date());
+      if (upd) lsSet('hucha:updbal', upd.checked ? '' : '0');
+      const nb = want ? bumpBalance(v * sgn) : null; // the balance as it is after this leaves the account
       dlg.close();
       addSpend(date, v * sgn, (val('k-note') || '').trim(), null, UI.qcat);
+      if (nb != null) setTimeout(() => toast(`${t('Saldo en cuenta')}: ${fmt(nb)}`, 2600), 300);
       break;
     }
     case 'trail': {
@@ -2275,6 +2298,7 @@ function onAct(b, sure = false) {
 }
 
 document.addEventListener('change', (e) => {
+  if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
   const el = e.target;
   if (el.id === 'f-freq') {
     readForm();
@@ -2413,12 +2437,14 @@ function adoptLook() {
   if (!store.mode || store.mode === 'demo' || !s) return;
   const lsLang = lsGet('hucha:lang'), lsCur = lsGet('hucha:cur');
   let changed = false;
+  // the theme needs no reload: if the device has none of its own and the sheet has one, apply it
+  if (s.theme && s.theme !== 'auto' && !lsGet('hucha:theme')) { lsSet('hucha:theme', s.theme); applyTheme(s.theme); }
   if (s.lang && LANGS[s.lang] && !lsLang && s.lang !== lang) { lsSet('hucha:lang', s.lang); changed = true; }
   if (s.cur && CURRENCIES.includes(s.cur) && !lsCur && s.cur !== cur) { lsSet('hucha:cur', s.cur); changed = true; }
   let once = null; try { once = sessionStorage.getItem('hucha:adopted'); } catch { /* blocked */ }
   if (changed && !once) { try { sessionStorage.setItem('hucha:adopted', '1'); location.reload(); return; } catch { /* no reload without a guard */ } }
   // an existing device with its choices and a sheet without them: save them there
-  if ((!s.lang || !s.cur) && !changed) store.update('settings', (d) => { d.settings.lang ||= lang; d.settings.cur ||= cur; });
+  if ((!s.lang || !s.cur || !s.theme) && !changed) store.update('settings', (d) => { d.settings.lang ||= lang; d.settings.cur ||= cur; d.settings.theme ||= lsGet('hucha:theme') || 'auto'; });
 }
 // ---------- service worker and reminders ----------
 // The service worker makes the app installable with its own icon and open offline. Reminders are dated notes the page

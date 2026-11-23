@@ -1,5 +1,8 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Saldo en cuenta': 'Account balance',
+  'el saldo sube lo que retiras': 'your balance goes up by what you withdraw',
+  'el saldo baja lo que apuntas': 'your balance goes down by what you log',
   'Qué avisar': 'What to remind',
   'Gasto planificado. Si cambia el importe, confírmalo en la app.': 'Planned expense. If the amount changes, confirm it in the app.',
   'Traspaso planificado.': 'Planned transfer.',

@@ -1369,3 +1369,14 @@ dialog .sheet { overscroll-behavior: contain; }
 .kindpills { display: flex; flex-wrap: wrap; gap: 8px; }
 .kindpill { border: 1.5px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .kindpill[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* "Actualizar saldo" when logging: a checkbox row */
+.updbal { display: flex; align-items: center; gap: 12px; padding: 4px 2px; cursor: pointer; }
+.updbal[hidden] { display: none; }
+.updbal input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+.updbal > span { display: grid; gap: 0; font-weight: 600; line-height: 1.25; }
+
+.updbal > span { display: block; } .updbal .fine { display: inline; margin-left: 6px; font-weight: 500; }
+.sheet.quick { gap: 9px; }
+.sheet.quick .amt { padding-top: 0; padding-bottom: 0; }
+@media (max-width: 340px) { .updbal .fine { display: none; } }

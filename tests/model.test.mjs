@@ -490,8 +490,8 @@ test('custom types keep a colour from the palette only', () => {
 });
 
 test('the chosen language and currency are kept with the settings, and only when valid', () => {
-  const st = normSettings({ goal: 0, start: '2026-01', lang: 'en', cur: 'USD' });
-  assert.equal(st.lang, 'en'); assert.equal(st.cur, 'USD');
+  const st = normSettings({ goal: 0, start: '2026-01', lang: 'en', cur: 'USD', theme: 'dark' });
+  assert.equal(st.lang, 'en'); assert.equal(st.cur, 'USD'); assert.equal(st.theme, 'dark');
   const bad = normSettings({ goal: 0, start: '2026-01', lang: 'english', cur: 'dollars' });
   assert.equal(bad.lang, undefined); assert.equal(bad.cur, undefined);
 });

@@ -6,13 +6,35 @@ export const LANGS = { es: 'Español', en: 'English' };
 const DICT = { en: EN };
 const KEY = 'hucha:lang';
 
+
+// The look you chose (language, currency, theme) is also kept in a cookie: browsers clear a device's storage after a long
+// time unused, but not so a cookie, so this is what brings it back at once, before anything is loaded.
+const COOKIE = 'hucha_look';
+function readLook() {
+  try {
+    const m = document.cookie.split('; ').find((c) => c.startsWith(COOKIE + '='));
+    const [l, c, th] = decodeURIComponent((m || '').slice(COOKIE.length + 1)).split('|');
+    return { lang: l || '', cur: c || '', theme: th || '' };
+  } catch { return { lang: '', cur: '', theme: '' }; }
+}
+export function writeLook(patch) {
+  if (typeof document === 'undefined') return;
+  try {
+    const v = { ...readLook(), ...patch };
+    document.cookie = `${COOKIE}=${encodeURIComponent([v.lang, v.cur, v.theme].join('|'))}; Max-Age=31536000; Path=/; SameSite=Lax${location.protocol === 'https:' ? '; Secure' : ''}`;
+  } catch { /* cookies blocked */ }
+}
+export { readLook };
+
 function detect() {
   if (typeof window === 'undefined') return 'es'; // tests and tools: the source language
   try { const s = localStorage.getItem(KEY); if (LANGS[s]) return s; } catch { /* storage blocked */ }
+  { const c = readLook().lang; if (LANGS[c]) return c; }
   const nav = (navigator.languages || [navigator.language || 'es']).map((l) => String(l).slice(0, 2).toLowerCase());
   return nav.find((l) => LANGS[l]) || 'es';
 }
 export const lang = detect();
+if (typeof window !== 'undefined') writeLook({ lang });
 export const locale = lang === 'en' ? 'en-GB' : 'es-ES';
 if (typeof document !== 'undefined') document.documentElement.lang = lang;
 
@@ -23,24 +45,28 @@ const CKEY = 'hucha:cur';
 function detectCur() {
   if (typeof window === 'undefined') return 'EUR';
   try { const s = localStorage.getItem(CKEY); if (CURRENCIES.includes(s)) return s; } catch { /* storage blocked */ }
+  { const c = readLook().cur; if (CURRENCIES.includes(c)) return c; }
   const region = (navigator.language || '').split('-')[1]?.toUpperCase();
   const byRegion = { US: 'USD', GB: 'GBP', MX: 'MXN', AR: 'ARS', CO: 'COP', CL: 'CLP', PE: 'PEN', BR: 'BRL', CH: 'CHF', CA: 'CAD', AU: 'AUD', JP: 'JPY' };
   return byRegion[region] || 'EUR';
 }
 export const cur = detectCur();
-export const curDecimals = NO_DECIMALS.includes(cur) ? 0 : 1;
+if (typeof window !== 'undefined') writeLook({ cur });
+export const curDecimals = NO_DECIMALS.includes(cur) ? 0 : 2; // like the bank: always the cents
 /** The symbol alone ("€", "$", "£"). */
 export const curSym = new Intl.NumberFormat(locale, { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value || cur;
 export const curName = (c) => { try { return new Intl.DisplayNames([locale], { type: 'currency' }).of(c); } catch { return c; } };
 export function setCurrency(c) {
   if (!CURRENCIES.includes(c) || c === cur) return;
   try { localStorage.setItem(CKEY, c); } catch { /* storage blocked */ }
+  writeLook({ cur: c });
   location.reload();
 }
 
 export function setLang(l) {
   if (!LANGS[l] || l === lang) return;
   try { localStorage.setItem(KEY, l); } catch { /* storage blocked */ }
+  writeLook({ lang: l });
   location.reload(); // every label is built once with the language: a reload is the simple, complete switch
 }
 

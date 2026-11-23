@@ -21,13 +21,13 @@ export function num(v) {
     : parseFloat(/,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(',', '.'));
   return Number.isFinite(n) ? round2(n) : null;
 }
-// Amounts with one decimal when there is one (1.680,6 €; 1.900 €), thousands always grouped so figures line up
-const nf = new Intl.NumberFormat(locale, { maximumFractionDigits: curDecimals, useGrouping: 'always' });
-const money = new Intl.NumberFormat(locale, { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', minimumFractionDigits: 0, maximumFractionDigits: curDecimals, useGrouping: 'always' });
+// Amounts always with their cents, as the bank shows them (1.680,60 €; 1.900,00 €), thousands always grouped so figures line up
+const nf = new Intl.NumberFormat(locale, { minimumFractionDigits: curDecimals, maximumFractionDigits: curDecimals, useGrouping: 'always' });
+const money = new Intl.NumberFormat(locale, { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', minimumFractionDigits: curDecimals, maximumFractionDigits: curDecimals, useGrouping: 'always' });
 /** The number alone (1.680,6 / 1,680.6), for "980 / 1.660 €" where the unit goes once. */
-const rnd = (n) => (curDecimals ? Math.round((+n || 0) * 10) / 10 : Math.round(+n || 0));
+const rnd = (n) => (curDecimals ? Math.round((+n || 0) * 100) / 100 : Math.round(+n || 0));
 export const fmtN = (n) => nf.format(rnd(n));
-/** Money in the chosen currency and the language's way of writing it: "1.680,6 €", "€1,680.6", "$1,680.6". */
+/** Money in the chosen currency and the language's way of writing it: "1.680,60 €", "€1,680.60", "$1,680.60". */
 export const fmt = (n) => money.format(rnd(n)).replace(/\u00a0/g, ' ');
 export const fmtSigned = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -602,6 +602,7 @@ export function normSettings(o = {}) {
   // the look you chose (language, currency), kept with the data so it comes back when the browser forgets this device
   if (/^[a-z]{2}$/.test(String(o.lang || ''))) st.lang = o.lang;
   if (/^[A-Z]{3}$/.test(String(o.cur || ''))) st.cur = o.cur;
+  if (['light', 'dark', 'auto'].includes(o.theme)) st.theme = o.theme;
   if (Array.isArray(o.cats)) {
     const cats = o.cats.filter((c) => c && isCustomCat(c.id) && String(c.name || '').trim())
       .map((c) => ({ id: String(c.id), name: String(c.name).trim().slice(0, 24), icon: String(c.icon || 'otros'), ...(/^p([1-9]|1[0-2])$/.test(c.color) ? { color: c.color } : {}) }));
