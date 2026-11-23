@@ -670,7 +670,8 @@ export function normCalcs(arr) {
         // saved before: what it was worth at the end, in % of the price → the yearly change that gets there
         const dep = num(o?.dep) != null ? lim(o.dep, -100, 50, 0) : num(o?.residual) != null ? Math.round(((Math.min(100, n(o.residual)) / 100) ** (1 / years) - 1) * 1000) / 10 : 0;
         return {
-          name: String(o?.name || '').slice(0, 60), price: n(o?.price), dep, ...(n(o?.sellc) ? { sellc: Math.min(100, n(o.sellc)) } : {}),
+          name: String(o?.name || '').slice(0, 60), price: n(o?.price), vm: ['curve', 'rate', 'end', 'linear', 'none'].includes(o?.vm) ? o.vm : 'rate', dep,
+          ...(o?.vc ? { vc: String(o.vc) } : {}), ...(n(o?.ve) ? { ve: n(o.ve) } : {}), ...(n(o?.life) ? { life: Math.min(50, n(o.life)) } : {}), ...(n(o?.sellc) ? { sellc: Math.min(100, n(o.sellc)) } : {}),
           fin: !!o?.fin, loan: n(o?.loan), rate: n(o?.rate), term: Math.round(n(o?.term)),
           costs: (Array.isArray(o?.costs) ? o.costs : []).map((x) => ({ n: String(x?.n || '').slice(0, 60), a: n(x?.a), f: CALC_FREQ.includes(String(x?.f)) ? String(x.f) : 'm', ...(x?.fix ? { fix: true } : {}) })),
         };

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tco, cheapestOf, evenYear, evenReturn } from '../js/tco.js';
+import { tco, cheapestOf, evenYear, evenReturn, valueAt, CURVES } from '../js/tco.js';
 
 const near = (a, b, eps = 0.05) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const car = { price: 20000, dep: -10, fin: true, loan: 15000, rate: 6, term: 60, costs: [{ n: 'Seguro', a: 500, f: 'y' }, { n: 'Gasolina', a: 100, f: 'm' }, { n: 'Matrícula', a: 300, f: 'o' }] };
@@ -47,4 +47,21 @@ test('buying pays off only after some years; the break-even return flips the ans
   const e = evenReturn(buy, rent, c);
   assert.ok(e > 3, `return ${e}`);
   near(tco(buy, c, e).pv, tco(rent, c, e).pv, 300);
+});
+
+test('resale value: each mode', () => {
+  const P = { price: 10000 };
+  near(valueAt({ ...P, vm: 'rate', dep: -10 }, 2, 5), 8100, 0.01);
+  near(valueAt({ ...P, vm: 'rate', dep: 2 }, 1, 5), 10200, 0.01);
+  near(valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 2, 5), 10000 * 0.8 * 0.88, 0.01);
+  near(valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 8, 8), 10000 * 0.8 * 0.88 * 0.9 * 0.9 * 0.91 * 0.92 ** 3, 0.01); // the last figure repeats
+  near(valueAt({ ...P, vm: 'end', ve: 4000 }, 5, 5), 4000, 0.01);
+  near(valueAt({ ...P, vm: 'end', ve: 4000 }, 0, 5), 10000, 0.01);
+  near(valueAt({ ...P, vm: 'linear', life: 4 }, 1, 8), 7500, 0.01);
+  near(valueAt({ ...P, vm: 'linear', life: 4 }, 6, 8), 0, 0.01);
+  near(valueAt({ ...P, vm: 'none' }, 3, 5), 0, 0.01);
+  // a new car keeps about 45–60 % after five years, as the sources say
+  const v5 = valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 5, 5) / 10000;
+  assert.ok(v5 > 0.4 && v5 < 0.6, String(v5));
+  assert.ok(Object.values(CURVES).every((c) => c.every((x) => x > 0 && x < 100)));
 });

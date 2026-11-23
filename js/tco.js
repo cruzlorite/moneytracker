@@ -5,6 +5,38 @@
 // could be earning. The monthly figure is the fixed payment worth the same (equivalent monthly cost). No DOM, no i18n.
 
 const pos = (v) => Math.max(0, +v || 0);
+
+/**
+ * Typical resale curves: the % of its value it loses each year (the last figure repeats). Rough averages from published data,
+ * to start from; the user can always pick another mode or set their own figures.
+ *  - cars: Kelley Blue Book (≈20 % the first year, ≈30 % in two, then 8–12 % a year; ≈55 % in five) and Carfax (≈40 % in five)
+ *  - phones: BankMyCell trade-in reports (iPhone ≈17 % / 35 % / … 66 % in four; Android flagship ≈34 % / 62 % / … 81 %;
+ *    phones under 400 ≈42 % / 59 % / 72 % / 88 %)
+ */
+export const CURVES = {
+  carNew: [20, 12, 10, 10, 9, 8],
+  carUsed: [10, 9, 8, 8, 7],
+  phoneApple: [17, 22, 28, 28, 30],
+  phoneAndroid: [34, 42, 30, 30, 30],
+  phoneBudget: [42, 29, 31, 57, 60],
+};
+/**
+ * What it is worth after k years (of H). Modes (o.vm):
+ *  'curve'  a typical curve (o.vc)      'rate'   the same % every year (o.dep: −15 loses, +2 gains)
+ *  'end'    you know what you'll get (o.ve €, at the end; in between it follows a steady %)
+ *  'linear' it loses the same each year until it is worth nothing after o.life years      'none'  nothing back
+ */
+export function valueAt(o, k, H) {
+  const P = pos(o.price);
+  if (!P) return 0;
+  switch (o.vm) {
+    case 'none': return 0;
+    case 'curve': { const c = CURVES[o.vc] || CURVES.carNew; let v = P; for (let j = 0; j < k; j++) v *= 1 - (c[Math.min(j, c.length - 1)]) / 100; return v; }
+    case 'end': { const E = pos(o.ve); if (!k) return P; if (!E) return P * Math.max(0, 1 - k / H); return P * (E / P) ** (k / H); }
+    case 'linear': { const L = Math.max(1, pos(o.life) || 1); return P * Math.max(0, 1 - k / L); }
+    default: return P * Math.max(0, 1 + Math.max(-100, +o.dep || 0) / 100) ** k;
+  }
+}
 const r2 = (v) => Math.round(v * 100) / 100;
 
 /**
@@ -19,8 +51,7 @@ export function tco(o, c, retOverride = null) {
   const n = o.fin ? Math.round(pos(o.term)) : 0, F = o.fin && n ? Math.min(P, pos(o.loan)) : 0, lr = (F ? pos(o.rate) : 0) / 1200;
   const pay = F ? (lr ? F * lr / (1 - (1 + lr) ** -n) : F / n) : 0;
   const owedAt = (m) => (!F || m >= n ? 0 : lr ? F * (1 + lr) ** m - pay * (((1 + lr) ** m - 1) / lr) : F - pay * m);
-  // what it is worth after k years: it changes by `dep` % every year (−15 loses value, +2 gains)
-  const d = Math.max(-100, +o.dep || 0) / 100, worth = (k) => P * Math.max(0, 1 + d) ** k;
+  const worth = (k) => valueAt(o, k, H);
   const cf = new Array(M + 1).fill(0); // what you pay each month; month 0 is the day you buy it
   cf[0] = P - F;
   let running = 0, once = 0;

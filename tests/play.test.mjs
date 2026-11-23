@@ -60,8 +60,8 @@ test('the sheet keeps the language and currency of the device', () => {
 
 test('saved cost comparisons survive the sheet', () => {
   const calc = { id: 'calc-1', name: 'Coche', at: '2026-11-17', years: 8, infl: 2.5, ret: 4, opts: [
-    { name: 'Nuevo', price: 24000, dep: -15, fin: true, loan: 18000, rate: 7, term: 72, costs: [{ n: 'Seguro', a: 550, f: 'y' }] },
-    { name: 'Usado', price: 11000, dep: -10, fin: false, loan: 0, rate: 0, term: 0, costs: [{ n: 'Gasolina', a: 130, f: 'm' }, { n: 'ITV', a: 40, f: '2' }, { n: 'Cambio', a: 300, f: 'o' }] }] };
+    { name: 'Nuevo', price: 24000, vm: 'curve', dep: 0, vc: 'carNew', fin: true, loan: 18000, rate: 7, term: 72, costs: [{ n: 'Seguro', a: 550, f: 'y' }] },
+    { name: 'Usado', price: 11000, vm: 'rate', dep: -10, fin: false, loan: 0, rate: 0, term: 0, costs: [{ n: 'Gasolina', a: 130, f: 'm' }, { n: 'ITV', a: 40, f: '2' }, { n: 'Cambio', a: 300, f: 'o' }] }] };
   const d = base({ calcs: [calc] });
   const rows = toRows(d);
   const back = parseSheet(Object.entries(TABS).map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
