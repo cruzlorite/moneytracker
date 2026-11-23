@@ -462,23 +462,26 @@ function spendSplit(m, ym) {
   const after = m.openAfter(ym), today = m.todayISO;
   const planned = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && !p.it.budget && !(after && p.date <= after));
   const fixPlan = round2(planned.reduce((a, p) => a + p.amount, 0)), fixSpent = round2(planned.filter((p) => p.state !== 'future').reduce((a, p) => a + p.amount, 0));
+  // of what the plan's expenses have taken, what you confirmed and what is only assumed (its day passed, counted at its planned amount)
+  const fixAssumed = round2(planned.filter((p) => p.state === 'auto' || p.state === 'pending').reduce((a, p) => a + p.amount, 0)), nAssumed = planned.filter((p) => p.state === 'auto' || p.state === 'pending').length;
   const buds = m.shown(ym).filter((b) => b.budget && activeIn(b, ym));
   const budPlan = round2(buds.reduce((a, b) => a + (b.freq === 'monthly' ? b.amount : b.amount / 12), 0)), budSpent = round2(buds.reduce((a, b) => a + m.budSpent(b, ym), 0));
   const total = m.spentAll(ym, today), plan = planSpend(m, ym);
   const parts = [
-    { k: 'fix', name: t('Gastos planificados'), plan: fixPlan, spent: fixSpent },
+    { k: 'fix', name: t('Gastos planificados'), plan: fixPlan, spent: fixSpent, assumed: fixAssumed, nAssumed },
     { k: 'bud', name: t('Presupuestos'), plan: budPlan, spent: budSpent },
     { k: 'rest', name: t('Sin presupuestar'), plan: round2(Math.max(0, plan - fixPlan - budPlan)), spent: round2(Math.max(0, total - fixSpent - budSpent)) },
   ].filter((p) => p.plan > 0.5 || p.spent > 0.5);
   const sum = parts.reduce((a, p) => a + Math.max(p.plan, 1), 0);
   const bar = parts.map((p) => {
     const w = Math.max(p.plan, 1) / sum * 100, f = p.plan > 0 ? Math.min(1, p.spent / p.plan) : 1, over = round2(p.spent - p.plan);
-    const tip = tipx(p.name, [{ c: `var(--sp-${p.k})`, k: 'solid', l: t('Gastado'), v: fmt(p.spent) }, { k: 'line', l: t('Planificado'), v: fmt(p.plan) }, over > 0.5 ? { c: 'var(--spend)', k: 'solid', l: t('Exceso'), v: fmt(over) } : { c: 'var(--muted)', k: 'solid', l: t('Queda'), v: fmt(Math.max(0, -over)) }]);
-    return `<span class="ss-part ss-${p.k}${over > 0.5 ? ' over' : ''}" style="flex-basis:${w.toFixed(2)}%" tabindex="0" data-tip="${esc(tip)}"><i style="width:${(f * 100).toFixed(1)}%"></i></span>`;
+    const tip = tipx(p.name, [...(p.assumed ? [{ c: `var(--sp-${p.k})`, k: 'solid', l: t('Confirmado'), v: fmt(p.spent - p.assumed) }, { c: `var(--sp-${p.k})`, k: 'hatch', l: t('Sin confirmar'), v: fmt(p.assumed) }] : []), { c: `var(--sp-${p.k})`, k: 'solid', l: t('Gastado'), v: fmt(p.spent) }, { k: 'line', l: t('Planificado'), v: fmt(p.plan) }, over > 0.5 ? { c: 'var(--spend)', k: 'solid', l: t('Exceso'), v: fmt(over) } : { c: 'var(--muted)', k: 'solid', l: t('Queda'), v: fmt(Math.max(0, -over)) }]);
+    const sure = p.assumed ? Math.max(0, p.spent - p.assumed) : p.spent, fs = p.plan > 0 ? Math.min(1, sure / p.plan) : 1;
+    return `<span class="ss-part ss-${p.k}${over > 0.5 ? ' over' : ''}" style="flex-basis:${w.toFixed(2)}%" tabindex="0" data-tip="${esc(tip)}"><i style="width:${(fs * 100).toFixed(1)}%"></i>${p.assumed ? `<i class="ss-assumed" style="left:${(fs * 100).toFixed(1)}%; width:${(Math.max(0, f - fs) * 100).toFixed(1)}%"></i>` : ''}</span>`;
   }).join('');
   const leg = parts.map((p) => {
     const over = round2(p.spent - p.plan);
-    return `<div class="ss-row"><i class="ss-sw ss-${p.k}"></i><span class="ss-n">${p.name}</span><span class="num"><b>${fmt(p.spent)}</b> <span class="muted">/ ${fmt(p.plan)}</span></span><span class="num ss-st ${over > 0.5 ? 'c-spend' : ''}">${over > 0.5 ? '+' + fmt(over) : ''}</span></div>`;
+    return `<div class="ss-row"><i class="ss-sw ss-${p.k}"></i><span class="ss-n">${p.name}</span><span class="num"><b>${fmt(p.spent)}</b> <span class="muted">/ ${fmt(p.plan)}</span></span><span class="num ss-st ${over > 0.5 ? 'c-spend' : ''}">${over > 0.5 ? '+' + fmt(over) : ''}</span></div>${p.assumed ? `<p class="ss-note fine">${t('{x} sin confirmar ({n}): cuentan por su importe planificado', { x: fmt(p.assumed), n: p.nAssumed })}</p>` : ''}`;
   }).join('');
   return `<div class="ssplit"><div class="ss-bar" role="img" aria-label="${esc(t('Gasto por partes'))}">${bar}</div><div class="ss-leg">${leg}</div></div>`;
 }

@@ -1413,3 +1413,6 @@ dialog .sheet { overscroll-behavior: contain; }
 .ch-pcol.ch-in { stroke: var(--s1); } .ch-pcol.ch-out { stroke: var(--s2); }
 .ch-pcol.ch-1 { stroke: var(--s1); }
 .lg-est { display: inline-block; width: 12px; height: 10px; border-radius: 2px; border: 1.4px dashed var(--muted); margin-right: 6px; vertical-align: -1px; }
+.ss-part i.ss-assumed { background: repeating-linear-gradient(135deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 35%, var(--panel)) 3px 6px); }
+.ss-n { display: grid; } .ss-n .fine { font-size: 11.5px; }
+.ss-n { display: block; } .ss-note { margin: -2px 0 2px 20px; font-size: 11.5px; }
