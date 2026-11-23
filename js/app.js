@@ -108,6 +108,8 @@ function showTipAt(txt, px, py) {
 function hideTip() { tipEl.hidden = true; document.querySelectorAll('.tipon').forEach((x) => x.classList.remove('tipon')); }
 document.addEventListener('pointerover', (e) => { if (e.pointerType === 'mouse') { const t = e.target.closest?.('[data-tip],[data-info]'); if (t) showTip(t); } });
 document.addEventListener('pointerout', (e) => { if (e.pointerType === 'mouse' && e.target.closest?.('[data-tip],[data-info]') && !e.relatedTarget?.closest?.('[data-tip],[data-info]')) hideTip(); });
+// before the tooltip handler runs: was this row's tooltip already open? (then this tap opens its detail)
+document.addEventListener('pointerdown', (e) => { UI.ptr = e.pointerType; UI.wasTip = !!e.target.closest?.('.hasdetail')?.classList.contains('tipon'); }, true);
 document.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') { const t = e.target.closest?.('[data-tip],[data-info]'); t ? showTip(t) : hideTip(); } });
 // any field in any sheet: once the keyboard is up, bring it into view (the type search goes to the top of its sheet)
 document.addEventListener('focusin', (e) => {
@@ -518,7 +520,7 @@ function home(m) {
 }
 /** One line of a spending-by-type list: icon and name (and its share) on the left, the amount on the right, a thin bar under it
  *  against the biggest one. The same in Hoy and in Análisis. */
-const typeRow = (r, scale, key) => `<div class="vrow${r.cat ? ' hasdetail' : ''}" tabindex="0" ${r.cat ? '' : 'data-tip="'}${r.cat ? '' : esc(tipx(r.label, [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(r.value) }, ...(r.pct != null ? [{ c: 'var(--muted)', k: 'solid', l: t('Del gasto total'), v: `${r.pct} %` }] : [])]))}${r.cat ? '' : '"'} ${r.cat ? `data-act="catdetail" data-cat="${esc(r.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: r.label }))}"` : ''}><span class="row between"><span class="vname">${r.icon}<span class="vn">${esc(r.label)}${r.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>${r.pct != null ? `<span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra ? `<span class="vx">${r.extra}</span>` : ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, notip: true, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
+const typeRow = (r, scale, key) => `<div class="vrow${r.cat ? ' hasdetail' : ''}" tabindex="0" data-tip="${esc(tipx(r.label, [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(r.value) }, ...(r.pct != null ? [{ c: 'var(--muted)', k: 'solid', l: t('Del gasto total'), v: `${r.pct} %` }] : [])], r.cat ? t('Toca otra vez para ver el detalle') : ''))}" ${r.cat ? `data-act="catdetail" data-cat="${esc(r.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: r.label }))}"` : ''}><span class="row between"><span class="vname">${r.icon}<span class="vn">${esc(r.label)}${r.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>${r.pct != null ? `<span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra ? `<span class="vx">${r.extra}</span>` : ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, notip: true, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
 /** This month by type, budgets and the rest in one card: each budget against its limit, then what you spent on the other types. */
 function monthTypes(m, ym) {
   const buds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(buds.map((b) => b.cat));
@@ -1347,7 +1349,8 @@ function cmpRow(m, x, key) {
       : t(d > 0 ? '≈ {x} por encima' : '≈ {x} por debajo', { x: fmt(Math.abs(d)) });
   const tip = fin ? `${x.label}: ${fmt(x.real)} / ${fmt(x.plan)}` : `${x.label}: ${t('hasta hoy {x}', { x: fmt(x.real) })}${x.due != null ? ` (${t('planificado hasta hoy {x}', { x: fmt(x.due) })})` : ''} · ${t('{x} planificados', { x: fmt(x.plan) })} · ${t('proyección a fin de año {x}', { x: fmt(x.proj) })}`;
   const dact = x.cat ? `data-act="catdetail" data-cat="${esc(x.cat)}"` : x.kind ? `data-act="linedetail" data-kind="${x.kind}"` : '';
-  return `<div class="cmp${dact ? ' hasdetail' : ''}" ${dact ? `${dact} role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: x.label }))}"` : ''}>
+  const rowTip = dact ? tipx(x.label, [{ c: spendLine ? 'var(--out)' : x.isSav ? 'var(--sav)' : 'var(--in)', k: 'solid', l: fin ? t('Actual') : t('Hasta hoy'), v: fmt(x.real) }, ...(x.due != null ? [{ k: 'dash', l: t('Planificado a hoy'), v: fmt(x.due) }] : []), ...(fin ? [] : [{ c: spendLine ? 'var(--out)' : x.isSav ? 'var(--sav)' : 'var(--in)', k: 'hatch', l: t('Proyección'), v: `≈ ${fmt(x.proj)}` }]), { k: 'line', l: t('Planificado'), v: fmt(x.plan) }], t('Toca otra vez para ver el detalle')) : '';
+  return `<div class="cmp${dact ? ' hasdetail' : ''}" ${dact ? `${dact} role="button" tabindex="0" data-tip="${esc(rowTip)}" aria-label="${esc(t('Ver detalle de {n}', { n: x.label }))}"` : ''}>
     <div class="row between"><span class="bn small">${x.icon}<b>${esc(x.label)}</b>${dact ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>
       <span class="num small"><b style="${spendLine ? (x.real > x.plan + 0.5 ? toneText('var(--spend)') : '') : toneText(tone)}">${fmtN(x.real)}</b> <span class="muted">/ ${fmt(x.plan)} · ${t('planificado')}</span></span></div>
     ${gauge({ notip: !!dact, names: { fill: fin ? t('Actual') : t('Hasta hoy') }, v: x.real, proj: fin ? null : x.proj, tone, ptone, cap: spendLine ? x.plan : null, key: 'cmp-' + key, thin: true, scale,
@@ -2388,8 +2391,12 @@ function onAct(b, sure = false) {
     }
     case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
     case 'nextmore': { const box = b.closest('.nextlist'), on = box.classList.toggle('all'); lsSet('hucha:nextall', on ? '1' : ''); b.textContent = on ? b.dataset.less : b.dataset.more; break; }
-    case 'catdetail': openCatDetail(b.dataset.cat); break;
-    case 'linedetail': openLineDetail(b.dataset.kind); break;
+    case 'catdetail': case 'linedetail': {
+      if (UI.ptr && UI.ptr !== 'mouse' && !UI.wasTip && b.dataset.tip) break; // first tap: its tooltip (shown on pointerdown); the next one opens the detail
+      hideTip();
+      if (act === 'catdetail') openCatDetail(b.dataset.cat); else openLineDetail(b.dataset.kind);
+      break;
+    }
     case 'movesall': UI.movesAll = true; render(true); break;
     case 'yearmove': UI.yearOff = (UI.yearOff || 0) + +b.dataset.k; render(true); break;
     case 'notifyfold': case 'notifymore': {

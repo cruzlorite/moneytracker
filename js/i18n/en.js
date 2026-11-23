@@ -1,5 +1,6 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Toca otra vez para ver el detalle': 'Tap again to see the detail',
   'Comparar con otra': "Compare with another",
   'Quitar opción': "Remove option",
   'Coste acumulado, año a año': "Cumulative cost, year by year",
