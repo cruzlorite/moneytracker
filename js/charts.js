@@ -257,10 +257,10 @@ export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = n
  */
 export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 }) {
   const W = 340, padL = 44, padR = 10, padT = 14, padB = 22, n = Math.max(1, (series[0]?.vals.length || 1) - 1);
-  const all = [0, ...series.flatMap((s) => s.vals)], mx = nice(Math.max(...all)) || 1, ph = h - padT - padB;
-  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / mx * ph;
+  const all = [0, ...series.flatMap((s) => s.vals)], mx = nice(Math.max(...all)) || 1, mn = Math.min(...all) < 0 ? -nice(-Math.min(...all)) : 0, ph = h - padT - padB;
+  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / (mx - mn) * ph;
   const xs = Array.from({ length: n + 1 }, (_, i) => X(i));
-  const ticks = [mx, mx / 2, 0];
+  const ticks = mn ? [mx, 0, mn] : [mx, mx / 2, 0];
   const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
   const step = Math.max(1, Math.ceil(n / 7));

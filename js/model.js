@@ -651,16 +651,30 @@ export function normSpend(e) {
   return o;
 }
 
-/** Saved cost-of-ownership comparisons: { id, name, at, years (the same for every option), opts: [option] }. */
+/**
+ * Saved cost-of-ownership comparisons: { id, name, at, years, infl (% a year the costs go up), ret (% a year the money would earn
+ * invested, net), opts: [option] }. An option: price, dep (% its value changes a year: −15 loses, +2 gains), financing, and
+ * costs { n, a, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10' every that many years, fix: true if its price does
+ * not go up with inflation (a lease, a fixed-rate contract) }.
+ */
+export const CALC_FREQ = ['m', 'y', '2', '3', '4', '5', '6', '8', '10', 'o'];
 export function normCalcs(arr) {
   if (!Array.isArray(arr)) return [];
-  const n = (v) => Math.max(0, num(v) ?? 0);
-  return arr.filter((c) => c && c.id).map((c) => ({
-    id: String(c.id), name: String(c.name || '').slice(0, 80), at: String(c.at || ''), years: Math.min(50, Math.max(1, Math.round(n(c.years) || n(c.opts?.[0]?.years) || 5))),
-    opts: (Array.isArray(c.opts) ? c.opts : []).slice(0, 4).map((o) => ({
-      name: String(o?.name || '').slice(0, 60), price: n(o?.price), residual: Math.min(100, n(o?.residual)),
-      fin: !!o?.fin, loan: n(o?.loan), rate: n(o?.rate), term: Math.round(n(o?.term)),
-      costs: (Array.isArray(o?.costs) ? o.costs : []).map((x) => ({ n: String(x?.n || '').slice(0, 60), a: n(x?.a), f: ['m', 'y', 'o'].includes(x?.f) ? x.f : 'm' })),
-    })),
-  }));
+  const n = (v) => Math.max(0, num(v) ?? 0), lim = (v, a, b, d) => { const x = num(v); return x == null ? d : Math.min(b, Math.max(a, x)); };
+  return arr.filter((c) => c && c.id).map((c) => {
+    const years = Math.min(50, Math.max(1, Math.round(n(c.years) || n(c.opts?.[0]?.years) || 5)));
+    return {
+      id: String(c.id), name: String(c.name || '').slice(0, 80), at: String(c.at || ''), years,
+      infl: lim(c.infl, -5, 30, 2.5), ret: lim(c.ret, -10, 30, 4),
+      opts: (Array.isArray(c.opts) ? c.opts : []).slice(0, 4).map((o) => {
+        // saved before: what it was worth at the end, in % of the price → the yearly change that gets there
+        const dep = num(o?.dep) != null ? lim(o.dep, -100, 50, 0) : num(o?.residual) != null ? Math.round(((Math.min(100, n(o.residual)) / 100) ** (1 / years) - 1) * 1000) / 10 : 0;
+        return {
+          name: String(o?.name || '').slice(0, 60), price: n(o?.price), dep, ...(n(o?.sellc) ? { sellc: Math.min(100, n(o.sellc)) } : {}),
+          fin: !!o?.fin, loan: n(o?.loan), rate: n(o?.rate), term: Math.round(n(o?.term)),
+          costs: (Array.isArray(o?.costs) ? o.costs : []).map((x) => ({ n: String(x?.n || '').slice(0, 60), a: n(x?.a), f: CALC_FREQ.includes(String(x?.f)) ? String(x.f) : 'm', ...(x?.fix ? { fix: true } : {}) })),
+        };
+      }),
+    };
+  });
 }
