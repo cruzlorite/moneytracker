@@ -100,6 +100,8 @@ Si el objetivo del mes es cero o negativo, la distancia se mide con el objetivo 
 
 ## Cerrar y actualizar el saldo
 
+- **El saldo manda.** Si el saldo que escribes no cuadra con lo apuntado y lo planificado, la diferencia se absorbe sin avisar: lo que falta cuenta como gasto sin detallar y lo que sobra como un ingreso más. No hay que revisar nada.
+
 - El cierre pide el saldo **del último día del mes**. Si cierras tarde, usa el de ese día, no el de hoy.
 - Cada «Actualizar saldo» se guarda y se puede borrar. El saldo de inicio solo se cambia en Ajustes.
 
