@@ -1380,3 +1380,14 @@ dialog .sheet { overscroll-behavior: contain; }
 .sheet.quick { gap: 9px; }
 .sheet.quick .amt { padding-top: 0; padding-bottom: 0; }
 @media (max-width: 340px) { .updbal .fine { display: none; } }
+
+/* month close: what is still unconfirmed, closed as done unless you say otherwise */
+.clpend { padding: 12px; border-radius: 12px; background: var(--panel-2); }
+.clp { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.clp:first-of-type { border-top: 0; }
+.clp-l { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.clp-l input { width: 22px; height: 22px; flex: none; accent-color: var(--accent); }
+.clp-l > span { display: grid; min-width: 0; line-height: 1.25; } .clp-l b { overflow-wrap: anywhere; }
+.clp-a { display: flex; align-items: center; gap: 4px; flex: none; }
+.clp-a input { width: 92px; text-align: right; padding: 6px 8px; font: inherit; font-weight: 600; }
+.clp-a input:disabled { opacity: .4; text-decoration: line-through; }

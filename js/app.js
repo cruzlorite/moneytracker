@@ -549,7 +549,7 @@ function monthTypes(m, ym) {
   </section>`;
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */
-const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save, pend }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + (pend ? `<span class="st-pend">${esc(sub)}</span>` : esc(sub)) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${kind === 'in' ? '+' : '−'}${fmt(amount)}</span></button>`;
+const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save, pend }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + (pend ? `<span class="st-pend">${esc(sub)}</span>` : esc(sub)) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${amount ? (kind === 'in' ? '+' : '−') : ''}${fmt(amount)}</span></button>`;
 /** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
@@ -1064,7 +1064,7 @@ function expectedCard(m, ym) {
   // the same compact line as every list of movements: icon, name, date and state, amount (a confirmed one keeps its ✕ and its difference)
   const rowOf = (p) => {
     const diff = p.state === 'real' ? round2(p.amount - p.it.amount) : 0;
-    const sub = !counted(p) ? t('ya en tu saldo inicial') : `${ST[p.state][0]}${diff ? ` (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})` : ''}`;
+    const sub = !counted(p) ? t('ya en tu saldo inicial') : p.state === 'real' && !p.amount ? t('no hubo este mes') : `${ST[p.state][0]}${diff ? ` (${diff > 0 ? '+' : '−'}${fmt(Math.abs(diff))})` : ''}`;
     return moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(p.it.kind === 'in' ? '' : itemCat(p.it) || '', 'sm'), title: p.it.name, sub, date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save, pend: p.state === 'pending' && counted(p) });
   };
   const head = (arr) => { const i = sum(arr, 'in'), o = sum(arr, 'out'); return `<span class="fine num">${i ? ` <span class="c-in">+${fmt(i)}</span> ` : ''}${o ? `−${fmt(o)}` : ''}</span>`; };
@@ -1770,6 +1770,13 @@ function openClose(ym) {
         <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="${curSym}" autocomplete="off">
 </label>
     </div>
+    ${(() => {
+      // what the plan expected this month and you haven't confirmed: it closes as done, with its amount, unless you say it didn't happen
+      const pend = m.pendingIn(ym);
+      if (!pend.length) return '';
+      return `<div data-step class="stack-sm clpend"><span class="label">${t('Sin confirmar')}</span><p class="fine">${t('Se cierran como hechos, con su importe. Desmarca lo que no ocurrió o corrige el importe.')}</p>
+        ${pend.map((p) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="clp-on" data-id="${esc(p.it.id)}" checked><span><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)} · ${p.it.kind === 'in' ? t('ingreso') : t('gasto')}</span></span></label><label class="clp-a"><input type="text" inputmode="decimal" class="clp-amt" data-id="${esc(p.it.id)}" value="${esc(String(p.amount).replace('.', ','))}" aria-label="${esc(t('Importe de {n}', { n: p.it.name }))}"><span>${curSym}</span></label></div>`).join('')}</div>`;
+    })()}
     ${toISO(new Date()) > m.range(ym).to ? `<p class="fine">${t('Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco. Si ya ha entrado algo del mes siguiente, no lo cuentes.')}</p>` : ''}
     <div id="cl-calc" aria-live="polite"></div>
   </div>`;
@@ -1782,6 +1789,12 @@ function closePatch() {
   const bal = num(dlg.querySelector('#cl-bal')?.value), op = dlg.querySelector('#cl-open');
   const patch = { bal: bal ?? undefined };
   if (op) { patch.open = num(op.value) ?? undefined; const d = dlg.querySelector('#cl-open-date')?.value; if (patch.open != null && d) patch.openDate = d; }
+  const rows = [...dlg.querySelectorAll('.clp-on')];
+  if (rows.length) {
+    const ym = dlg.querySelector('#close-sheet')?.dataset.ym, real = { ...(store.data.months[ym]?.real || {}) };
+    for (const c of rows) { const amt = num(dlg.querySelector(`.clp-amt[data-id="${CSS.escape(c.dataset.id)}"]`)?.value); real[c.dataset.id] = c.checked ? (amt ?? 0) : 0; }
+    patch.real = real;
+  }
   return { bal, patch };
 }
 function closeCalc() {
@@ -2064,6 +2077,7 @@ function onAct(b, sure = false) {
       dlg.close();
       const done = celebrate(() => store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), bal, close };
+        if (patch.real) mo.real = patch.real; // the unconfirmed ones, now confirmed (or 0: it didn't happen)
         if (patch.open != null) mo.open = patch.open;
         if (patch.openDate) mo.openDate = patch.openDate;
         // the balance a month closes with is where the next one starts: a start typed by hand before gives way
@@ -2299,6 +2313,7 @@ function onAct(b, sure = false) {
 }
 
 document.addEventListener('change', (e) => {
+  if (e.target?.classList?.contains('clp-on')) { const amt = dlg.querySelector(`.clp-amt[data-id="${CSS.escape(e.target.dataset.id)}"]`); if (amt) amt.disabled = !e.target.checked; closeCalc(); }
   if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
   const el = e.target;
   if (el.id === 'f-freq') {
@@ -2332,7 +2347,7 @@ document.addEventListener('keydown', (e) => {
 // the close and the look at the balance work out the month as you type
 document.addEventListener('input', (e) => {
   const id = e.target.id;
-  if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open') closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
+  if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open' || e.target.classList?.contains('clp-amt')) closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
 });
 document.addEventListener('focusout', () => setTimeout(() => {
   if (!UI.pending) return;

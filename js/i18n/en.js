@@ -1,5 +1,10 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'no hubo este mes': 'did not happen this month',
+  'Importe de {n}': 'Amount of {n}',
+  'ingreso': 'income',
+  'Se cierran como hechos, con su importe. Desmarca lo que no ocurrió o corrige el importe.': 'They close as done, with their amount. Untick what did not happen or correct the amount.',
+  'Sin confirmar': 'Unconfirmed',
   'gastos': 'expenses',
   'gasto': 'expense',
   'Ver por confirmar': 'See what is unconfirmed',
