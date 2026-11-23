@@ -582,7 +582,12 @@ function trailCard(m) {
     ${balanceBox(m, m.curYM)}
     ${balanceLine({ pts, aria: t('Saldo de tu cuenta en los últimos {n} días y estimación hasta fin de mes', { n: days }) })}
     <div class="legend"><span><i class="sw" style="background: var(--s1)"></i>${t('saldo')}</span><span><i class="lg-proj" style="--pc: var(--s1)"></i>${t('estimado')}</span></div>
-    ${(() => { const x = m.curveNow(m.curYM)?.extra; return x ? `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos: falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.', { x: fmt(x) })}</p>` : ''; })()}
+    ${(() => {
+      const x = m.curveNow(m.curYM)?.extra; if (!x || x < 1) return '';
+      // planned expenses count at their planned amount once their day has passed: if some are still unconfirmed, that is the first thing to check
+      const pend = m.pendingIn(m.curYM).filter((p) => p.it.kind === 'out' && !p.save).length;
+      return `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explican tus ingresos y gastos.', { x: fmt(x) })} ${pend ? t('Tienes {n} {g} planificados sin confirmar: si costaron menos de lo planificado, confirma su importe real.', { n: pend, g: tn(pend, 'gasto', 'gastos') }) : t('Falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.')}${pend ? ` <button type="button" class="linkbtn" data-act="gopending">${t('Ver por confirmar')}</button>` : ''}</p>`;
+    })()}
   </section>`;
 }
 /** What a month still to come is expected to save: what comes in, less what the spending projection says goes out (the plan's target when there is no projection). */
@@ -2231,6 +2236,7 @@ function onAct(b, sure = false) {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
     case 'donelist': openDone(b.dataset.kind); break;
+    case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
     case 'nextmore': { const box = b.closest('.nextlist'), on = box.classList.toggle('all'); lsSet('hucha:nextall', on ? '1' : ''); b.textContent = on ? b.dataset.less : b.dataset.more; break; }
     case 'catdetail': openCatDetail(b.dataset.cat); break;
     case 'linedetail': openLineDetail(b.dataset.kind); break;

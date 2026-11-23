@@ -1,5 +1,11 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'gastos': 'expenses',
+  'gasto': 'expense',
+  'Ver por confirmar': 'See what is unconfirmed',
+  'Falta un ingreso por apuntar, o el saldo de inicio ya incluía alguno.': 'An income is missing, or the start balance already included one.',
+  'Tienes {n} {g} planificados sin confirmar: si costaron menos de lo planificado, confirma su importe real.': 'You have {n} planned {g} unconfirmed: if they cost less than planned, confirm the real amount.',
+  'Tu saldo es {x} más alto de lo que explican tus ingresos y gastos.': 'Your balance is {x} higher than your income and spending explain.',
   'Saldo en cuenta': 'Account balance',
   'el saldo sube lo que retiras': 'your balance goes up by what you withdraw',
   'el saldo baja lo que apuntas': 'your balance goes down by what you log',
