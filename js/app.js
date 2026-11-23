@@ -1511,7 +1511,117 @@ function plan(m) {
   </section>
   ${group(t('Ingresos planificados'), '', sIns, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
   ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null, 'out')}
-  ${group(t('Presupuestos'), '', sBuds, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir presupuesto'), sBuds.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}`;
+  ${group(t('Presupuestos'), '', sBuds, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir presupuesto'), sBuds.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}
+  <section class="card tco-entry"><div><h2>${t('Coste total de propiedad')}</h2><p class="fine">${t('Lo que te cuesta de verdad tener algo: compra, financiación y gastos, al mes y por años.')}</p></div><button type="button" class="btn-sec sm" data-act="tcoopen">${t('Calcular')}</button></section>`;
+}
+// ---------- Coste total de propiedad ----------
+// A generic calculator: what owning something really costs over the years you keep it (purchase, financing, the costs that
+// come with it, minus what it is worth at the end), what that means a month and a year, and what it does to your plan.
+const TCO_TPL = () => ({
+  blank: { label: t('En blanco'), cat: '', name: '', price: 0, years: 5, residual: 0, fin: false, loan: 0, rate: 0, term: 0, costs: [] },
+  car: { label: t('Coche'), cat: 'coche', name: t('Coche'), price: 20000, years: 8, residual: 30, fin: true, loan: 15000, rate: 7, term: 60,
+    costs: [{ n: t('Seguro'), a: 500, f: 'y' }, { n: t('Impuesto de circulación'), a: 120, f: 'y' }, { n: t('ITV'), a: 40, f: 'y' }, { n: t('Mantenimiento'), a: 400, f: 'y' }, { n: t('Combustible'), a: 120, f: 'm' }] },
+  moto: { label: t('Moto'), cat: 'transporte', name: t('Moto'), price: 6000, years: 8, residual: 30, fin: false, loan: 0, rate: 0, term: 0,
+    costs: [{ n: t('Seguro'), a: 200, f: 'y' }, { n: t('Impuesto de circulación'), a: 30, f: 'y' }, { n: t('Mantenimiento'), a: 200, f: 'y' }, { n: t('Combustible'), a: 40, f: 'm' }] },
+  home: { label: t('Vivienda'), cat: 'hogar', name: t('Vivienda'), price: 200000, years: 30, residual: 100, fin: true, loan: 160000, rate: 3, term: 360,
+    costs: [{ n: t('Gastos de compra e impuestos'), a: 20000, f: 'o' }, { n: t('IBI'), a: 400, f: 'y' }, { n: t('Comunidad'), a: 60, f: 'm' }, { n: t('Seguro de hogar'), a: 250, f: 'y' }, { n: t('Mantenimiento'), a: 1000, f: 'y' }] },
+  phone: { label: t('Móvil'), cat: 'internet', name: t('Móvil'), price: 900, years: 3, residual: 20, fin: false, loan: 0, rate: 0, term: 0,
+    costs: [{ n: t('Seguro o funda'), a: 60, f: 'y' }] },
+  laptop: { label: t('Portátil'), cat: 'tecnologia', name: t('Portátil'), price: 1200, years: 4, residual: 15, fin: false, loan: 0, rate: 0, term: 0,
+    costs: [{ n: t('Software y accesorios'), a: 80, f: 'y' }] },
+  bike: { label: t('Bicicleta'), cat: 'deporte', name: t('Bicicleta'), price: 800, years: 6, residual: 25, fin: false, loan: 0, rate: 0, term: 0,
+    costs: [{ n: t('Mantenimiento'), a: 80, f: 'y' }] },
+  appliance: { label: t('Electrodoméstico'), cat: 'hogar', name: t('Lavadora'), price: 500, years: 10, residual: 0, fin: false, loan: 0, rate: 0, term: 0,
+    costs: [{ n: t('Electricidad y agua'), a: 8, f: 'm' }, { n: t('Reparaciones'), a: 30, f: 'y' }] },
+  pet: { label: t('Mascota'), cat: 'mascotas', name: t('Perro'), price: 150, years: 12, residual: 0, fin: false, loan: 0, rate: 0, term: 0,
+    costs: [{ n: t('Comida'), a: 50, f: 'm' }, { n: t('Veterinario'), a: 300, f: 'y' }, { n: t('Seguro'), a: 100, f: 'y' }] },
+});
+/** The numbers: year by year (purchase, loan, costs, minus what it is worth at the end), the total and a month. */
+function tcoCalc(c) {
+  const H = Math.max(1, Math.round(+c.years || 1)), M = H * 12, P = Math.max(0, +c.price || 0);
+  const F = c.fin ? Math.min(P, Math.max(0, +c.loan || 0)) : 0, n = c.fin ? Math.max(0, Math.round(+c.term || 0)) : 0, r = (c.fin ? Math.max(0, +c.rate || 0) : 0) / 1200;
+  const pay = F && n ? (r ? F * r / (1 - (1 + r) ** -n) : F / n) : 0;
+  const paidMonths = Math.min(n, M), owed = F && n > M ? (r ? F * (1 + r) ** M - pay * (((1 + r) ** M - 1) / r) : F - pay * M) : 0; // still owed when you sell it: paid then
+  const R = P * Math.max(0, +c.residual || 0) / 100;
+  const per = { m: 12, y: 1 }, years = Array.from({ length: H }, (_, k) => {
+    let v = k === 0 ? P - F : 0; // what you pay up front
+    v += pay * Math.max(0, Math.min(12, paidMonths - k * 12));
+    for (const x of c.costs) { const a = Math.max(0, +x.a || 0); v += x.f === 'o' ? (k === 0 ? a : 0) : a * per[x.f]; }
+    if (k === H - 1) v += owed - R; // the end: what is still owed, minus what you get for it
+    return round2(v);
+  });
+  const total = round2(years.reduce((a, v) => a + v, 0)), interest = round2(pay * paidMonths + owed - F);
+  const running = round2(c.costs.reduce((a, x) => a + (x.f === 'o' ? +x.a || 0 : (+x.a || 0) * per[x.f] * H), 0));
+  return { H, M, pay: round2(pay), interest, total, month: round2(total / M), year: round2(total / H), years, buy: round2(P - R), running, R: round2(R), owed: round2(owed) };
+}
+function openTCO(key = 'car') {
+  UI.tcos = [tcoFrom(key)]; UI.tcoIdx = 0; UI.tco = UI.tcos[0];
+  renderTCO();
+  dlg.classList.add('full');
+  openDialog();
+}
+const tcoFrom = (key) => ({ ...JSON.parse(JSON.stringify(TCO_TPL()[key] || TCO_TPL().blank)), tpl: key });
+/** A template on the option you are editing (the other options stay as they are). */
+function tcoApply(key) { UI.tcos[UI.tcoIdx] = tcoFrom(key); UI.tco = UI.tcos[UI.tcoIdx]; renderTCO(); }
+const tcoName = (c, i) => (c.name || '').trim() || t('Opción {l}', { l: 'ABC'[i] || i + 1 });
+/** Two or three options side by side: a month, in total, the difference, and their cost year by year. */
+function tcoCompare() {
+  if (!UI.tcos || UI.tcos.length < 2) return '';
+  const rs = UI.tcos.map((c) => tcoCalc(c)), best = rs.reduce((b, r, i) => (r.month < rs[b].month ? i : b), 0);
+  const rows = rs.map((r, i) => `<div class="tcc-row${i === best ? ' best' : ''}"><i class="tcc-sw tcc-${i}"></i><span class="tcc-n">${esc(tcoName(UI.tcos[i], i))}${i === best ? ` <span class="pill c-ok">${t('la más barata')}</span>` : ''}</span><span class="num"><span class="nw"><b>${fmt(r.month)}</b> ${t('/mes')}</span><span class="fine">${t('{x} en {n} años', { x: fmt(r.total), n: r.H })}</span>${i === best ? '' : `<span class="fine c-spend">+${fmt(r.month - rs[best].month)} ${t('/mes')}</span>`}</span></div>`).join('');
+  const H = Math.max(...rs.map((r) => r.H)), cum = rs.map((r) => { let s = 0; return Array.from({ length: H }, (_, k) => (k < r.H ? (s += r.years[k]) : null)); });
+  const chart = rs.length === 2 ? `<div class="tco-cmp">${pairs({ cols: Array.from({ length: H }, (_, k) => ({ label: String(k + 1), a: cum[0][k], b: cum[1][k], tip: tipx(cap(t('año {n}', { n: k + 1 })), [cum[0][k] != null ? { c: 'var(--tc0)', k: 'solid', l: tcoName(UI.tcos[0], 0), v: fmt(cum[0][k]) } : null, cum[1][k] != null ? { c: 'var(--tc1)', k: 'solid', l: tcoName(UI.tcos[1], 1), v: fmt(cum[1][k]) } : null].filter(Boolean), t('acumulado')) })), aria: t('Coste acumulado de cada opción') })}</div>` : '';
+  return `<section class="card"><h2>${t('Comparación')}</h2><div class="tcc">${rows}</div>${chart ? `<span class="label">${t('Coste acumulado, año a año')}</span>${chart}` : ''}</section>`;
+}
+function renderTCO() {
+  const c = UI.tco, tpls = TCO_TPL();
+  const num2 = (v) => String(v ?? '').replace('.', ',');
+  const field = (k, label, suffix = '', mode = 'decimal') => `<label class="field tco-f"><span class="label">${label}</span><span class="tco-in"><input type="text" inputmode="${mode}" data-tco="${k}" value="${esc(num2(c[k]))}" autocomplete="off">${suffix ? `<span>${suffix}</span>` : ''}</span></label>`;
+  dlg.innerHTML = `<div class="sheet donesheet" id="tco-sheet"><div class="row between"><h2>${t('Coste total de propiedad')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+    <div class="tco-sticky" id="tco-sum" aria-live="polite">${tcoSum()}</div>
+    <div class="tco-tabs" role="tablist">${UI.tcos.map((o, i) => `<button type="button" role="tab" class="tco-tab tcc-${i}" data-act="tcotab" data-i="${i}" aria-selected="${i === UI.tcoIdx}"><i class="tcc-sw tcc-${i}"></i>${esc(tcoName(o, i))}${UI.tcos.length > 1 ? `<span class="tco-x" data-act="tcorm" data-i="${i}" role="button" aria-label="${t('Quitar opción')}">${ic('x')}</span>` : ''}</button>`).join('')}${UI.tcos.length < 3 ? `<button type="button" class="tco-tab add" data-act="tcomore">+ ${t('Comparar con otra')}</button>` : ''}</div>
+    <div class="catrow tco-tpl" role="group" aria-label="${t('Plantillas')}">${Object.entries(tpls).map(([k, v]) => `<button type="button" class="catchip" data-act="tcotpl" data-k="${k}" aria-pressed="${c.tpl === k}">${catEl(v.cat || '')}<span>${esc(v.label)}</span></button>`).join('')}</div>
+    <label class="field"><span class="label">${t('Qué es')}</span><input type="text" data-tco="name" value="${esc(c.name)}" placeholder="${t('Coche, portátil, perro…')}" autocomplete="off"></label>
+    <div class="fields2">${field('price', t('Precio'), curSym)}${field('years', t('Años que lo tendrás'), '', 'numeric')}</div>
+    <div class="fields2">${field('residual', t('Valor al final'), '%')}<span></span></div>
+    <label class="updbal"><input type="checkbox" data-tco="fin" ${c.fin ? 'checked' : ''}><span>${t('Con financiación')}</span></label>
+    ${c.fin ? `<div class="fields2">${field('loan', t('Importe financiado'), curSym)}${field('rate', t('Interés anual'), '%')}</div><div class="fields2">${field('term', t('Plazo'), t('meses'), 'numeric')}<span></span></div>` : ''}
+    <div class="stack-sm"><span class="label">${t('Gastos que conlleva')}</span>
+      ${c.costs.map((x, i) => `<div class="tco-cost"><input type="text" data-tcoc="${i}" data-k="n" value="${esc(x.n)}" aria-label="${t('Concepto')}"><span class="tco-in"><input type="text" inputmode="decimal" data-tcoc="${i}" data-k="a" value="${esc(num2(x.a))}" aria-label="${t('Importe')}"><span>${curSym}</span></span><select data-tcoc="${i}" data-k="f" aria-label="${t('Cada cuánto')}">${[['m', t('al mes')], ['y', t('al año')], ['o', t('una vez')]].map(([v, l]) => `<option value="${v}" ${x.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button type="button" class="iconbtn sm" data-act="tcodel" data-i="${i}" aria-label="${t('Quitar')}">${ic('x')}</button></div>`).join('')}
+      <button type="button" class="linkbtn" data-act="tcoadd">+ ${t('Añadir un gasto')}</button></div>
+    <div id="tco-cmp">${tcoCompare()}</div>
+    <div id="tco-res">${tcoResult()}</div></div>`;
+}
+/** The answer, always in view while you edit: a month and in total. */
+function tcoSum() { const r = tcoCalc(UI.tco); return `<b class="num">${fmt(r.month)}</b><span>${t('al mes')}</span><span class="fine">${t('{x} en {n} años', { x: fmt(r.total), n: r.H })}</span>`; }
+function tcoResult() {
+  const c = UI.tco, r = tcoCalc(c), m = compute(store.data);
+  const yr = (k) => cap(t('año {n}', { n: k + 1 }));
+  const chart = columns({ cols: r.years.map((v, k) => ({ label: String(k + 1), value: v, fill: v < 0 ? 'var(--ok)' : 'var(--out)', tip: tipx(yr(k), [{ c: 'var(--out)', k: 'solid', l: t('Coste'), v: fmt(v) }]) })), labels: [], aria: t('Coste de cada año') });
+  const fits = m.items.length ? round2(m.possible - r.year) : null;
+  const impact = fits == null ? '' : `<p class="note ${fits >= m.goal ? 'c-ok' : 'c-warn'}">${t('Te cuesta {x} al año, el {p} % de tus ingresos.', { x: fmt(r.year), p: m.incomeY ? Math.round(r.year / m.incomeY * 100) : 0 })} ${fits >= m.goal ? t('Tu objetivo de ahorro ({g}) sigue cabiendo.', { g: fmt(m.goal) }) : t('Con esto, como mucho podrías ahorrar {x} al año: tu objetivo ({g}) no cabría.', { x: fmt(Math.max(0, fits)), g: fmt(m.goal) })}</p>`;
+  return `<section class="card"><div class="tco-head"><span class="label">${t('Coste real al mes')}</span><b class="num tco-big">${fmt(r.month)}</b><span class="fine">${t('{x} en {n} años · {y} al año', { x: fmt(r.total), n: r.H, y: fmt(r.year) })}</span></div>
+      <div class="tco-rows">
+        <div><span>${t('Compra, menos lo que vale al final')}</span><b class="num">${fmt(r.buy)}</b></div>
+        ${r.interest > 0.5 ? `<div><span>${t('Intereses')}</span><b class="num">${fmt(r.interest)}</b></div>` : ''}
+        <div><span>${t('Gastos que conlleva')}</span><b class="num">${fmt(r.running)}</b></div>
+        ${c.fin && r.pay ? `<div class="fine"><span>${t('Cuota')}</span><span class="num">${fmt(r.pay)} ${t('/mes')}</span></div>` : ''}
+        ${r.owed > 0.5 ? `<div class="fine"><span>${t('Pendiente al venderlo')}</span><span class="num">${fmt(r.owed)}</span></div>` : ''}
+      </div></section>
+    <section class="card"><h2>${t('Coste de cada año')}</h2>${chart}${table([t('Año'), t('Coste')], r.years.map((v, k) => [String(k + 1), fmt(v)]))}</section>
+    ${impact}
+    ${m.items.length ? `<button type="button" class="primary" data-act="tcoplan">${t('Añadir al plan')}</button><p class="fine">${t('Crea la cuota y los gastos periódicos como partidas del plan. Lo que se paga una vez apúntalo con el +.')}</p>` : ''}`;
+}
+/** The calculation as plan items: the loan's payment for its term, and each running cost, from this month. */
+function tcoToPlan() {
+  const c = UI.tco, r = tcoCalc(c), m = compute(store.data), F = m.curYM, name = (c.name || t('Compra')).trim(), cat = (TCO_TPL()[c.tpl] || {}).cat || 'otros';
+  const end = (months) => ymAdd(F, Math.max(0, months - 1)), list = [];
+  if (c.fin && r.pay) list.push({ kind: 'out', name: `${name}: ${t('cuota')}`, amount: r.pay, freq: 'monthly', cat, to: end(Math.min(Math.round(+c.term || 0), r.M)) });
+  for (const x of c.costs) {
+    if (x.f === 'o' || !(+x.a > 0)) continue;
+    list.push({ kind: 'out', name: `${name}: ${x.n}`, amount: round2(+x.a), freq: x.f === 'm' ? 'monthly' : 'yearly', month: +F.slice(5), cat, to: end(r.M) });
+  }
+  return list;
 }
 const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 0h3v3H6zM0 6h3v3H0zM6 6h3v3H6zM0 12h3v3H0zM6 12h3v3H6z"/></svg>';
 function planRow(it, m, movable) {
@@ -2256,6 +2366,26 @@ function onAct(b, sure = false) {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
     case 'donelist': openDone(b.dataset.kind); break;
+    case 'tcoopen': openTCO('car'); break;
+    case 'tcotpl': tcoApply(b.dataset.k); break;
+    case 'tcotab': UI.tcoIdx = +b.dataset.i; UI.tco = UI.tcos[UI.tcoIdx]; renderTCO(); break;
+    case 'tcomore': { const c = JSON.parse(JSON.stringify(UI.tco)); c.name = ''; UI.tcos.push(c); UI.tcoIdx = UI.tcos.length - 1; UI.tco = c; renderTCO(); break; }
+    case 'tcorm': { UI.tcos.splice(+b.dataset.i, 1); UI.tcoIdx = Math.min(UI.tcoIdx, UI.tcos.length - 1); UI.tco = UI.tcos[UI.tcoIdx]; renderTCO(); break; }
+    case 'tcoadd': UI.tco.costs.push({ n: '', a: 0, f: 'm' }); renderTCO(); break;
+    case 'tcodel': UI.tco.costs.splice(+b.dataset.i, 1); renderTCO(); break;
+    case 'tcoplan': {
+      const list = tcoToPlan();
+      if (!list.length) { toast(t('No hay cuota ni gastos periódicos que añadir')); break; }
+      askConfirm({ title: t('¿Añadir al plan?'), yes: t('Añadir'), rows: list.map((x) => [x.name, `${fmt(x.amount)} ${x.freq === 'monthly' ? t('al mes') : t('al año')}`]), text: t('Desde este mes, durante los años que lo tendrás.') }).then((ok) => {
+        if (!ok) return;
+        const m2 = compute(store.data), F = m2.curYM;
+        store.update(['items', 'log'], (d) => {
+          for (const x of list) { const it = normItem({ ...x, id: uid('out') }); d.items = planAdd(d.items, it, F); d.log = [...(d.log || []), logEntry('add', it, null, F, it.to || '')]; }
+        });
+        dlg.close(); toast(t('Añadido al plan'));
+      });
+      break;
+    }
     case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
     case 'nextmore': { const box = b.closest('.nextlist'), on = box.classList.toggle('all'); lsSet('hucha:nextall', on ? '1' : ''); b.textContent = on ? b.dataset.less : b.dataset.more; break; }
     case 'catdetail': openCatDetail(b.dataset.cat); break;
@@ -2324,6 +2454,8 @@ function onAct(b, sure = false) {
 }
 
 document.addEventListener('change', (e) => {
+  if (e.target.dataset?.tco === 'fin' && UI.tco) { UI.tco.fin = e.target.checked; if (UI.tco.fin && !UI.tco.loan) { UI.tco.loan = Math.round((+UI.tco.price || 0) * 0.8); UI.tco.rate = UI.tco.rate || 6; UI.tco.term = UI.tco.term || 60; } renderTCO(); }
+  if (e.target.dataset?.tcoc != null && e.target.tagName === 'SELECT' && UI.tco) { const x = UI.tco.costs[+e.target.dataset.tcoc]; if (x) { x.f = e.target.value; const box = $('#tco-res'); if (box) box.innerHTML = tcoResult(); const s = $('#tco-sum'); if (s) s.innerHTML = tcoSum(); const cc = $('#tco-cmp'); if (cc) cc.innerHTML = tcoCompare(); } }
   if (e.target?.classList?.contains('clp-on')) { const amt = dlg.querySelector(`.clp-amt[data-id="${CSS.escape(e.target.dataset.id)}"]`); if (amt) amt.disabled = !e.target.checked; closeCalc(); }
   if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
   const el = e.target;
@@ -2357,6 +2489,8 @@ document.addEventListener('keydown', (e) => {
 });
 // the close and the look at the balance work out the month as you type
 document.addEventListener('input', (e) => {
+  if (e.target.dataset?.tco != null && UI.tco) { const k = e.target.dataset.tco; if (k !== 'fin') { UI.tco[k] = k === 'name' ? e.target.value : num(e.target.value) ?? 0; if (k === 'name') { const tb = document.querySelector('.tco-tab[aria-selected="true"]'); if (tb?.childNodes[1]) tb.childNodes[1].nodeValue = tcoName(UI.tco, UI.tcoIdx); } const box = $('#tco-res'); if (box) box.innerHTML = tcoResult(); const s = $('#tco-sum'); if (s) s.innerHTML = tcoSum(); const cc = $('#tco-cmp'); if (cc) cc.innerHTML = tcoCompare(); } }
+  if (e.target.dataset?.tcoc != null && UI.tco) { const x = UI.tco.costs[+e.target.dataset.tcoc]; if (x) { const k = e.target.dataset.k; x[k] = k === 'a' ? num(e.target.value) ?? 0 : e.target.value; const box = $('#tco-res'); if (box) box.innerHTML = tcoResult(); const s = $('#tco-sum'); if (s) s.innerHTML = tcoSum(); const cc = $('#tco-cmp'); if (cc) cc.innerHTML = tcoCompare(); } }
   const id = e.target.id;
   if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open' || e.target.classList?.contains('clp-amt')) closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
 });
