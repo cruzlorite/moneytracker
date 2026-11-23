@@ -57,3 +57,15 @@ test('the sheet keeps the language and currency of the device', () => {
   assert.equal(back.settings.lang, 'en');
   assert.equal(back.settings.cur, 'GBP');
 });
+
+test('saved cost comparisons survive the sheet', () => {
+  const calc = { id: 'calc-1', name: 'Coche', at: '2026-11-17', years: 8, opts: [
+    { name: 'Nuevo', price: 24000, residual: 35, fin: true, loan: 18000, rate: 7, term: 72, costs: [{ n: 'Seguro', a: 550, f: 'y' }] },
+    { name: 'Usado', price: 11000, residual: 25, fin: false, loan: 0, rate: 0, term: 0, costs: [{ n: 'Gasolina', a: 130, f: 'm' }, { n: 'ITV', a: 40, f: 'o' }] }] };
+  const d = base({ calcs: [calc] });
+  const rows = toRows(d);
+  const back = parseSheet(Object.entries(TABS).map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
+  assert.deepEqual(back.calcs, [calc]);
+  const none = parseSheet(Object.entries(TABS).filter(([k]) => k !== 'calcs').map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
+  assert.deepEqual(none.calcs, []); // a sheet made before the calculator
+});

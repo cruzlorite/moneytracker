@@ -2,7 +2,7 @@
 // calls Google's APIs with the user's own token, and the data lives in a sheet in their Drive.
 import { CONFIG } from '../config.js';
 import { t, lang } from './i18n.js';
-import { normItem, normLog, normMonth, normSettings, normSpend, num, isYM, pad } from './model.js';
+import { normItem, normLog, normMonth, normSettings, normSpend, normCalcs, num, isYM, pad } from './model.js';
 
 const SCOPE_FILE = 'https://www.googleapis.com/auth/drive.file';
 const SCOPES = `${SCOPE_FILE} openid email`;
@@ -17,6 +17,7 @@ export const TABS = {
   months: { title: 'meses', head: ['ym', 'saved', 'pots', 'pot_spent', 'real', 'close', 'challenge', 'bal', 'open', 'check', 'open_date', 'dates', 'checks'] },
   spends: { title: 'gastos', head: ['id', 'date', 'amount', 'note', 'cat'] },
   log: { title: 'cambios', head: ['at', 'id', 'name', 'action', 'from', 'to', 'before', 'after'] },
+  calcs: { title: 'calculos', head: ['id', 'name', 'at', 'years', 'opts'] },
 };
 
 export class AuthError extends Error {
@@ -158,6 +159,7 @@ export function parseSheet(valueRanges) {
   return {
     settings: normSettings({ goal: settings.goal, start: cellYM(settings.start), years: json(settings.years), cats: json(settings.cats), cycleDay: settings.cycle_day, lang: settings.lang, cur: settings.currency, theme: settings.theme }),
     items, months, spends,
+    calcs: normCalcs(rowsToObjects(get('calcs'), TABS.calcs.head).map((r) => ({ ...r, opts: (() => { try { return JSON.parse(r.opts || '[]'); } catch { return []; } })() }))),
     log: normLog(rowsToObjects(get('log'), TABS.log.head).map((r) => ({ ...r, from: cellYM(r.from), to: cellYM(r.to), before: parseJ(r.before), after: parseJ(r.after) }))),
   };
 }
@@ -174,6 +176,7 @@ export function toRows(data) {
       return [ym, m.saved ?? '', b(m.pots), j(m.potSpent), j(m.real), j(m.close), j(m.challenge), m.bal ?? '', m.open ?? '', j(m.check), m.openDate || '', j(m.dates), j(m.checks)];
     })],
     spends: [TABS.spends.head, ...[...data.spends].sort((a, b2) => a.date.localeCompare(b2.date)).map((e) => [e.id, e.date, e.amount, e.note || '', e.cat || ''])],
+    calcs: [TABS.calcs.head, ...(data.calcs || []).map((c) => [c.id, c.name, c.at, c.years, JSON.stringify(c.opts || [])])],
     log: [TABS.log.head, ...(data.log || []).map((e) => [e.at, e.id, e.name, e.action, e.from || '', e.to || '', JSON.stringify(e.before || {}), JSON.stringify(e.after || {})])],
   };
 }

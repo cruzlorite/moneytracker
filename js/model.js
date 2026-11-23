@@ -583,7 +583,7 @@ export function parsePlanFile(obj) {
   const months = {};
   for (const [ym, m] of Object.entries(obj.months || {})) if (isYM(ym)) months[ym] = normMonth(m);
   const spends = Array.isArray(obj.spends) ? obj.spends.map(normSpend).filter(Boolean) : [];
-  return { settings, items, months, spends, log: normLog(obj.log) };
+  return { settings, items, months, spends, log: normLog(obj.log), calcs: normCalcs(obj.calcs) };
 }
 /** The log of plan changes: who changed what, when and from which month: [{ at, id, name, action, from, to, before, after }]. */
 export function normLog(arr) {
@@ -649,4 +649,18 @@ export function normSpend(e) {
   const o = { id: String(e.id || uid('g')), date: e.date, amount: amount < 0 && e.cat !== SAVE_CAT ? -amount : amount, note: String(e.note || '') };
   if (e.cat) o.cat = String(e.cat);
   return o;
+}
+
+/** Saved cost-of-ownership comparisons: { id, name, at, years (the same for every option), opts: [option] }. */
+export function normCalcs(arr) {
+  if (!Array.isArray(arr)) return [];
+  const n = (v) => Math.max(0, num(v) ?? 0);
+  return arr.filter((c) => c && c.id).map((c) => ({
+    id: String(c.id), name: String(c.name || '').slice(0, 80), at: String(c.at || ''), years: Math.min(50, Math.max(1, Math.round(n(c.years) || n(c.opts?.[0]?.years) || 5))),
+    opts: (Array.isArray(c.opts) ? c.opts : []).slice(0, 4).map((o) => ({
+      name: String(o?.name || '').slice(0, 60), price: n(o?.price), residual: Math.min(100, n(o?.residual)),
+      fin: !!o?.fin, loan: n(o?.loan), rate: n(o?.rate), term: Math.round(n(o?.term)),
+      costs: (Array.isArray(o?.costs) ? o.costs : []).map((x) => ({ n: String(x?.n || '').slice(0, 60), a: n(x?.a), f: ['m', 'y', 'o'].includes(x?.f) ? x.f : 'm' })),
+    })),
+  }));
 }

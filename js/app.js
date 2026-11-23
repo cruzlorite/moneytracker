@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, tipx } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
@@ -223,15 +223,15 @@ function render(force) {
   UI.pending = false;
   UI.yearOff = clamp(UI.yearOff || 0, yearBounds().min, yearBounds().max);
   const m = ['metas', 'ana', 'plan'].includes(UI.tab) ? computeYear(UI.yearOff) : UI.tab === 'mes' ? mFor(UI.mesYM || compute(store.data).curYM) : compute(store.data);
-  const views = { home, mes, ana: analisis, metas, plan, settings };
+  const views = { home, mes, ana: analisis, metas, plan, settings, calc: calcView };
   view.innerHTML = (views[UI.tab] || home)(m);
   if (UI.lastTab !== UI.tab) {
     view.classList.remove('enter'); void view.offsetWidth; view.classList.add('enter');
     UI.lastTab = UI.tab; window.scrollTo(0, 0);
   }
-  const navTab = UI.tab === 'mes' ? 'metas' : UI.tab;
+  const navTab = UI.tab === 'mes' ? 'metas' : UI.tab === 'calc' ? 'plan' : UI.tab;
   document.querySelectorAll('nav.tabs button[data-tab]').forEach((b) => b.setAttribute('aria-current', b.dataset.tab === navTab ? 'page' : 'false'));
-  const sub = UI.tab === 'mes'; // only a month opens on top of a tab; the top bar exists just for its back button
+  const sub = UI.tab === 'mes' || UI.tab === 'calc'; // pages opened on top of a tab; the top bar exists just for their back button
   $('#backbtn').hidden = !sub; $('#top').hidden = !sub; view.classList.toggle('nohead', !sub);
   $('#fab').disabled = !m.items.length; $('#fab').hidden = UI.tab !== 'home'; // the + only lives in Hoy
   hideTip();
@@ -1515,116 +1515,130 @@ function plan(m) {
   ${group(t('Ingresos planificados'), '', sIns, { kind: 'in', freq: 'monthly', _sec: 'in' }, t('Añadir ingreso'), fmt(m.incomeY) + t(' al año'), 'in')}
   ${group(t('Gastos planificados'), '', outs, { kind: 'out', freq: 'monthly', _sec: 'out' }, t('Añadir gasto'), outs.length ? fmt(outM) + t('/mes') : null, 'out')}
   ${group(t('Presupuestos'), '', sBuds, { kind: 'out', freq: 'yearly', budget: true, _sec: 'bud' }, t('Añadir presupuesto'), sBuds.length ? fmt(budY / 12) + t('/mes') : null, 'bud')}
-  <section class="card tco-entry"><div><h2>${t('Coste total de propiedad')}</h2><p class="fine">${t('Lo que te cuesta de verdad tener algo: compra, financiación y gastos, al mes y por años.')}</p></div><button type="button" class="btn-sec sm" data-act="tcoopen">${t('Calcular')}</button></section>`;
+  <button type="button" class="card tco-entry" data-act="tcoopen"><span><b>${t('Coste total')}</b><span class="fine">${(store.data.calcs || []).length ? t((store.data.calcs.length === 1 ? '{n} cálculo guardado' : '{n} cálculos guardados'), { n: store.data.calcs.length }) : t('Compara lo que te cuesta de verdad tener algo: comprar o alquilar, nuevo o usado…')}</span></span>${ic('right')}</button>`;
 }
-// ---------- Coste total de propiedad ----------
-// A generic calculator: what owning something really costs over the years you keep it (purchase, financing, the costs that
-// come with it, minus what it is worth at the end), what that means a month and a year, and what it does to your plan.
-const TCO_TPL = () => ({
-  blank: { label: t('En blanco'), cat: '', name: '', price: 0, years: 5, residual: 0, fin: false, loan: 0, rate: 0, term: 0, costs: [] },
-  car: { label: t('Coche'), cat: 'coche', name: t('Coche'), price: 20000, years: 8, residual: 30, fin: true, loan: 15000, rate: 7, term: 60,
-    costs: [{ n: t('Seguro'), a: 500, f: 'y' }, { n: t('Impuesto de circulación'), a: 120, f: 'y' }, { n: t('ITV'), a: 40, f: 'y' }, { n: t('Mantenimiento'), a: 400, f: 'y' }, { n: t('Combustible'), a: 120, f: 'm' }] },
-  moto: { label: t('Moto'), cat: 'transporte', name: t('Moto'), price: 6000, years: 8, residual: 30, fin: false, loan: 0, rate: 0, term: 0,
-    costs: [{ n: t('Seguro'), a: 200, f: 'y' }, { n: t('Impuesto de circulación'), a: 30, f: 'y' }, { n: t('Mantenimiento'), a: 200, f: 'y' }, { n: t('Combustible'), a: 40, f: 'm' }] },
-  home: { label: t('Vivienda'), cat: 'hogar', name: t('Vivienda'), price: 200000, years: 30, residual: 100, fin: true, loan: 160000, rate: 3, term: 360,
-    costs: [{ n: t('Gastos de compra e impuestos'), a: 20000, f: 'o' }, { n: t('IBI'), a: 400, f: 'y' }, { n: t('Comunidad'), a: 60, f: 'm' }, { n: t('Seguro de hogar'), a: 250, f: 'y' }, { n: t('Mantenimiento'), a: 1000, f: 'y' }] },
-  phone: { label: t('Móvil'), cat: 'internet', name: t('Móvil'), price: 900, years: 3, residual: 20, fin: false, loan: 0, rate: 0, term: 0,
-    costs: [{ n: t('Seguro o funda'), a: 60, f: 'y' }] },
-  laptop: { label: t('Portátil'), cat: 'tecnologia', name: t('Portátil'), price: 1200, years: 4, residual: 15, fin: false, loan: 0, rate: 0, term: 0,
-    costs: [{ n: t('Software y accesorios'), a: 80, f: 'y' }] },
-  bike: { label: t('Bicicleta'), cat: 'deporte', name: t('Bicicleta'), price: 800, years: 6, residual: 25, fin: false, loan: 0, rate: 0, term: 0,
-    costs: [{ n: t('Mantenimiento'), a: 80, f: 'y' }] },
-  appliance: { label: t('Electrodoméstico'), cat: 'hogar', name: t('Lavadora'), price: 500, years: 10, residual: 0, fin: false, loan: 0, rate: 0, term: 0,
-    costs: [{ n: t('Electricidad y agua'), a: 8, f: 'm' }, { n: t('Reparaciones'), a: 30, f: 'y' }] },
-  pet: { label: t('Mascota'), cat: 'mascotas', name: t('Perro'), price: 150, years: 12, residual: 0, fin: false, loan: 0, rate: 0, term: 0,
-    costs: [{ n: t('Comida'), a: 50, f: 'm' }, { n: t('Veterinario'), a: 300, f: 'y' }, { n: t('Seguro'), a: 100, f: 'y' }] },
+// ---------- Coste total: comparar lo que cuesta tener algo ----------
+// Its own page (#calculadora): the comparisons you saved, and templates that already compare two options. Every option is
+// a purchase (price, financing, what it is worth at the end) plus the costs that come with it, over the same years.
+const CALC_C = ['var(--tc0)', 'var(--tc1)', 'var(--tc2)', 'var(--tc3)'];
+const cc = (n, a, f) => ({ n: t(n), a, f });
+const copt = (name, price, residual, costs, fin = null) => ({ name: t(name), price, residual, fin: !!fin, loan: fin?.[0] || 0, rate: fin?.[1] || 0, term: fin?.[2] || 0, costs });
+const CALC_TPL = () => ({
+  carNewUsed: { cat: 'coche', label: t('Coche nuevo o de segunda mano'), years: 8, opts: [
+    copt('Coche nuevo', 24000, 35, [cc('Seguro', 550, 'y'), cc('Impuesto de circulación', 120, 'y'), cc('Mantenimiento', 300, 'y'), cc('Combustible', 120, 'm')], [18000, 7, 72]),
+    copt('Coche de segunda mano', 11000, 25, [cc('Seguro', 450, 'y'), cc('Impuesto de circulación', 120, 'y'), cc('ITV', 40, 'y'), cc('Mantenimiento', 700, 'y'), cc('Combustible', 130, 'm')])] },
+  carRent: { cat: 'coche', label: t('Comprar coche o renting'), years: 4, opts: [
+    copt('Comprar', 24000, 55, [cc('Seguro', 550, 'y'), cc('Impuesto de circulación', 120, 'y'), cc('Mantenimiento', 300, 'y'), cc('Combustible', 120, 'm')]),
+    copt('Renting', 0, 0, [cc('Cuota de renting (con seguro y mantenimiento)', 430, 'm'), cc('Combustible', 120, 'm')])] },
+  fuelEv: { cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, opts: [
+    copt('Gasolina', 22000, 30, [cc('Seguro', 500, 'y'), cc('Impuesto de circulación', 120, 'y'), cc('Mantenimiento', 450, 'y'), cc('Combustible', 120, 'm')]),
+    copt('Eléctrico', 30000, 30, [cc('Cargador en casa', 1000, 'o'), cc('Seguro', 600, 'y'), cc('Impuesto de circulación', 30, 'y'), cc('Mantenimiento', 200, 'y'), cc('Electricidad', 35, 'm')])] },
+  homeRent: { cat: 'casa', label: t('Comprar vivienda o alquilar'), years: 15, opts: [
+    copt('Comprar', 250000, 100, [cc('Gastos de compra e impuestos', 25000, 'o'), cc('IBI', 450, 'y'), cc('Comunidad', 70, 'm'), cc('Seguro de hogar', 300, 'y'), cc('Mantenimiento', 1200, 'y')], [200000, 3, 360]),
+    copt('Alquilar', 0, 0, [cc('Alquiler', 1000, 'm'), cc('Seguro de inquilino', 150, 'y')])] },
+  phone: { cat: 'tecnologia', label: t('Móvil de gama alta o media'), years: 4, opts: [
+    copt('Gama alta', 1100, 25, [cc('Funda y protector', 40, 'o'), cc('Seguro', 80, 'y')]),
+    copt('Gama media (cambias a los 2 años)', 700, 15, [cc('Fundas y protectores', 40, 'o')])] },
+  blank: { cat: '', label: t('En blanco'), years: 5, opts: [copt('', 0, 0, [])] },
 });
-/** The numbers: year by year (purchase, loan, costs, minus what it is worth at the end), the total and a month. */
-function tcoCalc(c) {
-  const H = Math.max(1, Math.round(+c.years || 1)), M = H * 12, P = Math.max(0, +c.price || 0);
-  const F = c.fin ? Math.min(P, Math.max(0, +c.loan || 0)) : 0, n = c.fin ? Math.max(0, Math.round(+c.term || 0)) : 0, r = (c.fin ? Math.max(0, +c.rate || 0) : 0) / 1200;
-  const pay = F && n ? (r ? F * r / (1 - (1 + r) ** -n) : F / n) : 0;
-  const paidMonths = Math.min(n, M), owed = F && n > M ? (r ? F * (1 + r) ** M - pay * (((1 + r) ** M - 1) / r) : F - pay * M) : 0; // still owed when you sell it: paid then
-  const R = P * Math.max(0, +c.residual || 0) / 100;
-  const per = { m: 12, y: 1 }, years = Array.from({ length: H }, (_, k) => {
-    let v = k === 0 ? P - F : 0; // what you pay up front
-    v += pay * Math.max(0, Math.min(12, paidMonths - k * 12));
-    for (const x of c.costs) { const a = Math.max(0, +x.a || 0); v += x.f === 'o' ? (k === 0 ? a : 0) : a * per[x.f]; }
-    if (k === H - 1) v += owed - R; // the end: what is still owed, minus what you get for it
-    return round2(v);
-  });
-  const total = round2(years.reduce((a, v) => a + v, 0)), interest = round2(pay * paidMonths + owed - F);
-  const running = round2(c.costs.reduce((a, x) => a + (x.f === 'o' ? +x.a || 0 : (+x.a || 0) * per[x.f] * H), 0));
-  return { H, M, pay: round2(pay), interest, total, month: round2(total / M), year: round2(total / H), years, buy: round2(P - R), running, R: round2(R), owed: round2(owed) };
+const optName = (o, i) => (o?.name || '').trim() || t('Opción {l}', { l: 'ABCD'[i] || i + 1 });
+const pos = (v) => Math.max(0, +v || 0);
+/**
+ * The numbers of one option over `years`: the money that goes out year by year (point 0 = the day you buy it: what you pay
+ * up front and the one-off costs), and the net cost = all that + what is still owed on the loan − what it is worth at the end.
+ */
+function tcoCalc(o, years) {
+  const H = Math.max(1, Math.round(+years || 1)), M = H * 12, P = pos(o.price);
+  const n = o.fin ? Math.round(pos(o.term)) : 0, F = o.fin && n ? Math.min(P, pos(o.loan)) : 0, r = (F ? pos(o.rate) : 0) / 1200;
+  const pay = F ? (r ? F * r / (1 - (1 + r) ** -n) : F / n) : 0;
+  const paidMonths = Math.min(n, M), owed = F && n > M ? (r ? F * (1 + r) ** M - pay * (((1 + r) ** M - 1) / r) : F - pay * M) : 0;
+  const R = P * Math.min(100, pos(o.residual)) / 100;
+  const once = o.costs.reduce((a, x) => a + (x.f === 'o' ? pos(x.a) : 0), 0), yearly = o.costs.reduce((a, x) => a + (x.f === 'm' ? pos(x.a) * 12 : x.f === 'y' ? pos(x.a) : 0), 0);
+  const cum = [P - F + once];
+  for (let k = 1; k <= H; k++) cum.push(cum[k - 1] + pay * Math.max(0, Math.min(12, paidMonths - (k - 1) * 12)) + yearly);
+  const total = cum[H] + owed - R;
+  return { H, pay: round2(pay), interest: round2(pay * paidMonths + owed - F), total: round2(total), month: round2(total / M), cum: cum.map(round2), R: round2(R), owed: round2(owed), price: P, running: round2(yearly * H + once) };
 }
-function openTCO(key = 'car') {
-  UI.tcos = [tcoFrom(key)]; UI.tcoIdx = 0; UI.tco = UI.tcos[0];
-  renderTCO();
-  dlg.classList.add('full');
-  openDialog();
+const cheapest = (rs) => rs.reduce((b, r, i) => (r.total < rs[b].total ? i : b), 0);
+const calcSaved = (id) => (store.data.calcs || []).some((x) => x.id === id);
+let calcTimer = null;
+/** Keep the comparison you are looking at: right away, or a moment after you stop typing. */
+function calcSave(now = false) {
+  const c = UI.calc; if (!c) return;
+  clearTimeout(calcTimer); calcTimer = null;
+  const put = () => { c.at = toISO(new Date()); const copy = JSON.parse(JSON.stringify(c)); store.update('calcs', (d) => { const l = d.calcs || []; const i = l.findIndex((x) => x.id === c.id); d.calcs = i < 0 ? [...l, copy] : l.map((x, k) => (k === i ? copy : x)); }, true); };
+  if (now) put(); else calcTimer = setTimeout(put, 600);
 }
-const tcoFrom = (key) => ({ ...JSON.parse(JSON.stringify(TCO_TPL()[key] || TCO_TPL().blank)), tpl: key });
-/** A template on the option you are editing (the other options stay as they are). */
-function tcoApply(key) { UI.tcos[UI.tcoIdx] = tcoFrom(key); UI.tco = UI.tcos[UI.tcoIdx]; renderTCO(); }
-const tcoName = (c, i) => (c.name || '').trim() || t('Opción {l}', { l: 'ABC'[i] || i + 1 });
-/** Two or three options side by side: a month, in total, the difference, and their cost year by year. */
-function tcoCompare() {
-  if (!UI.tcos || UI.tcos.length < 2) return '';
-  const rs = UI.tcos.map((c) => tcoCalc(c)), best = rs.reduce((b, r, i) => (r.month < rs[b].month ? i : b), 0);
-  const rows = rs.map((r, i) => `<div class="tcc-row${i === best ? ' best' : ''}"><i class="tcc-sw tcc-${i}"></i><span class="tcc-n">${esc(tcoName(UI.tcos[i], i))}${i === best ? ` <span class="pill c-ok">${t('la más barata')}</span>` : ''}</span><span class="num"><span class="nw"><b>${fmt(r.month)}</b> ${t('/mes')}</span><span class="fine">${t('{x} en {n} años', { x: fmt(r.total), n: r.H })}</span>${i === best ? '' : `<span class="fine c-spend">+${fmt(r.month - rs[best].month)} ${t('/mes')}</span>`}</span></div>`).join('');
-  const H = Math.max(...rs.map((r) => r.H)), cum = rs.map((r) => { let s = 0; return Array.from({ length: H }, (_, k) => (k < r.H ? (s += r.years[k]) : null)); });
-  const chart = rs.length === 2 ? `<div class="tco-cmp">${pairs({ cols: Array.from({ length: H }, (_, k) => ({ label: String(k + 1), a: cum[0][k], b: cum[1][k], tip: tipx(cap(t('año {n}', { n: k + 1 })), [cum[0][k] != null ? { c: 'var(--tc0)', k: 'solid', l: tcoName(UI.tcos[0], 0), v: fmt(cum[0][k]) } : null, cum[1][k] != null ? { c: 'var(--tc1)', k: 'solid', l: tcoName(UI.tcos[1], 1), v: fmt(cum[1][k]) } : null].filter(Boolean), t('acumulado')) })), aria: t('Coste acumulado de cada opción') })}</div>` : '';
-  return `<section class="card"><h2>${t('Comparación')}</h2><div class="tcc">${rows}</div>${chart ? `<span class="label">${t('Coste acumulado, año a año')}</span>${chart}` : ''}</section>`;
+const calcFlush = () => { if (calcTimer) calcSave(true); };
+function calcView() { return UI.calc ? calcEdit(UI.calc) : calcList(); }
+function calcList() {
+  const list = [...(store.data.calcs || [])].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+  const item = (c) => { const rs = c.opts.map((o) => tcoCalc(o, c.years)), best = cheapest(rs);
+    return `<button type="button" class="card calc-item" data-act="calcopen" data-id="${esc(c.id)}"><span class="calc-it-h"><b>${esc(c.name || t('Sin nombre'))}</b><span class="fine nw">${t(c.years === 1 ? '{n} año' : '{n} años', { n: c.years })}${c.at ? ' · ' + shortDate(c.at) : ''}</span></span>
+      ${rs.map((r, i) => `<span class="calc-it-r"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span class="calc-it-n">${esc(optName(c.opts[i], i))}</span>${rs.length > 1 && i === best ? `<span class="pill c-ok">${t('la más barata')}</span>` : ''}<span class="num nw">${fmt(r.month)} ${t('/mes')}</span></span>`).join('')}</button>`; };
+  return `<div class="calc-intro"><h1>${t('Coste total')}</h1><p class="fine">${t('Compara lo que te cuesta de verdad tener algo: compra, financiación, gastos y lo que recuperas al venderlo.')}</p></div>
+    ${list.length ? `<h2 class="calc-sec">${t('Tus cálculos')}</h2><div class="calc-list">${list.map(item).join('')}</div>` : ''}
+    <h2 class="calc-sec">${t('Nueva comparación')}</h2>
+    <div class="calc-tpls">${Object.entries(CALC_TPL()).map(([k, v]) => `<button type="button" class="calc-tpl" data-act="calcnew" data-k="${k}">${catEl(v.cat || '')}<span class="calc-tpl-t"><b>${esc(v.label)}</b><span class="fine">${v.opts.length > 1 ? esc(v.opts.map((o) => o.name).join(' · ')) : t('Empieza de cero')}</span></span>${ic('right')}</button>`).join('')}</div>`;
 }
-function renderTCO() {
-  const c = UI.tco, tpls = TCO_TPL();
-  const num2 = (v) => String(v ?? '').replace('.', ',');
-  const field = (k, label, suffix = '', mode = 'decimal') => `<label class="field tco-f"><span class="label">${label}</span><span class="tco-in"><input type="text" inputmode="${mode}" data-tco="${k}" value="${esc(num2(c[k]))}" autocomplete="off">${suffix ? `<span>${suffix}</span>` : ''}</span></label>`;
-  dlg.innerHTML = `<div class="sheet donesheet" id="tco-sheet"><div class="row between"><h2>${t('Coste total de propiedad')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
-    <div class="tco-sticky" id="tco-sum" aria-live="polite">${tcoSum()}</div>
-    <div class="tco-tabs" role="tablist">${UI.tcos.map((o, i) => `<button type="button" role="tab" class="tco-tab tcc-${i}" data-act="tcotab" data-i="${i}" aria-selected="${i === UI.tcoIdx}"><i class="tcc-sw tcc-${i}"></i>${esc(tcoName(o, i))}${UI.tcos.length > 1 ? `<span class="tco-x" data-act="tcorm" data-i="${i}" role="button" aria-label="${t('Quitar opción')}">${ic('x')}</span>` : ''}</button>`).join('')}${UI.tcos.length < 3 ? `<button type="button" class="tco-tab add" data-act="tcomore">+ ${t('Comparar con otra')}</button>` : ''}</div>
-    <div class="catrow tco-tpl" role="group" aria-label="${t('Plantillas')}">${Object.entries(tpls).map(([k, v]) => `<button type="button" class="catchip" data-act="tcotpl" data-k="${k}" aria-pressed="${c.tpl === k}">${catEl(v.cat || '')}<span>${esc(v.label)}</span></button>`).join('')}</div>
-    <label class="field"><span class="label">${t('Qué es')}</span><input type="text" data-tco="name" value="${esc(c.name)}" placeholder="${t('Coche, portátil, perro…')}" autocomplete="off"></label>
-    <div class="fields2">${field('price', t('Precio'), curSym)}${field('years', t('Años que lo tendrás'), '', 'numeric')}</div>
-    <div class="fields2">${field('residual', t('Valor al final'), '%')}<span></span></div>
-    <label class="updbal"><input type="checkbox" data-tco="fin" ${c.fin ? 'checked' : ''}><span>${t('Con financiación')}</span></label>
-    ${c.fin ? `<div class="fields2">${field('loan', t('Importe financiado'), curSym)}${field('rate', t('Interés anual'), '%')}</div><div class="fields2">${field('term', t('Plazo'), t('meses'), 'numeric')}<span></span></div>` : ''}
+const n2 = (v) => String(v ?? '').replace('.', ',');
+function calcEdit(c) {
+  const saved = calcSaved(c.id);
+  return `<div class="calc-top"><textarea class="calc-name" rows="1" data-cn placeholder="${t('Nombre del cálculo')}" aria-label="${t('Nombre del cálculo')}" autocomplete="off" maxlength="80">${esc(c.name)}</textarea>
+      ${saved ? `<button type="button" class="iconbtn" data-act="calcdel" aria-label="${t('Borrar cálculo')}">${ic('x')}</button>` : `<button type="button" class="primary sm" data-act="calcsave">${t('Guardar')}</button>`}</div>
+    <p class="fine calc-state" id="calc-state">${saved ? t('Guardado. Los cambios se guardan solos.') : t('Sin guardar: se guarda en cuanto cambies algo.')}</p>
+    <label class="calc-years"><span>${t('Años que lo tendrás')}</span><span class="tco-in"><input type="text" inputmode="numeric" data-cy value="${c.years}" autocomplete="off" aria-label="${t('Años que lo tendrás')}"><span>${t('años')}</span></span></label>
+    <div id="calc-res">${calcResult(c)}</div>
+    ${c.opts.map((o, i) => calcOpt(c, o, i)).join('')}
+    ${c.opts.length < 4 ? `<button type="button" class="btn-sec calc-addopt" data-act="calcaddopt">+ ${t('Añadir otra opción')}</button>` : ''}`;
+}
+/** The answer, at the top: each option a month and in total, the cheapest, and how the money goes out year by year. */
+function calcResult(c) {
+  const rs = c.opts.map((o) => tcoCalc(o, c.years)), best = cheapest(rs), many = rs.length > 1, H = rs[0]?.H || 1, names = c.opts.map(optName);
+  const back = (r) => { const net = r.R - r.owed; return r.R < 0.5 ? '' : net >= 0 ? t('recuperas {x} al venderlo', { x: fmt(net) }) : t('al venderlo aún debes {x}', { x: fmt(-net) }); };
+  const rows = rs.map((r, i) => `<div class="tcc-row"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span class="tcc-n"><span>${esc(names[i])}</span>${many && i === best ? ` <span class="pill c-ok">${t('la más barata')}</span>` : ''}${back(r) ? `<span class="fine">${back(r)}</span>` : ''}</span>
+    <span class="num"><span class="nw"><b>${fmt(r.month)}</b> ${t('/mes')}</span><span class="fine nw">${fmt(r.total)} ${t('en total')}</span>${many && i !== best ? `<span class="fine c-spend nw">+${fmt(r.total - rs[best].total)}</span>` : ''}</span></div>`).join('');
+  const others = rs.map((r, i) => i).filter((i) => i !== best), second = others.sort((a, b) => rs[a].total - rs[b].total)[0];
+  const verdict = many && second != null ? (rs[second].total - rs[best].total < 1 ? t('Te cuestan lo mismo.') : t('{a} te sale {x} más barata en {n} años: {y} al mes.', { a: names[best], x: fmt(rs[second].total - rs[best].total), n: H, y: fmt((rs[second].total - rs[best].total) / (H * 12)) })) : '';
+  const lab = (k) => (k === 0 ? t('Al empezar') : cap(t('año {n}', { n: k })));
+  const chart = multiLines({ series: rs.map((r, i) => ({ vals: r.cum, c: CALC_C[i] })), labels: rs[0].cum.map((_, k) => String(k)),
+    tips: rs[0].cum.map((_, k) => tipx(lab(k), rs.map((r, i) => ({ c: CALC_C[i], k: 'line', l: names[i], v: fmt(r.cum[k]) })), k === 0 ? t('Entrada y pagos únicos') : t('pagado hasta entonces'))), aria: t('Dinero que sale, acumulado, de cada opción') });
+  const legend = many ? `<div class="calc-leg">${names.map((nm, i) => `<span><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span>`).join('')}</div>` : '';
+  const br = (label, f) => [label, ...rs.map((r) => f(r))];
+  const brk = table([t('Concepto'), ...names], [
+    br(t('Precio'), (r) => fmt(r.price)), br(t('Intereses'), (r) => fmt(r.interest)), br(t('Gastos que conlleva'), (r) => fmt(r.running)),
+    br(t('Lo que recuperas al venderlo'), (r) => (r.R ? '−' + fmt(r.R) : fmt(0))), br(t('Coste total'), (r) => `<b>${fmt(r.total)}</b>`), br(t('Al mes'), (r) => fmt(r.month))]).replace(t('Ver como tabla'), t('Desglose'));
+  return `<section class="card calc-res"><h2>${many ? t('Comparación') : t('Coste real')}</h2><div class="tcc">${rows}</div>${verdict ? `<p class="calc-verdict">${esc(verdict)}</p>` : ''}${brk}</section>
+    <section class="card"><h2>${t('Dinero que sale, año a año')}</h2><p class="fine">${t('Acumulado. Sin restar lo que recuperas al venderlo.')}</p>${legend}${chart}
+      ${table([t('Año'), ...names], rs[0].cum.map((_, k) => [k === 0 ? t('Al empezar') : String(k), ...rs.map((r) => fmt(r.cum[k]))]))}</section>`;
+}
+function calcHint(o, years) { const r = tcoCalc(o, years); return [`<b>${fmt(r.month)} ${t('/mes')}</b>`, r.R ? t('Al final vale {x}', { x: fmt(r.R) }) : '', r.pay ? t('Cuota {x} al mes', { x: fmt(r.pay) }) : ''].filter(Boolean).join(' · '); }
+function calcOpt(c, o, i) {
+  const f = (k, label, suffix = '', mode = 'decimal') => `<label class="field tco-f"><span class="label">${label}</span><span class="tco-in"><input type="text" inputmode="${mode}" data-co="${i}" data-k="${k}" value="${esc(n2(o[k]))}" autocomplete="off">${suffix ? `<span>${suffix}</span>` : ''}</span></label>`;
+  return `<section class="card calc-opt" style="--tc:${CALC_C[i]}"><div class="calc-opt-h"><i class="tcc-sw"></i><input type="text" class="calc-oname" data-co="${i}" data-k="name" value="${esc(o.name)}" placeholder="${esc(optName({}, i))}" aria-label="${t('Nombre de la opción')}" autocomplete="off">
+      ${c.opts.length > 1 ? `<button type="button" class="iconbtn sm" data-act="calcrmopt" data-i="${i}" aria-label="${t('Quitar opción')}">${ic('x')}</button>` : ''}</div>
+    <p class="fine calc-hint" id="calc-oh-${i}">${calcHint(o, c.years)}</p>
+    <div class="fields2">${f('price', t('Precio'), curSym)}${f('residual', t('Lo que vale al final'), '%')}</div>
+    <label class="updbal"><input type="checkbox" data-co="${i}" data-k="fin" ${o.fin ? 'checked' : ''}><span>${t('Con financiación')}</span></label>
+    ${o.fin ? `<div class="fields2">${f('loan', t('Importe financiado'), curSym)}${f('rate', t('Interés anual'), '%')}</div><div class="fields2">${f('term', t('Plazo'), t('meses'), 'numeric')}<span></span></div>` : ''}
     <div class="stack-sm"><span class="label">${t('Gastos que conlleva')}</span>
-      ${c.costs.map((x, i) => `<div class="tco-cost"><input type="text" data-tcoc="${i}" data-k="n" value="${esc(x.n)}" aria-label="${t('Concepto')}"><span class="tco-in"><input type="text" inputmode="decimal" data-tcoc="${i}" data-k="a" value="${esc(num2(x.a))}" aria-label="${t('Importe')}"><span>${curSym}</span></span><select data-tcoc="${i}" data-k="f" aria-label="${t('Cada cuánto')}">${[['m', t('al mes')], ['y', t('al año')], ['o', t('una vez')]].map(([v, l]) => `<option value="${v}" ${x.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button type="button" class="iconbtn sm" data-act="tcodel" data-i="${i}" aria-label="${t('Quitar')}">${ic('x')}</button></div>`).join('')}
-      <button type="button" class="linkbtn" data-act="tcoadd">+ ${t('Añadir un gasto')}</button></div>
-    <div id="tco-cmp">${tcoCompare()}</div>
-    <div id="tco-res">${tcoResult()}</div></div>`;
+      ${o.costs.map((x, j) => `<div class="tco-cost"><input type="text" data-cc="${i}" data-j="${j}" data-k="n" value="${esc(x.n)}" placeholder="${t('Concepto')}" aria-label="${t('Concepto')}"><span class="tco-in"><input type="text" inputmode="decimal" data-cc="${i}" data-j="${j}" data-k="a" value="${esc(n2(x.a))}" aria-label="${t('Importe')}"><span>${curSym}</span></span><select data-cc="${i}" data-j="${j}" data-k="f" aria-label="${t('Cada cuánto')}">${[['m', t('al mes')], ['y', t('al año')], ['o', t('una vez')]].map(([v, l]) => `<option value="${v}" ${x.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select><button type="button" class="iconbtn sm" data-act="calcdelcost" data-i="${i}" data-j="${j}" aria-label="${t('Quitar')}">${ic('x')}</button></div>`).join('')}
+      <button type="button" class="linkbtn" data-act="calcaddcost" data-i="${i}">+ ${t('Añadir un gasto')}</button></div>
+    ${c.opts.length < 4 ? `<button type="button" class="linkbtn calc-dup" data-act="calcdup" data-i="${i}">${t('Duplicar esta opción')}</button>` : ''}</section>`;
 }
-/** The answer, always in view while you edit: a month and in total. */
-function tcoSum() { const r = tcoCalc(UI.tco); return `<b class="num">${fmt(r.month)}</b><span>${t('al mes')}</span><span class="fine">${t('{x} en {n} años', { x: fmt(r.total), n: r.H })}</span>`; }
-function tcoResult() {
-  const c = UI.tco, r = tcoCalc(c), m = compute(store.data);
-  const yr = (k) => cap(t('año {n}', { n: k + 1 }));
-  const chart = columns({ cols: r.years.map((v, k) => ({ label: String(k + 1), value: v, fill: v < 0 ? 'var(--ok)' : 'var(--out)', tip: tipx(yr(k), [{ c: 'var(--out)', k: 'solid', l: t('Coste'), v: fmt(v) }]) })), labels: [], aria: t('Coste de cada año') });
-  const fits = m.items.length ? round2(m.possible - r.year) : null;
-  const impact = fits == null ? '' : `<p class="note ${fits >= m.goal ? 'c-ok' : 'c-warn'}">${t('Te cuesta {x} al año, el {p} % de tus ingresos.', { x: fmt(r.year), p: m.incomeY ? Math.round(r.year / m.incomeY * 100) : 0 })} ${fits >= m.goal ? t('Tu objetivo de ahorro ({g}) sigue cabiendo.', { g: fmt(m.goal) }) : t('Con esto, como mucho podrías ahorrar {x} al año: tu objetivo ({g}) no cabría.', { x: fmt(Math.max(0, fits)), g: fmt(m.goal) })}</p>`;
-  return `<section class="card"><div class="tco-head"><span class="label">${t('Coste real al mes')}</span><b class="num tco-big">${fmt(r.month)}</b><span class="fine">${t('{x} en {n} años · {y} al año', { x: fmt(r.total), n: r.H, y: fmt(r.year) })}</span></div>
-      <div class="tco-rows">
-        <div><span>${t('Compra, menos lo que vale al final')}</span><b class="num">${fmt(r.buy)}</b></div>
-        ${r.interest > 0.5 ? `<div><span>${t('Intereses')}</span><b class="num">${fmt(r.interest)}</b></div>` : ''}
-        <div><span>${t('Gastos que conlleva')}</span><b class="num">${fmt(r.running)}</b></div>
-        ${c.fin && r.pay ? `<div class="fine"><span>${t('Cuota')}</span><span class="num">${fmt(r.pay)} ${t('/mes')}</span></div>` : ''}
-        ${r.owed > 0.5 ? `<div class="fine"><span>${t('Pendiente al venderlo')}</span><span class="num">${fmt(r.owed)}</span></div>` : ''}
-      </div></section>
-    <section class="card"><h2>${t('Coste de cada año')}</h2>${chart}${table([t('Año'), t('Coste')], r.years.map((v, k) => [String(k + 1), fmt(v)]))}</section>
-    ${impact}
-    ${m.items.length ? `<button type="button" class="primary" data-act="tcoplan">${t('Añadir al plan')}</button><p class="fine">${t('Crea la cuota y los gastos periódicos como partidas del plan. Lo que se paga una vez apúntalo con el +.')}</p>` : ''}`;
+/** After typing: redraw the answer and the figures beside each option (the form stays as it is, with the cursor in it), and save. */
+function calcChanged() {
+  const c = UI.calc; if (!c) return;
+  const box = $('#calc-res'); if (box) box.innerHTML = calcResult(c);
+  c.opts.forEach((o, i) => { const h = $('#calc-oh-' + i); if (h) h.innerHTML = calcHint(o, c.years); });
+  const st = $('#calc-state'); if (st) st.textContent = t('Guardado. Los cambios se guardan solos.');
+  calcSave();
 }
-/** The calculation as plan items: the loan's payment for its term, and each running cost, from this month. */
-function tcoToPlan() {
-  const c = UI.tco, r = tcoCalc(c), m = compute(store.data), F = m.curYM, name = (c.name || t('Compra')).trim(), cat = (TCO_TPL()[c.tpl] || {}).cat || 'otros';
-  const end = (months) => ymAdd(F, Math.max(0, months - 1)), list = [];
-  if (c.fin && r.pay) list.push({ kind: 'out', name: `${name}: ${t('cuota')}`, amount: r.pay, freq: 'monthly', cat, to: end(Math.min(Math.round(+c.term || 0), r.M)) });
-  for (const x of c.costs) {
-    if (x.f === 'o' || !(+x.a > 0)) continue;
-    list.push({ kind: 'out', name: `${name}: ${x.n}`, amount: round2(+x.a), freq: x.f === 'm' ? 'monthly' : 'yearly', month: +F.slice(5), cat, to: end(r.M) });
-  }
-  return list;
+function calcOpen(c) {
+  calcFlush();
+  UI.calc = JSON.parse(JSON.stringify(c));
+  history.pushState({ tab: 'calc', depth: (history.state?.depth || 0) + 1, calc: c.id }, '', '#' + ROUTES.calc);
+  render(true); window.scrollTo(0, 0);
 }
 const GRIP = '<svg viewBox="0 0 9 15" aria-hidden="true"><path d="M0 0h3v3H0zM6 0h3v3H6zM0 6h3v3H0zM6 6h3v3H6zM0 12h3v3H0zM6 12h3v3H6z"/></svg>';
 function planRow(it, m, movable) {
@@ -2369,26 +2383,18 @@ function onAct(b, sure = false) {
     case 'occ': openOcc(b.dataset.id, ym); break;
     case 'unconfirm': { const kind = $('#done-sheet')?.dataset.kind; setReal(b.dataset.id, ym, null); toast(t('Desconfirmado: vuelve a lo planificado')); if (kind) openDone(kind); break; }
     case 'donelist': openDone(b.dataset.kind); break;
-    case 'tcoopen': openTCO('car'); break;
-    case 'tcotpl': tcoApply(b.dataset.k); break;
-    case 'tcotab': UI.tcoIdx = +b.dataset.i; UI.tco = UI.tcos[UI.tcoIdx]; renderTCO(); break;
-    case 'tcomore': { const c = JSON.parse(JSON.stringify(UI.tco)); c.name = ''; UI.tcos.push(c); UI.tcoIdx = UI.tcos.length - 1; UI.tco = c; renderTCO(); break; }
-    case 'tcorm': { UI.tcos.splice(+b.dataset.i, 1); UI.tcoIdx = Math.min(UI.tcoIdx, UI.tcos.length - 1); UI.tco = UI.tcos[UI.tcoIdx]; renderTCO(); break; }
-    case 'tcoadd': UI.tco.costs.push({ n: '', a: 0, f: 'm' }); renderTCO(); break;
-    case 'tcodel': UI.tco.costs.splice(+b.dataset.i, 1); renderTCO(); break;
-    case 'tcoplan': {
-      const list = tcoToPlan();
-      if (!list.length) { toast(t('No hay cuota ni gastos periódicos que añadir')); break; }
-      askConfirm({ title: t('¿Añadir al plan?'), yes: t('Añadir'), rows: list.map((x) => [x.name, `${fmt(x.amount)} ${x.freq === 'monthly' ? t('al mes') : t('al año')}`]), text: t('Desde este mes, durante los años que lo tendrás.') }).then((ok) => {
-        if (!ok) return;
-        const m2 = compute(store.data), F = m2.curYM;
-        store.update(['items', 'log'], (d) => {
-          for (const x of list) { const it = normItem({ ...x, id: uid('out') }); d.items = planAdd(d.items, it, F); d.log = [...(d.log || []), logEntry('add', it, null, F, it.to || '')]; }
-        });
-        dlg.close(); toast(t('Añadido al plan'));
-      });
-      break;
-    }
+    case 'tcoopen': calcFlush(); UI.calc = null; go('calc'); break;
+    case 'calcopen': { const c = (store.data.calcs || []).find((x) => x.id === b.dataset.id); if (c) calcOpen(c); break; }
+    case 'calcnew': { const tp = CALC_TPL()[b.dataset.k] || CALC_TPL().blank; calcOpen({ id: uid('calc'), name: b.dataset.k === 'blank' ? '' : tp.label, at: '', years: tp.years, opts: tp.opts }); break; }
+    case 'calcsave': calcSave(true); render(true); toast(t('Cálculo guardado')); break;
+    case 'calcdel': { const c = UI.calc; askConfirm({ title: t('¿Borrar este cálculo?'), yes: t('Borrar'), rows: [[c.name || t('Sin nombre'), c.opts.map(optName).join(' · ')]] }).then((ok) => {
+      if (!ok) return; clearTimeout(calcTimer); calcTimer = null;
+      store.update('calcs', (d) => { d.calcs = (d.calcs || []).filter((x) => x.id !== c.id); }, true); UI.calc = null; toast(t('Cálculo borrado')); goBack(); }); break; }
+    case 'calcaddopt': { const c = UI.calc, src = c.opts[c.opts.length - 1]; c.opts.push({ ...JSON.parse(JSON.stringify(src)), name: '' }); calcSave(true); render(true); break; }
+    case 'calcdup': { const c = UI.calc, i = +b.dataset.i; c.opts.splice(i + 1, 0, { ...JSON.parse(JSON.stringify(c.opts[i])), name: `${optName(c.opts[i], i)} (2)` }); calcSave(true); render(true); break; }
+    case 'calcrmopt': { const c = UI.calc, i = +b.dataset.i, r = tcoCalc(c.opts[i], c.years); askConfirm({ title: t('¿Quitar esta opción?'), yes: t('Quitar'), rows: [[optName(c.opts[i], i), `${fmt(r.month)} ${t('/mes')}`]] }).then((ok) => { if (!ok) return; c.opts.splice(i, 1); calcSave(true); render(true); }); break; }
+    case 'calcaddcost': UI.calc.opts[+b.dataset.i].costs.push({ n: '', a: 0, f: 'm' }); calcSave(true); render(true); { const l = document.querySelectorAll(`[data-cc="${b.dataset.i}"][data-k="n"]`); l[l.length - 1]?.focus(); } break;
+    case 'calcdelcost': UI.calc.opts[+b.dataset.i].costs.splice(+b.dataset.j, 1); calcSave(true); render(true); break;
     case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
     case 'nextmore': { const box = b.closest('.nextlist'), on = box.classList.toggle('all'); lsSet('hucha:nextall', on ? '1' : ''); b.textContent = on ? b.dataset.less : b.dataset.more; break; }
     case 'catdetail': case 'linedetail': {
@@ -2461,8 +2467,8 @@ function onAct(b, sure = false) {
 }
 
 document.addEventListener('change', (e) => {
-  if (e.target.dataset?.tco === 'fin' && UI.tco) { UI.tco.fin = e.target.checked; if (UI.tco.fin && !UI.tco.loan) { UI.tco.loan = Math.round((+UI.tco.price || 0) * 0.8); UI.tco.rate = UI.tco.rate || 6; UI.tco.term = UI.tco.term || 60; } renderTCO(); }
-  if (e.target.dataset?.tcoc != null && e.target.tagName === 'SELECT' && UI.tco) { const x = UI.tco.costs[+e.target.dataset.tcoc]; if (x) { x.f = e.target.value; const box = $('#tco-res'); if (box) box.innerHTML = tcoResult(); const s = $('#tco-sum'); if (s) s.innerHTML = tcoSum(); const cc = $('#tco-cmp'); if (cc) cc.innerHTML = tcoCompare(); } }
+  if (UI.calc && e.target.dataset?.co != null && e.target.dataset.k === 'fin') { const o = UI.calc.opts[+e.target.dataset.co]; o.fin = e.target.checked; if (o.fin && !o.loan) { o.loan = Math.round(o.price * 0.8); o.rate = o.rate || 6; o.term = o.term || 60; } calcChanged(); render(true); }
+  if (UI.calc && e.target.dataset?.cc != null && e.target.tagName === 'SELECT') { const x = UI.calc.opts[+e.target.dataset.cc]?.costs[+e.target.dataset.j]; if (x) { x.f = e.target.value; calcChanged(); } }
   if (e.target?.classList?.contains('clp-on')) { const amt = dlg.querySelector(`.clp-amt[data-id="${CSS.escape(e.target.dataset.id)}"]`); if (amt) amt.disabled = !e.target.checked; closeCalc(); }
   if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
   const el = e.target;
@@ -2496,8 +2502,10 @@ document.addEventListener('keydown', (e) => {
 });
 // the close and the look at the balance work out the month as you type
 document.addEventListener('input', (e) => {
-  if (e.target.dataset?.tco != null && UI.tco) { const k = e.target.dataset.tco; if (k !== 'fin') { UI.tco[k] = k === 'name' ? e.target.value : num(e.target.value) ?? 0; if (k === 'name') { const tb = document.querySelector('.tco-tab[aria-selected="true"]'); if (tb?.childNodes[1]) tb.childNodes[1].nodeValue = tcoName(UI.tco, UI.tcoIdx); } const box = $('#tco-res'); if (box) box.innerHTML = tcoResult(); const s = $('#tco-sum'); if (s) s.innerHTML = tcoSum(); const cc = $('#tco-cmp'); if (cc) cc.innerHTML = tcoCompare(); } }
-  if (e.target.dataset?.tcoc != null && UI.tco) { const x = UI.tco.costs[+e.target.dataset.tcoc]; if (x) { const k = e.target.dataset.k; x[k] = k === 'a' ? num(e.target.value) ?? 0 : e.target.value; const box = $('#tco-res'); if (box) box.innerHTML = tcoResult(); const s = $('#tco-sum'); if (s) s.innerHTML = tcoSum(); const cc = $('#tco-cmp'); if (cc) cc.innerHTML = tcoCompare(); } }
+  if (UI.calc && e.target.dataset?.cn != null) { UI.calc.name = e.target.value; calcChanged(); }
+  if (UI.calc && e.target.dataset?.cy != null) { UI.calc.years = Math.min(50, Math.max(1, Math.round(num(e.target.value) || 1))); calcChanged(); }
+  if (UI.calc && e.target.dataset?.co != null && e.target.dataset.k !== 'fin') { const o = UI.calc.opts[+e.target.dataset.co], k = e.target.dataset.k; if (o) { o[k] = k === 'name' ? e.target.value : Math.max(0, num(e.target.value) ?? 0); calcChanged(); } }
+  if (UI.calc && e.target.dataset?.cc != null && e.target.tagName === 'INPUT') { const x = UI.calc.opts[+e.target.dataset.cc]?.costs[+e.target.dataset.j]; if (x) { const k = e.target.dataset.k; x[k] = k === 'a' ? Math.max(0, num(e.target.value) ?? 0) : e.target.value; calcChanged(); } }
   const id = e.target.id;
   if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open' || e.target.classList?.contains('clp-amt')) closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();
 });
@@ -2519,20 +2527,21 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 // ---------- navigation ----------
 // Each screen has its own address (#hoy, #ajustes…) so the phone's back gesture works:
 // back from a tab returns to Hoy, back from Ajustes returns where you were, back closes an open sheet.
-const ROUTES = { home: 'hoy', mes: 'mes', ana: 'analisis', metas: 'ano', plan: 'plan', settings: 'ajustes' };
+const ROUTES = { home: 'hoy', mes: 'mes', ana: 'analisis', metas: 'ano', plan: 'plan', settings: 'ajustes', calc: 'calculadora' };
 const OLD_ROUTES = { resumen: 'home', calendario: 'mes', meses: 'metas', metas: 'metas' }; // links saved before the redesigns
 const NAV = { popping: false, then: null };
 const tabFromHash = () => Object.keys(ROUTES).find((k) => location.hash === '#' + ROUTES[k]) || OLD_ROUTES[location.hash.slice(1)];
 function setTab(tab) {
   UI.tab = tab; UI.wipe = false;
-  if (tab !== 'settings' && tab !== 'mes') lsSet('hucha:tab', tab);
+  if (tab !== 'settings' && tab !== 'mes' && tab !== 'calc') lsSet('hucha:tab', tab);
+  if (tab !== 'calc') { calcFlush(); UI.calc = null; }
   render(true);
 }
 function go(tab) {
   if (!ROUTES[tab]) return;
   if (tab === UI.tab) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
   const depth = history.state?.depth || 0;
-  const subTab = (t) => t === 'mes'; // a page opened on top of a tab: back returns to it
+  const subTab = (t) => t === 'mes' || t === 'calc'; // a page opened on top of a tab: back returns to it
   if (subTab(UI.tab) && !subTab(tab) && depth > 0) { NAV.then = tab; history.back(); return; } // leave it first, then go
   if (tab === 'home' && depth > 0) { history.go(-depth); return; } // Hoy is the root
   if (subTab(tab) || UI.tab === 'home') history.pushState({ tab, depth: depth + 1 }, '', '#' + ROUTES[tab]);
@@ -2552,10 +2561,12 @@ function openDialog() {
 window.addEventListener('popstate', (e) => {
   if (dlg.open) { NAV.popping = true; dlg.close(); NAV.popping = false; }
   const tab = e.state?.tab || tabFromHash() || 'home';
-  if (tab !== UI.tab) setTab(tab);
+  if (tab === 'calc') { calcFlush(); const id = e.state?.calc; UI.calc = !id ? null : UI.calc?.id === id ? UI.calc : JSON.parse(JSON.stringify((store.data.calcs || []).find((x) => x.id === id) || null)); }
+  if (tab !== UI.tab) setTab(tab); else if (tab === 'calc') render(true);
   if (NAV.then) { const t = NAV.then; NAV.then = null; go(t); }
 });
 
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches?.('.calc-name')) { e.preventDefault(); e.target.blur(); } });
 // ---------- start ----------
 if (isConfigured()) loadGis().catch(() => {});
 UI.tab = tabFromHash() || (UI.tab === 'settings' ? 'home' : UI.tab);

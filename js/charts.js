@@ -196,6 +196,7 @@ export function bindBalance(show, hide) {
     let k = 0; for (let i = 1; i < g.x.length; i++) if (Math.abs(g.x[i] - x) < Math.abs(g.x[k] - x)) k = i;
     const hv = svg.querySelector('.bl-hover'), line = hv.querySelector('.bl-guide'), dot = hv.querySelector('.bl-dot'), lab = hv.querySelector('.bl-label');
     line.setAttribute('x1', g.x[k]); line.setAttribute('x2', g.x[k]); dot.setAttribute('cx', g.x[k]); dot.setAttribute('cy', g.y[k]);
+    if (g.ys) hv.querySelectorAll('.bl-dotm').forEach((d, i) => { d.setAttribute('cx', g.x[k]); d.setAttribute('cy', g.ys[i][k]); });
     const d2 = hv.querySelector('.bl-dot2'); if (d2) { if (g.y2) { d2.setAttribute('cx', g.x[k]); d2.setAttribute('cy', g.y2[k]); d2.removeAttribute('hidden'); } else d2.setAttribute('hidden', ''); }
     hv.removeAttribute('hidden');
     lab.setAttribute('hidden', '');
@@ -248,4 +249,27 @@ export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = n
     <path class="ch-plan" d="${curve(xs, pyP, tP, 0, n)}"/><path class="ch-line cl-real" d="${solid}"/>${dash ? `<path class="ch-line cl-real ch-proj" d="${dash}"/>` : ''}${now}
     <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yp.toFixed(1)}" style="fill: var(--muted)">${esc(compact(plan[n]))}</text>
     <text class="ch-val ch-vend" x="${(W - padR + 5).toFixed(1)}" y="${yr.toFixed(1)}">${k != null ? '≈ ' : ''}${esc(compact(real[n]))}</text>${lx}${hits}</svg>`;
+}
+
+/**
+ * Several cumulative lines over the same years (the options of a comparison), one colour each, scrubbed like the balance
+ * chart: the tooltip lists every option at that point. series: [{ vals, c (CSS colour) }]; labels/tips: one per point.
+ */
+export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 }) {
+  const W = 340, padL = 44, padR = 10, padT = 14, padB = 22, n = Math.max(1, (series[0]?.vals.length || 1) - 1);
+  const all = [0, ...series.flatMap((s) => s.vals)], mx = nice(Math.max(...all)) || 1, ph = h - padT - padB;
+  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / mx * ph;
+  const xs = Array.from({ length: n + 1 }, (_, i) => X(i));
+  const ticks = [mx, mx / 2, 0];
+  const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
+    <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
+  const step = Math.max(1, Math.ceil(n / 7));
+  const lx = labels.map((l, i) => (l && (i === 0 || i === n || (i % step === 0 && n - i >= step / 2)) ? `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(l)}</text>` : '')).join('');
+  const ys = series.map((s) => s.vals.map((v) => +Y(v).toFixed(1)));
+  const paths = series.map((s, j) => `<path class="ch-line ml-line" style="stroke:${s.c}" d="${xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${ys[j][i]}`).join('')}"/>`).join('');
+  const ends = series.map((s, j) => `<circle class="ml-end" cx="${xs[n].toFixed(1)}" cy="${ys[j][n]}" r="3.5" style="fill:${s.c}"/>`).join('');
+  const geo = { w: W, x: xs.map((v) => +v.toFixed(1)), y: xs.map((_, i) => Math.min(...ys.map((y) => y[i]))), ys, l: xs.map((_, i) => tips[i] || labels[i] || ''), top: padT, bottom: padT + ph };
+  const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
+    <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${padT + ph}"/><circle class="bl-dot" r="0"/>${series.map((s) => `<circle class="bl-dotm" r="4.5" style="fill:${s.c}"/>`).join('')}<g class="bl-label"><rect rx="6"/><text/></g></g>`;
+  return `<svg class="chart bal-chart ml-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}${paths}${ends}${lx}${hits}</svg>`;
 }

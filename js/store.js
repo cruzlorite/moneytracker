@@ -9,7 +9,7 @@ import { demoData } from './demo.js';
 
 const CACHE_KEY = 'hucha:cache';
 const ALL = Object.keys(TABS);
-export const emptyData = () => ({ settings: { goal: 0, start: toYM(new Date()) }, items: [], months: {}, spends: [], log: [] });
+export const emptyData = () => ({ settings: { goal: 0, start: toYM(new Date()) }, items: [], months: {}, spends: [], log: [], calcs: [] });
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const lsGet = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* full or blocked */ } };
