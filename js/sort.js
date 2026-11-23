@@ -44,9 +44,9 @@ export function sortable(root, sel, onDrop) {
       if (ev.clientY > innerHeight - 120) scrollBy(0, 10); else if (ev.clientY < 80) scrollBy(0, -10);
     };
     const end = () => {
-      grip.removeEventListener('pointermove', move);
-      grip.removeEventListener('pointerup', end);
-      grip.removeEventListener('pointercancel', end);
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', end);
+      document.removeEventListener('pointercancel', end);
       document.documentElement.classList.remove('is-dragging');
       row.style.transition = reduced() ? 'none' : 'transform .14s ease';
       row.style.transform = '';
@@ -54,9 +54,10 @@ export function sortable(root, sel, onDrop) {
       const ids = order(list);
       if (ids.join() !== start) onDrop(ids);
     };
-    grip.addEventListener('pointermove', move);
-    grip.addEventListener('pointerup', end);
-    grip.addEventListener('pointercancel', end);
+    // on the document, not the grip: moving the row up re-inserts it in the list, and that drops the grip's pointer capture
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', end);
+    document.addEventListener('pointercancel', end);
   });
 
   root.addEventListener('keydown', (e) => {

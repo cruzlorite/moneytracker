@@ -454,6 +454,34 @@ const closeBanner = (due) => (due ? `<div class="card banner"><button type="butt
 /** The month's budget: the planned income minus the planned saving (planned amounts, so it holds steady all month). */
 const planSpend = (m, ym) => Math.max(0, round2(m.ins.reduce((a, it) => a + (m.occurs(it, ym) ? it.amount : 0), 0) - m.targetOf(ym)));
 
+/**
+ * This month's spending split three ways, each against its own share of the plan: the planned expenses (rent, bills),
+ * your budgets, and the rest (what isn't planned or budgeted). One bar, each part as wide as its plan, filled by what it has taken.
+ */
+function spendSplit(m, ym) {
+  const after = m.openAfter(ym), today = m.todayISO;
+  const planned = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && !p.it.budget && !(after && p.date <= after));
+  const fixPlan = round2(planned.reduce((a, p) => a + p.amount, 0)), fixSpent = round2(planned.filter((p) => p.state !== 'future').reduce((a, p) => a + p.amount, 0));
+  const buds = m.shown(ym).filter((b) => b.budget && activeIn(b, ym));
+  const budPlan = round2(buds.reduce((a, b) => a + (b.freq === 'monthly' ? b.amount : b.amount / 12), 0)), budSpent = round2(buds.reduce((a, b) => a + m.budSpent(b, ym), 0));
+  const total = m.spentAll(ym, today), plan = planSpend(m, ym);
+  const parts = [
+    { k: 'fix', name: t('Gastos planificados'), plan: fixPlan, spent: fixSpent },
+    { k: 'bud', name: t('Presupuestos'), plan: budPlan, spent: budSpent },
+    { k: 'rest', name: t('Sin presupuestar'), plan: round2(Math.max(0, plan - fixPlan - budPlan)), spent: round2(Math.max(0, total - fixSpent - budSpent)) },
+  ].filter((p) => p.plan > 0.5 || p.spent > 0.5);
+  const sum = parts.reduce((a, p) => a + Math.max(p.plan, 1), 0);
+  const bar = parts.map((p) => {
+    const w = Math.max(p.plan, 1) / sum * 100, f = p.plan > 0 ? Math.min(1, p.spent / p.plan) : 1, over = round2(p.spent - p.plan);
+    const tip = tipx(p.name, [{ c: `var(--sp-${p.k})`, k: 'solid', l: t('Gastado'), v: fmt(p.spent) }, { k: 'line', l: t('Planificado'), v: fmt(p.plan) }, over > 0.5 ? { c: 'var(--spend)', k: 'solid', l: t('Exceso'), v: fmt(over) } : { c: 'var(--muted)', k: 'solid', l: t('Queda'), v: fmt(Math.max(0, -over)) }]);
+    return `<span class="ss-part ss-${p.k}${over > 0.5 ? ' over' : ''}" style="flex-basis:${w.toFixed(2)}%" tabindex="0" data-tip="${esc(tip)}"><i style="width:${(f * 100).toFixed(1)}%"></i></span>`;
+  }).join('');
+  const leg = parts.map((p) => {
+    const over = round2(p.spent - p.plan);
+    return `<div class="ss-row"><i class="ss-sw ss-${p.k}"></i><span class="ss-n">${p.name}</span><span class="num"><b>${fmt(p.spent)}</b> <span class="muted">/ ${fmt(p.plan)}</span></span><span class="num ss-st ${over > 0.5 ? 'c-spend' : ''}">${over > 0.5 ? '+' + fmt(over) : ''}</span></div>`;
+  }).join('');
+  return `<div class="ssplit"><div class="ss-bar" role="img" aria-label="${esc(t('Gasto por partes'))}">${bar}</div><div class="ss-leg">${leg}</div></div>`;
+}
 // ---------- Hoy ----------
 function home(m) {
   if (!m.items.length) return emptyPlanCard(m);
@@ -505,6 +533,7 @@ function home(m) {
     ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado'), proj: t('Gasto de aquí a fin de mes'), projTotal: t('Total a fin de mes') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt((proj))}</span>` : '<span></span>'}</div>
     ${hpNote ? `<p class="hpsent" style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}${hpNote.over ? '' : ' <span aria-hidden="true">🎉</span>'}</p>` : ''}
+    ${spendSplit(m, ym)}
     ${trail ? '' : balanceBox(m, ym, cm)}
   </section>
   <div class="stats2">
@@ -1403,15 +1432,20 @@ function analisis(m) {
 
   // the plan's months so far
   const sm = m.season.map((ym, i) => ({ ym, i, has: !m.pre && i <= m.curIdx }));
+  const spY = spendProjection(m), ipY = incomeProjection(m); // the months to come, as they are expected to go
   const left = sm.map(({ ym, has, i }) => {
-    const show = has && (i < m.curIdx || m.savedOf(ym) !== 0), v = show ? m.savedOf(ym) : null;
-    return { label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: v, now: ym === m.curYM, fill: v == null ? null : scaleOf(v, m.targetOf(ym), m.target).c, mark: m.targetOf(ym),
-      tip: tipx(cap(ymLabel(ym)), [{ c: v == null ? 'var(--sav)' : scaleOf(v, m.targetOf(ym), m.target).c, k: 'solid', l: t('Ahorrado'), v: v == null ? t('aún no') : fmt(v) }, { k: 'line', l: t('Planificado'), v: fmt(m.targetOf(ym)) }]) };
+    const show = has && (i < m.curIdx || m.savedOf(ym) !== 0), fut = !has && spY && i > m.curIdx, v = show ? m.savedOf(ym) : fut ? futureSaved(m, ym, i, spY, ipY) : null;
+    return { label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), value: v, proj: fut, now: ym === m.curYM, fill: v == null ? null : scaleOf(v, m.targetOf(ym), m.target).c, mark: m.targetOf(ym),
+      tip: tipx(cap(ymLabel(ym)), [{ c: v == null ? 'var(--sav)' : scaleOf(v, m.targetOf(ym), m.target).c, k: fut ? 'hatch' : 'solid', l: fut ? t('Estimado') : t('Ahorrado'), v: v == null ? t('aún no') : (fut ? '≈ ' : '') + fmt(v) }, { k: 'line', l: t('Planificado'), v: fmt(m.targetOf(ym)) }]) };
   });
   const lastI = left.map((c) => c.value != null).lastIndexOf(true);
   const outOfM = (ym) => (ym === m.curYM ? m.spentAll(ym, toISO(new Date())) : m.spentAll(ym));
-  const io = sm.map(({ ym, has }) => ({ label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), a: m.incomeTo(ym), b: has ? outOfM(ym) : null, now: ym === m.curYM,
-    tip: tipx(cap(ymLabel(ym)), [{ c: 'var(--in)', k: 'solid', l: has ? t('Ingresado') : t('Ingresos planificados'), v: fmt(m.incomeTo(ym)) }, ...(has ? [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(outOfM(ym)) }] : [])]) }));
+  const io = sm.map(({ ym, has, i }) => {
+    const fut = !has && spY && ipY && i > m.curIdx;
+    const inc = fut ? ipY.months[i] : m.incomeTo(ym), out = has ? outOfM(ym) : fut ? spY.months[i] : null;
+    return { label: MES3[+ym.slice(5) - 1].slice(0, 1).toUpperCase(), a: inc, b: out, pa: fut, pb: fut, now: ym === m.curYM,
+      tip: tipx(cap(ymLabel(ym)), [{ c: 'var(--in)', k: fut ? 'hatch' : 'solid', l: fut ? t('Ingresos estimados') : has ? t('Ingresado') : t('Ingresos planificados'), v: (fut ? '≈ ' : '') + fmt(inc) }, ...(out != null ? [{ c: 'var(--out)', k: fut ? 'hatch' : 'solid', l: fut ? t('Gasto estimado') : t('Gastado'), v: (fut ? '≈ ' : '') + fmt(out) }] : [])]) };
+  });
 
   return `
   ${yearNav(m)}
@@ -1443,13 +1477,13 @@ function analisis(m) {
 
   <section class="card" aria-label="${t('Ahorro cada mes')}">
     <h2>${t('Ahorro cada mes')} ${info('ahorradoMes')}</h2>
-    <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span></div>
+    <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span><span><i class="lg-est"></i>${t('estimado')}</span></div>
     ${columns({ cols: left, labels: lastI >= 0 ? [lastI] : [], aria: t('Ahorrado / planificado de cada mes') })}
     ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], sm.map(({ ym }, i) => [esc(cap(ymLabel(ym))), left[i].value == null ? '—' : fmt(left[i].value), fmt(m.targetOf(ym)), left[i].value == null ? '—' : diffCell(left[i].value, m.targetOf(ym), 'good')]))}
   </section>
 
   <section class="card" aria-label="${t('Ingresos y gastos')}">
-    <div class="row between"><h2>${t('Ingresos y gastos')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span></span></div>
+    <div class="row between"><h2>${t('Ingresos y gastos')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span><span><i class="lg-est"></i>${t('estimado')}</span></span></div>
     ${pairs({ cols: io, aria: t('Ingresos y gastos de cada mes') })}
     ${table([t('Mes'), t('Ingresado'), t('Gastado'), t('Diferencia')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—', has ? diffCell(m.incomeTo(ym), outOfM(ym), 'good') : '—']))}
   </section>`;
@@ -1466,7 +1500,7 @@ function plan(m) {
   // a one-off belongs to its own year: the plan of another year doesn't list it
   const ofYear = (it) => it.freq !== 'once' || m.season.includes(`${it.year}-${String(it.month).padStart(2, '0')}`);
   const off = UI.yearOff || 0, shown = m.shown(viewYMOf(m)).filter(ofYear), sIns = shown.filter((i) => i.kind === 'in'), sBuds = shown.filter((i) => i.budget);
-  const outs = shown.filter((i) => i.kind === 'out' && !i.budget).sort((a, b) => (a.freq === 'monthly' ? 0 : 1) - (b.freq === 'monthly' ? 0 : 1));
+  const outs = shown.filter((i) => i.kind === 'out' && !i.budget); // in your order: you set it by dragging
   const budY = m.budY;
   const outM = m.outs.filter((i) => !i.budget && !m.isSave(i)).reduce((a, i) => a + i.amount * timesIn(i, m.season), 0) / 12;
   const maxGoal = Math.max(0, Math.floor(m.possible / 100) * 100), share = m.incomeY ? Math.round(m.goal / m.incomeY * 100) : 0;
@@ -1534,7 +1568,7 @@ function reorder(ids) {
     d.items.forEach((it) => { if (want.has(it.id)) groups.set(it.id, [...(groups.get(it.id) || []), it]); });
     const slots = d.items.map((it, i) => (want.has(it.id) ? i : -1)).filter((i) => i >= 0);
     ids.flatMap((id) => groups.get(id) || []).forEach((it, k) => { d.items[slots[k]] = it; });
-  });
+  }, true); // the rows are already where you dropped them: no redraw
 }
 
 /** The change log as readable lines, newest first: what changed, from which month. */
@@ -1812,6 +1846,12 @@ function closeCalc() {
       <div class="tile"><span class="label">${t('Gastado')}</span>${ofPlan(spentAll, planSpend(m, ym), t('gastado / planificado'), { tone: spentAll > planSpend(m, ym) + 0.5 ? 'var(--spend)' : null })}</div>
       <div class="tile svtile" style="${sc.style}"><span class="label">${t('Ahorrado')}</span>${ofPlan(savedM, tgt, t('ahorrado / planificado'), { signed: true })}</div>
     </div>
+    ${(() => {
+      const after = m.openAfter(ym), logged = m.allSpends.filter((e) => m.monthOf(e.date) === ym && e.cat !== SAVE_CAT && !(after && e.date <= after)).reduce((s, e) => s + e.amount, 0), x = round2(logged - r.cash);
+      if (x < 1) return '';
+      const pend = dlg.querySelectorAll('.clp-on').length;
+      return `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explica lo apuntado.', { x: fmt(x) })} ${pend ? t('¿Alguno de los de arriba no ocurrió o costó menos? Desmárcalo o corrige su importe.') : t('Puede ser un ingreso que no apuntaste.')}</p>`;
+    })()}
     <p class="cl-line">${r.save > 0.5 ? t('Pasaste {x} al ahorro.', { x: `<b>${fmt(r.save)}</b>` }) + ' ' : ''}${savedM >= -0.5 ? t('Aportas {x} a tu ahorro.', { x: `<b class="c-ok">${fmt(savedM)}</b>` }) : t('Consumes {x} de tu ahorro.', { x: `<b class="c-spend">${fmt(-savedM)}</b>` })}</p>
     ${moneyChart(m, ym, bal)}
     <button class="primary" data-act="closeset" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>`;

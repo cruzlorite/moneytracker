@@ -1,5 +1,12 @@
 // English. Keys are the Spanish text; values, the English one. {name} marks where a value goes.
 export default {
+  'Puede ser un ingreso que no apuntaste.': 'It may be an income you did not log.',
+  '¿Alguno de los de arriba no ocurrió o costó menos? Desmárcalo o corrige su importe.': 'Did any of the above not happen, or cost less? Untick it or correct its amount.',
+  'Tu saldo es {x} más alto de lo que explica lo apuntado.': 'Your balance is {x} higher than what you logged explains.',
+  'Gasto estimado': 'Estimated spending',
+  'Ingresos estimados': 'Estimated income',
+  'Queda': 'Left',
+  'Gasto por partes': 'Spending by part',
   'no hubo este mes': 'did not happen this month',
   'Importe de {n}': 'Amount of {n}',
   'ingreso': 'income',

@@ -38,7 +38,7 @@ export function columns({ cols, limit = null, limitLabel = '', labels = [], aria
     <text class="ch-tick" x="${padL - 6}" y="${(y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
   const marks = cols.map((c, i) => {
     const x = padL + band * i + (band - w) / 2, cx = padL + band * i + band / 2;
-    const bar = c.value == null ? '' : `<path class="ch-col ${c.cls || 'ch-1'}" d="${colPath(x, w, y(0), y(c.value))}"${c.fill ? ` style="fill:${c.fill}"` : ''}/>`;
+    const bar = c.value == null ? '' : `<path class="ch-col ${c.cls || 'ch-1'}${c.proj ? ' ch-pcol' : ''}" d="${colPath(x, w, y(0), y(c.value))}"${c.fill ? ` style="fill:${c.fill}; stroke:${c.fill}"` : ''}/>`;
     const lab = c.value != null && labels.includes(i)
       ? `<text class="ch-val" x="${cx}" y="${(c.value >= 0 ? y(c.value) - 5 : y(c.value) + 12).toFixed(1)}">${esc(c.short ?? compact(c.value))}</text>` : '';
     return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip)}" data-tip="${esc(c.tip)}">
@@ -62,8 +62,8 @@ export function pairs({ cols, aria = '', h = 160 }) {
     const x0 = padL + band * i + band / 2 - w - 1, cx = padL + band * i + band / 2;
     return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip)}" data-tip="${esc(c.tip)}">
       <rect class="ch-hit" x="${padL + band * i}" y="0" width="${band}" height="${h}"/>
-      ${c.a == null ? '' : `<path class="ch-col ch-in" d="${colPath(x0, w, y(0), y(c.a))}"/>`}
-      ${c.b == null ? '' : `<path class="ch-col ch-out" d="${colPath(x0 + w + 2, w, y(0), y(c.b))}"/>`}
+      ${c.a == null ? '' : `<path class="ch-col ch-in${c.pa ? ' ch-pcol' : ''}" d="${colPath(x0, w, y(0), y(c.a))}"/>`}
+      ${c.b == null ? '' : `<path class="ch-col ch-out${c.pb ? ' ch-pcol' : ''}" d="${colPath(x0 + w + 2, w, y(0), y(c.b))}"/>`}
       <text class="ch-x ${c.now ? 'now' : ''}" x="${cx}" y="${h - 5}">${esc(c.label)}</text></g>`;
   }).join('');
   return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${grid}${marks}</svg>`;

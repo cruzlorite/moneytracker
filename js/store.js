@@ -73,11 +73,11 @@ export class Store {
   }
 
   /** Change the data. `tabs` says which parts of the sheet changed. */
-  update(tabs, fn) {
+  update(tabs, fn, quiet = false) {
     fn(this.data);
     if (this.mode === 'google') { [].concat(tabs).forEach((t) => this.dirty.add(t)); this.schedule(); }
     this.persist();
-    this.onChange();
+    if (!quiet) this.onChange(); // quiet: the screen already shows the change (a list reordered by hand)
   }
   replaceAll(data) {
     this.data = data;
