@@ -176,7 +176,7 @@ export function toRows(data) {
       return [ym, m.saved ?? '', b(m.pots), j(m.potSpent), j(m.real), j(m.close), j(m.challenge), m.bal ?? '', m.open ?? '', j(m.check), m.openDate || '', j(m.dates), j(m.checks)];
     })],
     spends: [TABS.spends.head, ...[...data.spends].sort((a, b2) => a.date.localeCompare(b2.date)).map((e) => [e.id, e.date, e.amount, e.note || '', e.cat || ''])],
-    calcs: [TABS.calcs.head, ...(data.calcs || []).map((c) => [c.id, c.name, c.at, c.years, c.infl ?? 2.5, c.rets?.[c.sel ?? 0] ?? 4, JSON.stringify({ rets: c.rets, sel: c.sel, rows: c.rows, alts: c.alts })])],
+    calcs: [TABS.calcs.head, ...(data.calcs || []).map((c) => [c.id, c.name, c.at, c.years, c.infl ?? 2.5, c.rets?.[c.sel ?? 0] ?? 4, JSON.stringify({ rets: c.rets, sel: c.sel, ...(c.cap ? { cap: c.cap } : {}), rows: c.rows, alts: c.alts })])],
     log: [TABS.log.head, ...(data.log || []).map((e) => [e.at, e.id, e.name, e.action, e.from || '', e.to || '', JSON.stringify(e.before || {}), JSON.stringify(e.after || {})])],
   };
 }

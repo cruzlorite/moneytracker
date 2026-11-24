@@ -1600,8 +1600,8 @@ function calcList() {
     const s = compare(c).scen[c.sel];
     let line = esc(t('Sin alternativas'));
     if (s && c.alts.length) {
-      const b = s.best, next = s.costFin.map((_, i) => i).filter((i) => i !== b).sort((x, y) => s.costFin[x] - s.costFin[y])[0];
-      line = `<i class="tcc-sw" style="background:${CALC_C[b]}"></i><span class="calc-it-n">${esc(altName(c.alts[b], b))}</span>${next != null ? `<span class="nw">${esc(t('{x} menos', { x: fmt0(s.costFin[next] - s.costFin[b]) }))}</span>` : ''}`;
+      const b = s.best;
+      line = `<i class="tcc-sw" style="background:${CALC_C[b]}"></i><span class="calc-it-n">${esc(altName(c.alts[b], b))}</span><span class="nw">${esc(t('{x} de patrimonio', { x: sgn0(s.dpn[b]) }))}</span>`;
     }
     return `<button type="button" class="card calc-item" data-act="calcopen" data-id="${esc(c.id)}"><span class="calc-it-t"><b>${esc(c.name || t('Sin nombre'))}</b><span class="fine">${line}</span></span>${ic('right')}</button>`;
   };
@@ -1626,8 +1626,9 @@ function calcAss(c) {
   const rets = c.rets.map((r, i) => `<span class="calc-ret${i === c.sel ? ' on' : ''}" data-ri="${i}"><input type="text" inputmode="decimal" data-cr="${i}" value="${esc(n2(r))}" aria-label="${t('Rentabilidad del escenario {n}', { n: i + 1 })}" autocomplete="off"><span>%</span>${c.rets.length > 1 ? `<button type="button" class="calc-ret-x" data-act="calcrmret" data-i="${i}" aria-label="${t('Quitar escenario')}">${ic('x')}</button>` : ''}</span>`).join('');
   return `<section class="card calc-ass"><h2>${t('Supuestos')}</h2>
     <div class="calc-ass-g">${g('years', t('Años'), t('años'), 'numeric')}${g('infl', t('Inflación'), '%', 'decimal')}
+      <label class="field tco-f calc-cap"><span class="label">${t('Patrimonio inicial')}</span><span class="tco-in"><input type="text" inputmode="decimal" data-cg="cap" id="calc-cap" value="${c.cap ? esc(n2(c.cap)) : ''}" placeholder="${esc(fmtN(Math.round(compare(c).autoK)).replace(/[.,]00$/, ''))}" autocomplete="off"><span>${curSym}</span></span></label>
       <div class="field calc-rets"><span class="label">${t('Escenarios: lo que rinde tu dinero al año')}</span><div class="calc-retl">${rets}${c.rets.length < CALC_MAX.rets ? `<button type="button" class="calc-ret-add" data-act="calcaddret">+ ${t('Escenario')}</button>` : ''}</div></div></div>
-    <p class="fine">${t('El dinero que una alternativa no gasta se invierte. Pon rentabilidades netas de comisiones e impuestos.')}</p></section>`;
+    <p class="fine">${t('Patrimonio inicial: el dinero que tienes para esto; vacío, lo que pide la más cara al empezar. Lo que una alternativa no gasta se invierte, a rentabilidades netas de comisiones e impuestos.')}</p></section>`;
 }
 const payOf = (a) => { const o = optOf(a, []); return o.fin ? tco(o, { years: 1, infl: 0, ret: 0 }).pay : 0; };
 /** What the value cell says: how it changes and what it is worth at the end. */
@@ -1669,9 +1670,11 @@ const calcEur = (c) => { const i = (+c.infl || 0) / 100; return (v, y) => (UI.ca
 /** Under the table, as you type: what each one costs you in the scenario you are looking at. */
 function calcFoot(c, k = compare(c)) {
   const s = k.scen[c.sel]; if (!s) return '';
-  const N = c.alts.length, many = N > 1, eur = calcEur(c);
-  return `<tr><th scope="row"><span class="cg-l">${t('Lo que te cuesta en {n} años', { n: k.H })}</span><span class="cg-s">${UI.calcReal ? t('al {r} · en euros de hoy', { r: pctx(s.ret) }) : t('al {r} · en euros de cada año', { r: pctx(s.ret) })}</span></th>${s.costFin.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b>${fmt0(eur(v, k.H))}</b>${many && i === s.best ? `<span class="cm-b">${t('la más barata')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
+  const N = c.alts.length, many = N > 1, eur = calcEur(c), fin = s.pnFin.map((v) => eur(v, k.H));
+  return `<tr><th scope="row"><span class="cg-l">${t('Tu patrimonio a {n} años', { n: k.H })}</span><span class="cg-s">${UI.calcReal ? t('al {r} · en euros de hoy', { r: pctx(s.ret) }) : t('al {r} · en euros de cada año', { r: pctx(s.ret) })} · ${t('empiezas con {k}', { k: fmt0(k.K) })}</span></th>${fin.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b>${fmt0(v)}</b><span class="cm-g">${sgn0(v - k.K)}</span>${many && i === s.best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
 }
+/** A change, with its sign: +10.054 € / −27.705 €. */
+const sgn0 = (v) => (v > 0.5 ? '+' : v < -0.5 ? '−' : '') + fmt0(Math.abs(v));
 /** On a phone: one alternative at a time, chosen with tabs; the same fields. */
 function calcAltForm(c) {
   const i = Math.max(0, Math.min(UI.calcAlt || 0, c.alts.length - 1)), a = c.alts[i];
@@ -1737,60 +1740,69 @@ function calcSpark(o, c) {
     <span class="fine">${t('Al final vale {x}', { x: `<b>${fmt(end)}</b>` })} <span class="${ch > 0 ? 'c-ok' : ''}">(${ch > 0 ? '+' : ch < 0 ? '−' : ''}${Math.abs(ch)} %)</span></span></div>`;
 }
 /**
- * The answer: what each alternative costs you in every scenario — what you pay, plus what that money would have earned
- * invested, minus what you get back when selling. It is how much poorer it leaves you than spending nothing, so a car shows
- * as the loss it is (the money everyone has to start with, invested, grows the same for all and is left out).
+ * The answer, as an accountant would give it: what each alternative does to your net worth. You start with your initial net
+ * worth; buying is a swap and paying the loan's capital is saving, so neither changes it; costs, interest, taxes and
+ * depreciation take it down; appreciation and the return of the money left invested take it up. In today's euros (UI.calcReal)
+ * each year is divided by the inflation since now, so an alternative can gain in euros and still lose buying power.
  */
 function calcResult(c, k = compare(c)) {
   if (!c.alts.length || !k.scen.length) return '';
   const names = c.alts.map(altName), H = k.H, sel = Math.min(c.sel, k.scen.length - 1), s = k.scen[sel], many = names.length > 1;
-  const today = (v) => v / (1 + (+c.infl || 0) / 100) ** H, eur = calcEur(c), real = !!UI.calcReal, E = (v) => fmt0(eur(v, H));
+  const infl = (+c.infl || 0) / 100, eur = calcEur(c), real = !!UI.calcReal, K = k.K;
+  const finOf = (x, i) => eur(x.pnFin[i], H), E = (v) => fmt0(v);
   const unit = `<div class="calc-unit"><span class="label">${t('Importes en euros de')}</span><div class="seg" role="group" aria-label="${t('Importes en euros de')}"><button type="button" data-act="calcreal" data-v="0" aria-pressed="${!real}">${t('cada año')}</button><button type="button" data-act="calcreal" data-v="1" aria-pressed="${real}">${t('hoy')}</button></div>
     <span class="fine">${real ? t('Descontada la inflación ({p} al año): lo que se podría comprar hoy con ese dinero.', { p: pctx(+c.infl || 0) }) : t('Los euros de cada momento, sin descontar la inflación.')}</span></div>`;
   const matrix = `<div class="cm-wrap"><table class="cm"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
-    <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i;
-      return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b>${E(x.costFin[i])}</b>${many ? (best ? `<span class="cm-b">${t('la más barata')}</span>` : `<span class="cm-g">+${E(x.costFin[i] - x.costFin[x.best])}</span>`) : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+    <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = finOf(x, i);
+      return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b>${E(v)}</b><span class="cm-g">${sgn0(v - K)}</span>${best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
   // the verdict, in the scenario you chose, and what would change it
-  const order = s.costFin.map((_, i) => i).sort((x, y) => s.costFin[x] - s.costFin[y]), b = order[0], sec = order[1];
+  const order = s.pnFin.map((_, i) => i).sort((x, y) => s.pnFin[y] - s.pnFin[x]), b = order[0], sec = order[1];
+  const fb = finOf(s, b);
   let verdict;
-  if (!many) verdict = real ? t('Al {r}, en {n} años te cuesta {x} en euros de hoy.', { r: pctx(s.ret), n: H, x: E(s.costFin[b]) }) : t('Al {r}, en {n} años te cuesta {x} ({y} en euros de hoy).', { r: pctx(s.ret), n: H, x: fmt0(s.costFin[b]), y: fmt0(today(s.costFin[b])) });
-  else if (s.costFin[sec] - s.costFin[b] < 1) verdict = t('Al {r}, {a} y {b} te cuestan lo mismo.', { r: pctx(s.ret), a: names[b], b: names[sec] });
-  else if (real) verdict = t('Al {r}, la más barata es {a}: en {n} años te cuesta {x}, {d} menos que {b}, en euros de hoy.', { r: pctx(s.ret), a: names[b], n: H, x: E(s.costFin[b]), d: E(s.costFin[sec] - s.costFin[b]), b: names[sec] });
-  else verdict = t('Al {r}, la más barata es {a}: en {n} años te cuesta {x}, {d} menos que {b} ({e} en euros de hoy).', { r: pctx(s.ret), a: names[b], n: H, x: fmt0(s.costFin[b]), d: fmt0(s.costFin[sec] - s.costFin[b]), b: names[sec], e: fmt0(today(s.costFin[sec] - s.costFin[b])) });
+  if (!many) verdict = t('Al {r}, tu patrimonio pasa de {k} a {x} en {n} años ({d}).', { r: pctx(s.ret), k: E(K), x: E(fb), n: H, d: sgn0(fb - K) });
+  else if (s.pnFin[b] - s.pnFin[sec] < 1) verdict = t('Al {r}, {a} y {b} te dejan el mismo patrimonio.', { r: pctx(s.ret), a: names[b], b: names[sec] });
+  else verdict = t('Al {r}, la mejor es {a}: tu patrimonio pasa de {k} a {x} en {n} años ({d}). Con {b} tendrías {y} menos.', { r: pctx(s.ret), a: names[b], k: E(K), x: E(fb), n: H, d: sgn0(fb - K), b: names[sec], y: E(fb - finOf(s, sec)) });
   const notes = [];
   if (many) {
     const byRet = k.scen.map((x, j) => j).sort((x, y) => k.scen[x].ret - k.scen[y].ret), lo = k.scen[byRet[0]].best, hi = k.scen[byRet[byRet.length - 1]].best;
     if (lo !== hi) { const e = evenReturn(k.os[lo], k.os[hi], c); notes.push(e != null ? t('La rentabilidad decide: por debajo de un {e} gana {a}; por encima, {b}.', { e: pctx(e), a: names[lo], b: names[hi] }) : t('La mejor cambia según la rentabilidad.')); }
-    else if (k.scen.length > 1) notes.push(t('{a} es la más barata en todos los escenarios.', { a: names[lo] }));
+    else if (k.scen.length > 1) notes.push(t('{a} es la mejor en todos los escenarios.', { a: names[lo] }));
     if (lo === hi) { const e = evenReturn(k.os[b], k.os[sec], c); if (e != null) notes.push(e > s.ret ? t('Solo si tu dinero rindiera más de un {e} al año saldría mejor {b}.', { e: pctx(e), b: names[sec] }) : t('Si tu dinero rindiera menos de un {e} al año, saldría mejor {b}.', { e: pctx(e), b: names[sec] })); }
-    const y = aheadFrom(s.wealth[b], s.wealth[sec]);
+    const y = aheadFrom(s.pn[b], s.pn[sec]);
     if (y > 1) notes.push(t('{a} solo sale mejor si lo mantienes al menos {k} años: si lo dejas antes, gana {b}.', { a: names[b], k: y, b: names[sec] }));
   }
-  const how = `<p class="fine calc-base">${t('Lo que te cuesta = lo que pagas + lo que ese dinero habría ganado invertido − lo que recuperas al venderlo. Comprar no cuesta el primer día lo que vale: cuesta lo que pierde después y lo que dejas de ganar. Supone que el dinero que no gastas lo inviertes de verdad.')}</p>`;
-  // the years in between: what it would have cost you if you stopped (and sold) that year
+  // gains in euros, losses in buying power: the return doesn't beat inflation
+  names.forEach((nm, i) => { if (s.dpn[i] > 0.5 && s.pnFin[i] / (1 + infl) ** H < K - 0.5) notes.push(t('{a} gana patrimonio en euros, pero lo pierde en euros de hoy: lo que gana no cubre la inflación.', { a: nm })); });
+  // more than you have on day one
+  names.forEach((nm, i) => { if (k.short[i]) notes.push(t('{a} necesita {x} al empezar y tu patrimonio inicial es {k}: la diferencia cuenta como una deuda que crece al {r}. Si lo financias, ponlo en «Financiado».', { a: nm, x: E(k.base[i].cf[0]), k: E(K), r: pctx(s.ret) })); });
+  const monthly = k.M ? (k.put - K) / k.M : 0;
+  const how = `<p class="fine calc-base">${t('Comprar no cambia tu patrimonio (cambias dinero por un bien), ni pagar el capital del préstamo (es ahorro). Lo bajan los gastos, los intereses, los impuestos y lo que pierde el bien; lo suben su revalorización y lo que rinde el dinero que no gastas. Cada mes se dedica lo que pide la más cara ({b} de media) y lo que sobra se invierte; supone que lo inviertes de verdad.', { b: fmt0(monthly) })}</p>`;
+  // the years in between: your net worth if you stopped (and sold) that year
   const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
-  // drawn as a loss: every line starts at 0 and goes down as the alternative costs you money (a line going up reads as a gain)
-  const lines = s.cost.map((w) => w.map((v, y) => -eur(v, y))), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
+  const lines = s.pn.map((w) => w.map((v, y) => eur(v, y))), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
   const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: lines[0].map((_, y) => String(y)),
-    tips: lines[0].map((_, y) => tipx(lab(y), names.map((_, i) => i).sort((x, z) => lines[z][y] - lines[x][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: fmt0(lines[i][y]) })), real ? t('lo que habrías perdido si lo dejaras entonces, en euros de hoy') : t('lo que habrías perdido si lo dejaras entonces'))),
-    aria: t('Lo que pierdes con cada alternativa año a año') }));
+    tips: lines[0].map((_, y) => tipx(lab(y), names.map((_, i) => i).sort((x, z) => lines[z][y] - lines[x][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: `${fmt0(lines[i][y])} (${sgn0(lines[i][y] - K)})` })), real ? t('tu patrimonio si lo dejaras entonces, en euros de hoy') : t('tu patrimonio si lo dejaras entonces'))),
+    aria: t('Tu patrimonio con cada alternativa, año a año') }));
   const legend = `<div class="calc-leg">${names.map((nm, i) => `<span><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span>`).join('')}</div>`;
-  // where each one's cost comes from, in the chosen scenario
+  // the accounts of each alternative, in the chosen scenario: from the initial net worth to the final one
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
   const brk = table([t('Concepto'), ...names], [
-    br(t('Precio'), (r) => fmt0(r.price)),
-    br(t('Intereses del préstamo'), (r) => fmt0(r.interest)),
-    br(t('Gastos (con inflación)'), (r) => fmt0(r.running + r.once)),
-    br(t('Recuperas al venderlo'), (r) => (r.value - r.sellCost > 0.5 ? '−' + fmt0(r.value - r.sellCost) : fmt0(0))),
-    br(t('Pagado de tu bolsillo'), (r) => fmt0(r.total)),
-    br(t('Lo que ese dinero habría ganado'), (r, i) => fmt0(s.costFin[i] - r.total)),
-    br(t('Lo que te cuesta'), (r, i) => `<b>${fmt0(s.costFin[i])}</b>`),
-    br(t('En euros de hoy'), (r, i) => fmt0(today(s.costFin[i]))),
-    br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Desglose al {r}', { r: pctx(s.ret) }));
-  return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Lo que te cuesta en {n} años', { n: H })}</h2>${matrix}
+    br(t('Patrimonio inicial'), () => fmt0(K)),
+    br(t('Rentabilidad de lo invertido'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost)),
+    br(t('Revalorización o depreciación'), (r) => sgn0(r.value - r.price)),
+    br(t('Gastos de uso'), (r) => sgn0(-r.running)),
+    br(t('Pagos únicos (impuestos, matrícula…)'), (r) => sgn0(-r.once)),
+    br(t('Intereses del préstamo'), (r) => sgn0(-r.interest)),
+    br(t('Gastos de venta'), (r) => sgn0(-r.sellCost)),
+    br(t('Patrimonio final'), (r, i) => `<b>${fmt0(s.pnFin[i])}</b>`),
+    br(t('Variación'), (r, i) => sgn0(s.dpn[i])),
+    br(t('Patrimonio final en euros de hoy'), (r, i) => fmt0(s.pnFin[i] / (1 + infl) ** H)),
+    br(t('Variación en euros de hoy'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K)),
+    br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Cuentas de cada alternativa al {r}', { r: pctx(s.ret) }));
+  return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Tu patrimonio a {n} años', { n: H })}</h2><p class="fine calc-start">${t('Empiezas con {k}.', { k: fmt0(K) })}</p>${matrix}
       <p class="calc-verdict">${esc(verdict)}</p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brk}</section>
-    <section class="card calc-chart"><h2>${t('Lo que pierdes, año a año, al {r}', { r: pctx(s.ret) })}</h2>
-      <p class="fine">${t('Todas empiezan en 0. Cada año, cuánto dinero menos tendrías que sin gastar nada si la dejaras entonces (vendiendo y saldando el préstamo). Cuanto más baja la línea, más pierdes. Donde se cruzan cambia la más barata.')}</p>${legend}${chart}
+    <section class="card calc-chart"><h2>${t('Tu patrimonio, año a año, al {r}', { r: pctx(s.ret) })}</h2>
+      <p class="fine">${t('Todas empiezan con tu patrimonio inicial. Cada año, lo que tendrías si lo dejaras entonces (vendiendo y saldando el préstamo): si la línea baja, pierdes patrimonio; si sube, lo ganas.')}</p>${legend}${chart}
       ${table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => fmt0(w[y]))]))}</section></div>`;
 }
 /** The chart's room: half the page beside the matrix on a computer, the card's width on a phone. */
@@ -1802,11 +1814,12 @@ function calcChartRoom() {
 function calcHow() {
   return `<details class="card calc-how"><summary>${t('Cómo se calcula')}</summary>
     <ol>
-      <li>${t('Cada alternativa se convierte en el dinero que sale mes a mes: lo que pagas al empezar (precio menos lo financiado, y los pagos únicos), las cuotas del préstamo y los gastos. Los gastos suben cada año con la inflación, salvo los marcados como fijos.')}</li>
-      <li>${t('Todas parten del mismo dinero: lo que pide la más cara al empezar y, cada mes, lo que pide la más cara ese mes. Lo que una alternativa no gasta se invierte a la rentabilidad del escenario. Así se ve el coste de oportunidad: si no compras el coche, esos euros trabajan para ti.')}</li>
-      <li>${t('Al final se vende lo que haya: pagas lo que quede del préstamo y recibes su valor menos los gastos de venta.')}</li>
-      <li>${t('Lo que te cuesta cada alternativa es cuánto más pobre te deja que no gastar nada: lo que pagas, más lo que ese dinero habría ganado invertido, menos lo que recuperas. Se repite para cada escenario de rentabilidad y gana la que menos cuesta.')}</li>
-      <li>${t('Se comprueba cuándo cambia la respuesta: desde qué año compensa y con qué rentabilidad ganaría otra.')}</li>
+      <li>${t('Tu patrimonio es lo que tienes menos lo que debes. Empiezas con tu patrimonio inicial: el dinero que tienes para esto.')}</li>
+      <li>${t('Comprar algo no cambia tu patrimonio: cambias dinero por un bien. Pedir un préstamo tampoco (tienes más dinero y una deuda igual), ni pagar su capital (es ahorro: baja la deuda tanto como el dinero).')}</li>
+      <li>${t('Lo bajan los gastos de uso (que suben cada año con la inflación, salvo los fijos), los intereses, los impuestos y gastos de compra y venta, y lo que pierde el bien con los años. Lo suben su revalorización y lo que rinde el dinero que no gastas, invertido a la rentabilidad del escenario.')}</li>
+      <li>${t('Para comparar con justicia, todas disponen del mismo dinero: tu patrimonio inicial y, cada mes, lo que pide la más cara ese mes (sale de tus ingresos, así que no cuenta como ganancia). Lo que una no gasta se invierte: es el coste de oportunidad.')}</li>
+      <li>${t('En euros de hoy, cada año se divide por la inflación acumulada: un patrimonio puede crecer en euros y perder poder de compra.')}</li>
+      <li>${t('Una vivienda o un coche también te dan techo o transporte, que de otro modo pagarías: por eso se comparan alternativas que cubren lo mismo (comprar o alquilar, coche o transporte público).')}</li>
     </ol>
     <p class="fine">${t('No incluye impuestos sobre la ganancia al vender ni deducciones, cambios de tipo en préstamos variables, averías imprevistas ni los altibajos de las inversiones. Tampoco lo que no es dinero: comodidad, tiempo o libertad. Es una estimación para decidir, no una oferta.')}</p></details>`;
 }
@@ -1816,6 +1829,7 @@ function calcChanged() {
   const k = compare(c);
   const box = $('#calc-res'); if (box) box.innerHTML = calcResult(c, k);
   const ft = $('#cg-foot'); if (ft) ft.innerHTML = calcFoot(c, k);
+  const cap = $('#calc-cap'); if (cap) cap.placeholder = fmtN(Math.round(k.autoK)).replace(/[.,]00$/, '');
   c.alts.forEach((a, i) => {
     const v = $('#cg-val-' + i); if (v) { v.innerHTML = valSummary(a, c); v.disabled = !(+a.price > 0); }
     const p = $('#cg-pay-' + i); if (p) { const pay = payOf(a); p.textContent = p.tagName === 'TD' ? (pay ? fmt(pay) : '—') : pay ? t('Cuota del préstamo: {x}', { x: fmt(pay) }) : ''; }
@@ -2726,7 +2740,10 @@ document.addEventListener('keydown', (e) => {
 // the close and the look at the balance work out the month as you type
 document.addEventListener('input', (e) => {
   if (UI.calc && e.target.dataset?.cn != null) { UI.calc.name = e.target.value; calcChanged(); }
-  if (UI.calc && e.target.dataset?.cg != null) { const k = e.target.dataset.cg, v = num(e.target.value); UI.calc[k] = k === 'years' ? Math.min(50, Math.max(1, Math.round(v || 1))) : Math.min(30, Math.max(-5, v ?? 0)); calcChanged(); }
+  if (UI.calc && e.target.dataset?.cg != null) { const k = e.target.dataset.cg, v = num(e.target.value);
+    if (k === 'cap') { if (v > 0) UI.calc.cap = Math.min(1e9, v); else delete UI.calc.cap; }
+    else UI.calc[k] = k === 'years' ? Math.min(50, Math.max(1, Math.round(v || 1))) : Math.min(30, Math.max(-5, v ?? 0));
+    calcChanged(); }
   if (UI.calc && e.target.dataset?.cr != null) { const i = +e.target.dataset.cr, v = num(e.target.value); if (v != null) { UI.calc.rets[i] = Math.min(30, Math.max(-10, v)); UI.calc.sel = i; calcChanged(); } }
   if (UI.calc && e.target.dataset?.ca != null && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) { const a = UI.calc.alts[+e.target.dataset.ca], k = e.target.dataset.k, rv = e.target.dataset.rv; if (a) {
     const v = Math.max(0, num(e.target.value) ?? 0);

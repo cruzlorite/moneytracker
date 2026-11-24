@@ -117,3 +117,15 @@ test('what an alternative costs is how much poorer it leaves you than spending n
   }
   near(k.scen[0].costFin[0], k.base[0].total, 0.05); // at 0 %: just what you paid minus what you got back
 });
+
+test('net worth: everyone starts with the initial money; a car takes it down, a cheap alternative can take it up', () => {
+  const c = dec([5]), k = compare(c), s = k.scen[0];
+  assert.ok(s.pn.every((p) => Math.abs(p[0] - k.K) < 0.01)); // day one: buying is a swap (no one-off costs here)
+  assert.ok(s.dpn[0] < 0); // the car: depreciation, costs and interest
+  near(s.dpn[0] - s.dpn[1], s.fin[0] - s.fin[1], 0.05); // the same differences as wealth
+  const k2 = compare({ ...c, cap: 3000 }), s2 = k2.scen[0];
+  assert.equal(k2.K, 3000); assert.ok(k2.short[0] > 0); assert.equal(k2.short[1], 0); // the car needs more than you have
+  near(s2.dpn[0] - s2.dpn[1], s.dpn[0] - s.dpn[1], 0.05); // the initial money moves everyone alike
+  const one = compare({ ...c, alts: [c.alts[1]], cap: 20000 }).scen[0]; // a bus pass and 20.000 € at 5 %: the return beats the pass
+  assert.ok(one.dpn[0] > 0);
+});
