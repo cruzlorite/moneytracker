@@ -659,7 +659,8 @@ export function normSpend(e) {
  * rets: [% a year the money would earn invested, net — one per scenario], sel (the scenario shown), rows, alts }.
  * rows: the concepts every alternative is compared on { id, n, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10'
  * every that many years, fix: true if it does not go up with inflation (a lease), ag: the % a year it also goes up (maintenance,
- * repairs) or down (insurance) with age, on top of inflation, inc: true if it is an income (the rent a flat brings in) }.
+ * repairs) or down (insurance) with age, on top of inflation, inc: true if it is an income (the rent a flat brings in),
+ * from / to: the years it applies (from 1; none: all) }.
  * alts: the alternatives { name, price, how it keeps its value (vm, dep, vc, ve, life), sellc (% it costs to sell), a loan
  * (loan, rate, term in months; none when 0), v: { rowId: amount } }.
  * Saved by an older version (one list of costs per option, one return): the costs become shared rows, the return one scenario.
@@ -670,6 +671,8 @@ export function normCalcs(arr) {
   if (!Array.isArray(arr)) return [];
   const n = (v) => Math.max(0, num(v) ?? 0), lim = (v, a, b, d) => { const x = num(v); return x == null ? d : Math.min(b, Math.max(a, x)); };
   const freq = (f) => (CALC_FREQ.includes(String(f)) ? String(f) : 'm');
+  // the years a concept applies (from 1): none means all; a one-off can be paid at the start of a later year
+  const yearsOf = (r) => { const a = Math.round(num(r?.from) ?? 0), b = Math.round(num(r?.to) ?? 0), o = {}; if (a > 1 && a <= 50) o.from = a; if (b >= Math.max(1, a) && b <= 50 && r?.f !== 'o') o.to = b; return o; };
   const agOf = (r) => { const x = num(r?.ag) ?? (r?.grow ? 10 : 0); return Math.round(Math.max(-50, Math.min(50, x)) * 10) / 10; }; // % a year of age, on top of inflation
   const alt = (o, years, v) => {
     // saved long ago: what it was worth at the end, in % of the price → the yearly change that gets there
@@ -689,7 +692,7 @@ export function normCalcs(arr) {
     if (Array.isArray(c.alts)) {
       const seen = new Set();
       rows = (Array.isArray(c.rows) ? c.rows : []).filter((r) => r && /^[\w-]{1,16}$/.test(String(r.id)) && !seen.has(String(r.id)) && seen.add(String(r.id)))
-        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.inc ? { inc: true } : {}), ...(r.f === 'o' ? {} : r.fix ? { fix: true } : agOf(r) ? { ag: agOf(r) } : {}) }));
+        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.inc ? { inc: true } : {}), ...(r.f === 'o' ? {} : r.fix ? { fix: true } : agOf(r) ? { ag: agOf(r) } : {}), ...yearsOf(r) }));
       alts = c.alts.slice(0, CALC_MAX.alts).map((a) => {
         const v = {};
         for (const r of rows) { const x = n(a?.v?.[r.id]); if (x) v[r.id] = x; }

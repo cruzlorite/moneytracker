@@ -186,3 +186,12 @@ test('with the tax, selling pays on what the investments earned and on the gain 
   // the even return is worked out after tax too
   const p = prepare(c), e = evenRet(p, 0, 1); if (e != null) { const s = compare({ ...c, rets: [e] }).scen[0]; near(s.pnFin[0], s.pnFin[1], 1500); } // e is rounded to 0,1 %
 });
+
+test('a concept can apply only some years: the salary given up the year you study, a raise from the second', () => {
+  const c = { years: 5, infl: 0, ret: 0 }, run = (x) => tco({ price: 0, costs: [{ n: 'x', a: 100, f: 'm', ...x }] }, c);
+  near(run({ to: 1 }).running, 1200, 0.01);
+  near(run({ from: 2 }).running, 4800, 0.01);
+  near(run({ from: 2, to: 3, inc: true }).income, 2400, 0.01);
+  const once = tco({ price: 0, costs: [{ n: 'x', a: 500, f: 'o', from: 3 }] }, c);
+  assert.equal(once.cf.findIndex((v) => v > 0), 25); // paid at the start of year 3
+});

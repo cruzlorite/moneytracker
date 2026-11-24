@@ -70,27 +70,30 @@ export function tco(o, c, retOverride = null) {
   const cf = new Array(M + 1).fill(0); // what you pay each month; month 0 is the day you buy it
   cf[0] = P - F;
   let running = 0, once = 0, income = 0;
+  // a concept may apply only some years (x.from…x.to, from 1): the salary you stop earning the year you study, a raise from the 2nd
+  const inYears = (x, yr) => yr >= (+x.from || 1) && yr <= (+x.to || Infinity);
+  const onceAt = (x) => (+x.from > 1 ? 12 * (+x.from - 1) + 1 : 0); // a one-off from a later year is paid at its start
   for (const x of o.costs || []) {
     const a0 = pos(x.a);
     if (!a0) continue;
     // an income (the rent a flat brings in) is a cost with the sign turned: it comes into your pocket
     if (x.inc) { addIncome(x, a0); continue; }
     const a = a0;
-    if (x.f === 'o') { cf[0] += a; once += a; continue; }
+    if (x.f === 'o') { const m0 = onceAt(x); if (m0 <= M) { cf[m0] += a; once += a; } continue; }
     // a fixed price (a lease) does not follow inflation; the rest does, and with x.ag a % more (maintenance, repairs) or less
     // (insurance, as the car is worth less) every year of age
     const g = x.fix ? 0 : (1 + i) * (1 + Math.max(-50, Math.min(50, +x.ag || 0)) / 100) - 1;
-    if (x.f === 'm') { for (let m = 1; m <= M; m++) { const v = a * (1 + g) ** Math.floor((m - 1) / 12); cf[m] += v; running += v; } continue; }
+    if (x.f === 'm') { for (let m = 1; m <= M; m++) { const y = Math.floor((m - 1) / 12); if (!inYears(x, y + 1)) continue; const v = a * (1 + g) ** y; cf[m] += v; running += v; } continue; }
     // a year, or every N years: paid at the start of that year, at that year's prices ("every 2 years": in years 3, 5…)
     const every = x.f === 'y' ? 1 : Math.max(1, +x.f || 1);
-    for (let k = x.f === 'y' ? 0 : every; k < H; k += every) { const v = a * (1 + g) ** k; cf[12 * k + 1] += v; running += v; }
+    for (let k = x.f === 'y' ? 0 : every; k < H; k += every) { if (!inYears(x, k + 1)) continue; const v = a * (1 + g) ** k; cf[12 * k + 1] += v; running += v; }
   }
   function addIncome(x, a) {
-    if (x.f === 'o') { cf[0] -= a; income += a; return; }
+    if (x.f === 'o') { const m0 = onceAt(x); if (m0 <= M) { cf[m0] -= a; income += a; } return; }
     const g = x.fix ? 0 : (1 + i) * (1 + Math.max(-50, Math.min(50, +x.ag || 0)) / 100) - 1;
-    if (x.f === 'm') { for (let m = 1; m <= M; m++) { const v = a * (1 + g) ** Math.floor((m - 1) / 12); cf[m] -= v; income += v; } return; }
+    if (x.f === 'm') { for (let m = 1; m <= M; m++) { const y = Math.floor((m - 1) / 12); if (!inYears(x, y + 1)) continue; const v = a * (1 + g) ** y; cf[m] -= v; income += v; } return; }
     const every = x.f === 'y' ? 1 : Math.max(1, +x.f || 1);
-    for (let k = x.f === 'y' ? 0 : every; k < H; k += every) { const v = a * (1 + g) ** k; cf[12 * k + 1] -= v; income += v; }
+    for (let k = x.f === 'y' ? 0 : every; k < H; k += every) { if (!inYears(x, k + 1)) continue; const v = a * (1 + g) ** k; cf[12 * k + 1] -= v; income += v; }
   }
   for (let m = 1; m <= Math.min(n, M); m++) cf[m] += pay;
   // running sums: paid so far (nominal) and its present value, to know the cost if you sold it at the end of any year
@@ -116,7 +119,7 @@ export function tco(o, c, retOverride = null) {
  */
 export function optOf(a, rows = []) {
   const loan = pos(a?.loan), term = Math.round(pos(a?.term));
-  return { ...a, fin: !!(loan && term), loan, rate: pos(a?.rate), term, costs: rows.map((r) => ({ n: r.n, a: pos(a?.v?.[r.id]), f: r.f, ...(r.inc ? { inc: true } : {}), ...(r.fix ? { fix: true } : r.ag ? { ag: r.ag } : {}) })) };
+  return { ...a, fin: !!(loan && term), loan, rate: pos(a?.rate), term, costs: rows.map((r) => ({ n: r.n, a: pos(a?.v?.[r.id]), f: r.f, ...(r.inc ? { inc: true } : {}), ...(r.fix ? { fix: true } : r.ag ? { ag: r.ag } : {}), ...(r.from ? { from: r.from } : {}), ...(r.to ? { to: r.to } : {}) })) };
 }
 
 /**
