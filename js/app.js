@@ -1841,7 +1841,7 @@ function calcResult(c, k = compare(c)) {
   return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Ganancia o pérdida de patrimonio en {n} años', { n: H })}</h2>${matrix}
       <p class="calc-verdict">${esc(verdict)}</p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brk}</section>
     <section class="card calc-chart"><h2>${t('Año a año, al {r}', { r: pctx(s.ret) })}</h2>
-      <p class="fine">${t('Lo que ganarías o perderías con cada alternativa si la dejaras ese año (vendiendo y saldando el préstamo). Todas empiezan en 0, salvo los impuestos y gastos de compra, que se pierden el primer día.')}</p>${legend}${chart}
+      <p class="fine">${t('Lo que ganarías o perderías con cada alternativa si la dejaras ese año: vendiendo (con sus gastos de venta) y saldando el préstamo. Por eso lo que compras empieza por debajo de 0: los impuestos y gastos de compra se pierden el primer día, y venderlo ese mismo día costaría además sus gastos de venta.')}</p>${legend}${chart}
       ${table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => sgn0(w[y]))]))}</section></div>`;
 }
 /** The chart's room: half the page beside the matrix on a computer, the card's width on a phone. */

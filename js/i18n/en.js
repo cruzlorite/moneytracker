@@ -1358,4 +1358,5 @@ export default {
   'Añadir gasto o ingreso': "Add cost or income",
   'Añadir o cambiar gastos e ingresos': "Add or change costs and income",
   'Deja en blanco lo que no aplique. Cada gasto o ingreso puede subir con la inflación, tener precio fijo o, además, subir o bajar con la edad.': "Leave blank what doesn't apply. Each cost or income can rise with inflation, have a fixed price or, on top, rise or fall with age.",
+  'Lo que ganarías o perderías con cada alternativa si la dejaras ese año: vendiendo (con sus gastos de venta) y saldando el préstamo. Por eso lo que compras empieza por debajo de 0: los impuestos y gastos de compra se pierden el primer día, y venderlo ese mismo día costaría además sus gastos de venta.': "What you would gain or lose with each alternative if you stopped that year: selling (with its selling costs) and paying off the loan. That is why what you buy starts below 0: purchase taxes and fees are lost on day one, and selling it that same day would also cost its selling costs.",
 };
