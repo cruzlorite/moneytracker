@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { tco, evenReturn, valueAt, compare, optOf, aheadFrom } from './tco.js';
+import { tco, evenReturn, valueAt, compare, optOf, aheadFrom, CURVES, curveKeep } from './tco.js';
 import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx, setChartWidth, withChartWidth } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
@@ -1545,8 +1545,8 @@ const CALC_TPL = () => ({
     cr('imp', 'Impuesto de circulación', 'y'), cr('neum', 'Neumáticos', '4'), cr('abono', 'Abono de transporte', 'm'), cr('taxi', 'Taxi, VTC o alquiler puntual', 'm')], alts: [
     calt('Renting', 0, ['rate', -15], { cuota: 420, comb: 110 }),
     calt('Nuevo', 25000, ['curve', 'carNew'], { seguro: 650, comb: 110, mant: 300, imp: 120, neum: 450 }),
-    calt('Seminuevo', 18000, ['curve', 'carUsed'], { seguro: 550, comb: 110, mant: 450, imp: 120, neum: 450 }),
-    calt('Segunda mano', 9000, ['rate', -8], { seguro: 400, comb: 125, mant: 800, imp: 100, neum: 400 }),
+    { ...calt('Seminuevo', 18000, ['curve', 'carNew'], { seguro: 550, comb: 110, mant: 450, imp: 120, neum: 450 }), age: 2 },
+    { ...calt('Segunda mano', 9000, ['curve', 'carNew'], { seguro: 400, comb: 125, mant: 800, imp: 100, neum: 400 }), age: 8 },
     calt('Transporte público', 0, ['rate', -15], { abono: 40, taxi: 80 })] },
   home: { cat: 'casa', label: t('Comprar vivienda o alquilar'), years: 20, rows: [
     cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'), cr('seg', 'Seguro de hogar', 'y'), cr('mant', 'Mantenimiento', 'y'),
@@ -1556,7 +1556,7 @@ const CALC_TPL = () => ({
   fuel: { cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
     cr('carg', 'Cargador en casa', 'o'), cr('seg', 'Seguro', 'y'), cr('imp', 'Impuesto de circulación', 'y'), cr('mant', 'Mantenimiento', 'y'), cr('ener', 'Combustible o electricidad', 'm')], alts: [
     calt('Gasolina', 22000, ['curve', 'carNew'], { seg: 500, imp: 120, mant: 450, ener: 120 }),
-    calt('Eléctrico', 30000, ['curve', 'carNew'], { carg: 1000, seg: 600, imp: 30, mant: 200, ener: 35 })] },
+    calt('Eléctrico', 30000, ['curve', 'carEV'], { carg: 1000, seg: 600, imp: 30, mant: 200, ener: 35 })] },
   phone: { cat: 'tecnologia', label: t('Móvil'), years: 4, rows: [
     cr('funda', 'Funda y protector', 'o'), cr('seg', 'Seguro', 'y'), cr('otro', 'Otro móvil a los 2 años', '2')], alts: [
     calt('iPhone', 1100, ['curve', 'phoneApple'], { funda: 40, seg: 80 }),
@@ -1564,7 +1564,9 @@ const CALC_TPL = () => ({
     calt('Gama media', 400, ['curve', 'phoneBudget'], { funda: 25, otro: 400 })] },
   blank: { cat: '', label: t('En blanco'), years: 5, rows: [], alts: [calt('', 0, ['rate', -10], {}), calt('', 0, ['rate', -10], {})] },
 });
-const CURVE_L = () => ({ carNew: t('Coche nuevo'), carUsed: t('Coche de segunda mano'), phoneApple: t('Móvil iPhone'), phoneAndroid: t('Móvil Android de gama alta'), phoneBudget: t('Móvil económico') });
+const CURVE_L = () => ({ carNew: t('Coche: media del mercado'), carKeep: t('Coche que mantiene su valor (híbridos, modelos muy buscados)'), carPremium: t('Coche premium o de lujo'), carEV: t('Coche eléctrico'),
+  phoneApple: t('Móvil iPhone'), phoneAndroid: t('Móvil Android de gama alta'), phoneBudget: t('Móvil económico') });
+const CURVE_S = () => ({ carNew: t('Coche medio'), carKeep: t('Mantiene valor'), carPremium: t('Premium'), carEV: t('Eléctrico'), phoneApple: t('iPhone'), phoneAndroid: t('Android alta'), phoneBudget: t('Móvil económico') });
 const FREQ_L = () => [['m', t('al mes')], ['y', t('al año')], ...['2', '3', '4', '5', '6', '8', '10'].map((k) => [k, t('cada {n} años', { n: k })]), ['o', t('una vez')]];
 const cfreqText = (f) => FREQ_L().find(([k]) => k === f)?.[1] || '';
 const altName = (a, i) => (a?.name || '').trim() || t('Alternativa {l}', { l: 'ABCDEF'[i] || i + 1 });
@@ -1634,7 +1636,7 @@ const payOf = (a) => { const o = optOf(a, []); return o.fin ? tco(o, { years: 1,
 /** What the value cell says: how it changes and what it is worth at the end. */
 function valSummary(a, c) {
   if (!(+a.price > 0)) return '—';
-  const end = valueAt(a, c.years, c.years), how = a.vm === 'none' ? t('No se revende') : a.vm === 'curve' ? (CURVE_L()[a.vc] || t('Curva típica')) : a.vm === 'end' ? t('Precio de venta') : a.vm === 'linear' ? t('Sin valor a los {n} años', { n: a.life || c.years }) : (+a.dep >= 0 ? t('+{p} al año', { p: pctx(+a.dep) }) : t('−{p} al año', { p: pctx(-a.dep) }));
+  const end = valueAt(a, c.years, c.years), how = a.vm === 'none' ? t('No se revende') : a.vm === 'curve' ? (CURVE_S()[a.vc] || t('Curva típica')) + (+a.age > 0 ? ' · ' + t('{n} años', { n: a.age }) : '') : a.vm === 'end' ? t('Precio de venta') : a.vm === 'linear' ? t('Sin valor a los {n} años', { n: a.life || c.years }) : (+a.dep >= 0 ? t('+{p} al año', { p: pctx(+a.dep) }) : t('−{p} al año', { p: pctx(-a.dep) }));
   return `<span class="cg-v1">${esc(how)}</span><span class="cg-v2">${a.vm === 'none' ? '' : esc(t('{x} al final', { x: fmt0(end) }))}</span>`;
 }
 /** On a computer: the alternatives side by side. Rows are what they are compared on, columns the alternatives. */
@@ -1721,15 +1723,35 @@ function calcValBody(c, a) {
   const vm = vmode(a);
   const f = (k, label, suffix, v, mode = 'decimal') => `<label class="field tco-f"><span class="label">${label}</span><span class="tco-in"><input type="text" inputmode="${mode}" data-cv="${k}" value="${esc(n2(v ?? ''))}" autocomplete="off"><span>${suffix}</span></span></label>`;
   const param = {
-    curve: `<label class="field"><span class="label">${t('Curva')}</span><select data-cv="vc">${Object.entries(CURVE_L()).map(([k, l]) => `<option value="${k}" ${a.vc === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>`,
+    curve: `<label class="field"><span class="label">${t('Curva')}</span><select data-cv="vc">${Object.entries(CURVE_L()).map(([k, l]) => `<option value="${k}" ${a.vc === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      ${f('age', t('Edad al comprarlo'), t('años'), a.age || 0, 'numeric')}`,
     down: f('dep', t('Pierde cada año'), '%', Math.abs(+a.dep || 0)), up: f('dep', t('Gana cada año'), '%', Math.abs(+a.dep || 0)),
     end: f('ve', t('Lo venderás por'), curSym, a.ve), linear: f('life', t('Sin valor a los'), t('años'), a.life, 'numeric'), none: '',
   }[vm];
   const MODES = [['curve', t('Curva típica')], ['down', t('Pierde un % al año')], ['up', t('Se revaloriza')], ['end', t('Sé por cuánto lo venderé')], ['linear', t('Pierde lo mismo cada año')], ['none', t('No se revende')]];
   return `<label class="field"><span class="label">${t('Cómo cambia su valor')}</span><select data-cv="mode">${MODES.map(([k, l]) => `<option value="${k}" ${vm === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-    ${vm === 'none' ? '' : `<div class="fields2">${param}${f('sellc', t('Gastos al venderlo'), '%', a.sellc || 0)}</div>`}
-    ${vm === 'curve' ? `<p class="fine">${t('Media aproximada de datos publicados (Kelley Blue Book, Carfax, BankMyCell). Cada modelo es distinto: si sabes su precio de reventa, usa «Sé por cuánto lo venderé».')}</p>` : ''}
-    <div id="cv-spark">${vm === 'none' ? '' : calcSpark(a, c)}</div>`;
+    ${vm === 'none' ? '' : vm === 'curve' ? `<div class="cv-curve">${param}</div>${f('sellc', t('Gastos al venderlo'), '%', a.sellc || 0)}` : `<div class="fields2">${param}${f('sellc', t('Gastos al venderlo'), '%', a.sellc || 0)}</div>`}
+    <div id="cv-spark">${vm === 'none' ? '' : vm === 'curve' ? calcLife(a, c) : calcSpark(a, c)}</div>
+    ${vm === 'curve' ? `<p class="fine">${t('Medias aproximadas de datos publicados (iSeeCars, Kelley Blue Book, Experian, Mapfre, Ganvam, BankMyCell). Cada modelo es distinto: si sabes su precio de reventa, usa «Sé por cuánto lo venderé».')}</p>` : ''}`;
+}
+/**
+ * A curve, over the thing's whole life: what it was worth new, the stretch you own it (from its age when you buy it), and
+ * what it keeps losing after. A big drop at the start and less later, so buying it a few years old skips the worst part.
+ */
+function calcLife(a, c) {
+  const cv = CURVES[a.vc] || CURVES.carNew, A = Math.max(0, Math.round(+a.age || 0)), H = c.years, P = +a.price || 0, end = Math.max(A + H + 2, 8);
+  const keepAt = (age) => curveKeep(cv, 0, age), Pnew = P / keepAt(A), val = (age) => Pnew * keepAt(age);
+  const W = Math.max(260, Math.round(Math.min(560, innerWidth) - (innerWidth >= 960 ? 48 : 32))), h = 130, pl = 8, pr = 8, pt = 22, pb = 22, /* drawn at the sheet's width: letters keep their size */ X = (age) => pl + age / end * (W - pl - pr), Y = (v) => pt + (1 - v / Pnew) * (h - pt - pb);
+  const pts = (from, to) => Array.from({ length: to - from + 1 }, (_, j) => `${X(from + j).toFixed(1)},${Y(val(from + j)).toFixed(1)}`).join(' ');
+  const lost = P - val(A + H), pct = P ? Math.round(lost / P * 100) : 0;
+  const yr = (age) => cv[Math.min(age, cv.length - 1)];
+  const ticks = [...new Set([0, A, A + H, end])].map((age) => `<text class="lf-x${age === end ? ' lf-xe' : ''}" x="${X(age).toFixed(1)}" y="${h - 6}">${age === end ? esc(t('{n} años', { n: age })) : age}</text>`).join('');
+  return `<div class="calc-life"><svg viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(t('Valor a lo largo de su vida'))}">
+      <line class="lf-base" x1="${pl}" x2="${W - pr}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}"/>
+      <polyline class="lf-all" points="${pts(0, end)}"/><polyline class="lf-own" points="${pts(A, A + H)}"/>
+      <circle class="lf-dot" cx="${X(A).toFixed(1)}" cy="${Y(val(A)).toFixed(1)}" r="4"/><circle class="lf-dot" cx="${X(A + H).toFixed(1)}" cy="${Y(val(A + H)).toFixed(1)}" r="4"/>
+      ${[[A, t('compra')], [A + H, t('venta')]].map(([age, l]) => { const x = X(age), anchor = x < 40 ? 'start' : x > W - 40 ? 'end' : 'middle'; return `<text class="lf-l" text-anchor="${anchor}" x="${(anchor === 'start' ? x - 4 : anchor === 'end' ? x + 4 : x).toFixed(1)}" y="${(Y(val(age)) - 9).toFixed(1)}">${esc(l)}</text>`; }).join('')}${ticks}</svg>
+    <span class="fine">${A ? t('Nuevo valía unos {n}; con {a} años lo compras por {p}.', { n: `<b>${fmt0(Pnew)}</b>`, a: A, p: `<b>${fmt0(P)}</b>` }) + ' ' : ''}${t('En tus {h} años pierde {x} ({p} %): un {a} % el primer año y un {b} % el último.', { h: H, x: `<b>${fmt0(lost)}</b>`, p: pct, a: yr(A), b: yr(A + H - 1) })}</span></div>`;
 }
 /** How its value goes over the years: a small line from the price to what it is worth at the end. */
 function calcSpark(o, c) {
@@ -1775,8 +1797,7 @@ function calcResult(c, k = compare(c)) {
   names.forEach((nm, i) => { if (s.dpn[i] > 0.5 && s.pnFin[i] / (1 + infl) ** H < K - 0.5) notes.push(t('{a} gana patrimonio en euros, pero lo pierde en euros de hoy: lo que gana no cubre la inflación.', { a: nm })); });
   // more than you have on day one
   names.forEach((nm, i) => { if (k.short[i]) notes.push(t('{a} necesita {x} al empezar y tu patrimonio inicial es {k}: la diferencia cuenta como una deuda que crece al {r}. Si lo financias, ponlo en «Financiado».', { a: nm, x: E(k.base[i].cf[0]), k: E(K), r: pctx(s.ret) })); });
-  const monthly = k.M ? (k.put - K) / k.M : 0;
-  const how = `<p class="fine calc-base">${t('Comprar no cambia tu patrimonio (cambias dinero por un bien), ni pagar el capital del préstamo (es ahorro). Lo bajan los gastos, los intereses, los impuestos y lo que pierde el bien; lo suben su revalorización y lo que rinde el dinero que no gastas. Cada mes se dedica lo que pide la más cara ({b} de media) y lo que sobra se invierte; supone que lo inviertes de verdad.', { b: fmt0(monthly) })}</p>`;
+  const how = `<p class="fine calc-base">${t('Empiezas con tu patrimonio invertido. Comprar no lo cambia (cambias dinero por un bien), ni pagar el capital del préstamo (es ahorro). Todo lo que pagas sale de él y deja de rendir; lo que pierde el bien lo baja y su revalorización lo sube.')}</p>`;
   // the years in between: your net worth if you stopped (and sold) that year
   const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
   const lines = s.pn.map((w) => w.map((v, y) => eur(v, y))), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
@@ -1817,7 +1838,7 @@ function calcHow() {
       <li>${t('Tu patrimonio es lo que tienes menos lo que debes. Empiezas con tu patrimonio inicial: el dinero que tienes para esto.')}</li>
       <li>${t('Comprar algo no cambia tu patrimonio: cambias dinero por un bien. Pedir un préstamo tampoco (tienes más dinero y una deuda igual), ni pagar su capital (es ahorro: baja la deuda tanto como el dinero).')}</li>
       <li>${t('Lo bajan los gastos de uso (que suben cada año con la inflación, salvo los fijos), los intereses, los impuestos y gastos de compra y venta, y lo que pierde el bien con los años. Lo suben su revalorización y lo que rinde el dinero que no gastas, invertido a la rentabilidad del escenario.')}</li>
-      <li>${t('Para comparar con justicia, todas disponen del mismo dinero: tu patrimonio inicial y, cada mes, lo que pide la más cara ese mes (sale de tus ingresos, así que no cuenta como ganancia). Lo que una no gasta se invierte: es el coste de oportunidad.')}</li>
+      <li>${t('Todas parten del mismo patrimonio inicial, invertido a la rentabilidad del escenario. Cada euro que pagas sale de ahí y deja de rendir: es el coste de oportunidad. Tus ingresos no se cuentan, porque serían los mismos eligieras lo que eligieras.')}</li>
       <li>${t('En euros de hoy, cada año se divide por la inflación acumulada: un patrimonio puede crecer en euros y perder poder de compra.')}</li>
       <li>${t('Una vivienda o un coche también te dan techo o transporte, que de otro modo pagarías: por eso se comparan alternativas que cubren lo mismo (comprar o alquilar, coche o transporte público).')}</li>
     </ol>
@@ -2704,7 +2725,7 @@ document.addEventListener('change', (e) => {
       if (m === 'linear' && !a.life) a.life = c.years;
       const body = $('#cv-body'); if (body) body.innerHTML = calcValBody(c, a);
     }
-    const sp = $('#cv-spark'); if (sp && a.vm !== 'none') sp.innerHTML = calcSpark(a, c);
+    const sp = $('#cv-spark'); if (sp && a.vm !== 'none') sp.innerHTML = a.vm === 'curve' ? calcLife(a, c) : calcSpark(a, c);
     calcChanged(); } }
   if (e.target?.classList?.contains('clp-on')) { const amt = dlg.querySelector(`.clp-amt[data-id="${CSS.escape(e.target.dataset.id)}"]`); if (amt) amt.disabled = !e.target.checked; closeCalc(); }
   if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
@@ -2759,8 +2780,9 @@ document.addEventListener('input', (e) => {
     if (k === 'dep') a.dep = (vmode(a) === 'up' ? 1 : -1) * Math.min(vmode(a) === 'up' ? 50 : 100, v);
     else if (k === 'sellc') a.sellc = Math.min(100, v);
     else if (k === 'life') a.life = Math.min(50, Math.round(v));
+    else if (k === 'age') { if (v > 0) a.age = Math.min(30, Math.round(v)); else delete a.age; }
     else a[k] = v;
-    const sp = $('#cv-spark'); if (sp) sp.innerHTML = calcSpark(a, c);
+    const sp = $('#cv-spark'); if (sp) sp.innerHTML = a.vm === 'curve' ? calcLife(a, c) : calcSpark(a, c);
     calcChanged(); } }
   const id = e.target.id;
   if (id === 'cat-search') catSearch(e.target); else if (id === 'cl-bal' || id === 'cl-open' || e.target.classList?.contains('clp-amt')) closeCalc(); else if (id === 'ck-bal' || id === 'ck-open') checkCalc(); else if (id === 'g-val') goalCalc();

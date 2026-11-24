@@ -7,22 +7,31 @@
 const pos = (v) => Math.max(0, +v || 0);
 
 /**
- * Typical resale curves: the % of its value it loses each year (the last figure repeats). Rough averages from published data,
- * to start from; the user can always pick another mode or set their own figures.
- *  - cars: Kelley Blue Book (≈20 % the first year, ≈30 % in two, then 8–12 % a year; ≈55 % in five) and Carfax (≈40 % in five)
+ * Typical resale curves: the % of its value it loses in each year of its life (year 1, 2…; the last figure repeats). With
+ * `o.age` (its age when you buy it) a used one picks the curve up where it is: a 2-year-old car loses what a new one loses in
+ * its 3rd year — the first owner pays the big drop. Rough averages from published data, to start from:
+ *  - cars, average: Kelley Blue Book / Experian (≈16–20 % the first year, then 10–15 %), iSeeCars 2025–26 (≈42–46 % in five
+ *    years); Mapfre and RACE for Spain (15–25 % the first year, 40–60 % in five)
+ *  - keeps its value (hybrids, trucks, much-wanted models): iSeeCars ≈35 % in five years
+ *  - premium / luxury: ≈55 % in five years (iSeeCars: luxury models fill the worst list)
+ *  - electric: iSeeCars ≈57 % in five years; Ganvam-DAT ≈47 % in three
  *  - phones: BankMyCell trade-in reports (iPhone ≈17 % / 35 % / … 66 % in four; Android flagship ≈34 % / 62 % / … 81 %;
  *    phones under 400 ≈42 % / 59 % / 72 % / 88 %)
  */
 export const CURVES = {
-  carNew: [20, 12, 10, 10, 9, 8],
-  carUsed: [10, 9, 8, 8, 7],
+  carNew: [18, 12, 10, 9, 8, 8, 7, 7, 6, 6],
+  carKeep: [12, 9, 8, 7, 6, 6, 6, 5, 5],
+  carPremium: [22, 16, 13, 11, 10, 9, 8, 8, 7],
+  carEV: [25, 17, 13, 11, 9, 8, 8, 7],
   phoneApple: [17, 22, 28, 28, 30],
   phoneAndroid: [34, 42, 30, 30, 30],
   phoneBudget: [42, 29, 31, 57, 60],
 };
+/** What it is worth after k more years, as a share of its price, on curve `c` bought at age `age`. */
+export const curveKeep = (c, age, k) => { let v = 1; for (let j = 0; j < k; j++) v *= 1 - c[Math.min(age + j, c.length - 1)] / 100; return v; };
 /**
  * What it is worth after k years (of H). Modes (o.vm):
- *  'curve'  a typical curve (o.vc)      'rate'   the same % every year (o.dep: −15 loses, +2 gains)
+ *  'curve'  a typical curve (o.vc), from its age when bought (o.age)      'rate'   the same % every year (o.dep: −15 loses, +2 gains)
  *  'end'    you know what you'll get (o.ve €, at the end; in between it follows a steady %)
  *  'linear' it loses the same each year until it is worth nothing after o.life years      'none'  nothing back
  */
@@ -31,7 +40,7 @@ export function valueAt(o, k, H) {
   if (!P) return 0;
   switch (o.vm) {
     case 'none': return 0;
-    case 'curve': { const c = CURVES[o.vc] || CURVES.carNew; let v = P; for (let j = 0; j < k; j++) v *= 1 - (c[Math.min(j, c.length - 1)]) / 100; return v; }
+    case 'curve': return P * curveKeep(CURVES[o.vc] || CURVES.carNew, Math.max(0, Math.round(+o.age || 0)), k);
     case 'end': { const E = pos(o.ve); if (!k) return P; if (!E) return P * Math.max(0, 1 - k / H); return P * (E / P) ** (k / H); }
     case 'linear': { const L = Math.max(1, pos(o.life) || 1); return P * Math.max(0, 1 - k / L); }
     default: return P * Math.max(0, 1 + Math.max(-100, +o.dep || 0) / 100) ** k;
@@ -94,14 +103,14 @@ export function optOf(a, rows = []) {
 
 /**
  * What each alternative does to your net worth (patrimonio), the way an accountant sees it. You start with the money you have
- * for this (c.cap; by default what the dearest one needs on day one) and, each month, the money the dearest one needs that
- * month (it comes from your income, so it is not a gain). Buying is a swap (money → a thing) and paying off the loan's capital
- * is saving: neither changes your net worth. What changes it: costs, interest, one-off taxes and selling costs, depreciation
- * (down) and appreciation and the return of the money left invested (up). An alternative that needs more than you have on
- * day one runs a negative balance (as if borrowing at the scenario's return) and is flagged in `short`.
+ * for this (c.cap; by default what the dearest one needs on day one), invested at the scenario's return. Buying is a swap
+ * (money → a thing) and paying off a loan's capital is saving: neither changes your net worth. Everything you pay comes out of
+ * it — money you stop having and stop earning on — and depreciation takes it down; appreciation and the return of what is left
+ * invested take it up. Nothing is added from your income: it would be the same whatever you chose. An alternative that needs
+ * more than you have runs a negative balance (as if borrowing at the scenario's return) and is flagged in `short`.
  * c: { years, infl, rets: [%…], cap?, rows, alts }. For each return:
  *   pn[i][k]  net worth after k years if you stopped (and sold) then: starts at K, in euros of that year
- *   dpn[i]    the change over the whole period; wealth/cost as before (wealth = pn + the monthly money put in)
+ *   dpn[i]    the change over the whole period; cost[i][k] what it costs you against spending nothing
  */
 export function compare(c) {
   const os = (c.alts || []).map((a) => optOf(a, c.rows));
@@ -110,8 +119,9 @@ export function compare(c) {
   const { H, M } = base[0];
   const autoK = Math.max(...base.map((b) => b.cf[0])); // what the dearest one needs the first day
   const K = +c.cap > 0 ? +c.cap : autoK;
-  const B = [0], putY = [K]; let put = K;
-  for (let m = 1; m <= M; m++) { B.push(Math.max(...base.map((b) => b.cf[m]))); put += B[m]; if (m % 12 === 0) putY.push(put); }
+  // nothing is added each month: what you pay comes out of your net worth (money you stop having, and stop earning on).
+  // So each alternative depends only on itself and the initial money, and the differences are the same as in cost.
+  const B = new Array(M + 1).fill(0), putY = new Array(H + 1).fill(K), put = K;
   const short = base.map((b) => (b.cf[0] > K + 0.5 ? r2(b.cf[0] - K) : 0));
   const scen = (c.rets || []).map((ret) => {
     const rm = (1 + (+ret || 0) / 100) ** (1 / 12) - 1;

@@ -85,3 +85,9 @@ test('a comparison saved by the older version reads as a decision: its costs bec
   assert.deepEqual(c.alts.map((a) => a.v), [{ r1: 550, r2: 110 }, { r2: 130, r3: 40 }]);
   assert.deepEqual(c.alts.map((a) => [a.loan, a.term]), [[18000, 72], [0, 0]]); // a loan that was switched off stays off
 });
+
+test('a decision saved with the old used-car curve becomes the average curve at 3 years old', async () => {
+  const { normCalcs } = await import('../js/model.js');
+  const [c] = normCalcs([{ id: 'x', years: 5, rets: [4], rows: [], alts: [{ name: 'Usado', price: 9000, vm: 'curve', vc: 'carUsed', v: {} }, { name: 'Otro', price: 9000, vm: 'curve', vc: 'carNew', age: 4, v: {} }] }]);
+  assert.deepEqual([c.alts[0].vc, c.alts[0].age, c.alts[1].vc, c.alts[1].age], ['carNew', 3, 'carNew', 4]);
+});

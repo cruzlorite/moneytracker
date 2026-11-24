@@ -1769,3 +1769,16 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 .calc-res-g .tview { overflow-x: auto; }
 .calc-res-g .tview td.num, .calc-res-g .tview th { white-space: nowrap; }
 .calc-res-g .tview td:first-child { min-width: 9em; }
+/* a curve over the thing's whole life: grey all along, its colour where you own it */
+.cv-curve { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 10px; align-items: end; }
+.calc-life { display: grid; gap: 6px; }
+.calc-life svg { width: 100%; height: auto; }
+.lf-base { stroke: var(--line); stroke-width: 1; }
+.lf-all { fill: none; stroke: color-mix(in srgb, var(--muted) 45%, transparent); stroke-width: 2; stroke-dasharray: 4 3; }
+.lf-own { fill: none; stroke: var(--tc); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.lf-dot { fill: var(--tc); stroke: var(--panel); stroke-width: 2; }
+.lf-l { font-size: 12px; font-weight: 600; fill: var(--ink); }
+.lf-x { font-size: 11px; fill: var(--muted); text-anchor: middle; }
+@media (max-width: 420px) { .cv-curve { grid-template-columns: minmax(0, 1fr); } }
+.lf-xe { text-anchor: end; }
+#cv-body { display: grid; gap: 12px; }

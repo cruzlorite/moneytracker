@@ -53,8 +53,8 @@ test('resale value: each mode', () => {
   const P = { price: 10000 };
   near(valueAt({ ...P, vm: 'rate', dep: -10 }, 2, 5), 8100, 0.01);
   near(valueAt({ ...P, vm: 'rate', dep: 2 }, 1, 5), 10200, 0.01);
-  near(valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 2, 5), 10000 * 0.8 * 0.88, 0.01);
-  near(valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 8, 8), 10000 * 0.8 * 0.88 * 0.9 * 0.9 * 0.91 * 0.92 ** 3, 0.01); // the last figure repeats
+  near(valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 2, 5), 10000 * 0.82 * 0.88, 0.01);
+  near(valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 12, 12), 10000 * 0.82 * 0.88 * 0.9 * 0.91 * 0.92 * 0.92 * 0.93 * 0.93 * 0.94 * 0.94 ** 3, 0.01); // the last figure repeats
   near(valueAt({ ...P, vm: 'end', ve: 4000 }, 5, 5), 4000, 0.01);
   near(valueAt({ ...P, vm: 'end', ve: 4000 }, 0, 5), 10000, 0.01);
   near(valueAt({ ...P, vm: 'linear', life: 4 }, 1, 8), 7500, 0.01);
@@ -85,7 +85,9 @@ test('everyone starts with the same money; at 0 % the wealth gap is exactly the 
   near(s.fin[1] - s.fin[0], tot[0] - tot[1], 0.05);
   assert.equal(k.K, k.base[0].cf[0]); // the dearest first day: the car's down payment
   near(s.wealth[0][0], s.wealth[1][0], 0.01); // on day one nobody is richer: the car is worth what it cost
-  near(k.put, k.base.reduce((m, b) => Math.max(m, b.cf[0]), 0) + Array.from({ length: k.M }, (_, i) => Math.max(...k.base.map((b) => b.cf[i + 1]))).reduce((x, y) => x + y, 0), 0.05);
+  assert.equal(k.put, k.K); // nothing is added from income: what you pay comes out of your net worth
+  // at 0 %, an alternative's net worth is just the initial money minus what it paid, plus what it is worth, minus debt
+  near(s.pn[0][k.H], k.K - k.base[0].total, 0.05); near(s.pn[1][k.H], k.K - k.base[1].total, 0.05);
 });
 
 test('with a return, ranking by wealth is ranking by cost in today\'s money, and the gap grows with it', () => {
@@ -128,4 +130,20 @@ test('net worth: everyone starts with the initial money; a car takes it down, a 
   near(s2.dpn[0] - s2.dpn[1], s.dpn[0] - s.dpn[1], 0.05); // the initial money moves everyone alike
   const one = compare({ ...c, alts: [c.alts[1]], cap: 20000 }).scen[0]; // a bus pass and 20.000 € at 5 %: the return beats the pass
   assert.ok(one.dpn[0] > 0);
+});
+
+test('curves follow the thing\'s age: a used car picks the curve up where it is, and loses less', () => {
+  const nw = { price: 20000, vm: 'curve', vc: 'carNew' }, used = { ...nw, age: 3 };
+  near(valueAt(nw, 1, 5), 20000 * (1 - CURVES.carNew[0] / 100), 0.01);
+  near(valueAt(used, 1, 5), 20000 * (1 - CURVES.carNew[3] / 100), 0.01); // its 4th year
+  assert.ok(1 - valueAt(used, 5, 5) / 20000 < 1 - valueAt(nw, 5, 5) / 20000);
+  for (const k of ['carNew', 'carKeep', 'carPremium', 'carEV']) assert.ok(CURVES[k][0] > CURVES[k][CURVES[k].length - 1]); // more at first, less later
+});
+
+test('each alternative depends only on itself: adding a dearer one changes nobody else\'s net worth (with the same initial money)', () => {
+  const c = { ...dec([6]), cap: 30000 }, a = compare(c).scen[0];
+  const more = compare({ ...c, alts: [...c.alts, { name: 'Lujo', price: 90000, vm: 'rate', dep: -20, loan: 0, rate: 0, term: 0, v: { s: 2000, g: 300 } }] }).scen[0];
+  near(more.pn[0][8], a.pn[0][8], 0.01); near(more.pn[1][8], a.pn[1][8], 0.01);
+  // a car with costs only goes down: depreciation and payments never turn into a gain
+  assert.ok(a.pn[0].every((v, k) => k === 0 || v <= a.pn[0][k - 1] + 0.01));
 });
