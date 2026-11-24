@@ -1415,4 +1415,6 @@ export default {
   'No hacerlo': "Don't do it",
   'Estudios y otras': "Studies and others",
   'Precio, préstamo y valor de reventa': "Price, loan and resale value",
+  'Máster público sin trabajar': "Public master's, not working",
+  'Máster privado sin trabajar': "Private master's, not working",
 };
