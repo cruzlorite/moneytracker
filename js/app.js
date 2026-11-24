@@ -7,8 +7,8 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { tco, valueAt, compare, evenRet, optOf, aheadFrom, CURVES, curveKeep, AGE_UP, AGE_DOWN } from './tco.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx, setChartWidth, withChartWidth } from './charts.js';
+import { tco, valueAt, compare, scenario, evenRet, optOf, aheadFrom, CURVES, curveKeep, AGE_UP, AGE_DOWN } from './tco.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, stackCols, tipx, setChartWidth, withChartWidth } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
@@ -386,6 +386,18 @@ function infoHTML(key) {
     case 'cRet': return card(t('Rentabilidad alternativa'), [
       dp(t('Rentabilidad anual del capital invertido, neta de comisiones y antes de impuestos: el coste de oportunidad de cada euro desembolsado. Cada escenario recalcula todas las alternativas.')),
       dp(t('Rentabilidad de indiferencia: la tasa a la que dos alternativas tienen el mismo resultado (TIR diferencial).'))]);
+    case 'cWf': return card(t('Desglose del resultado'), [
+      dp(t('Contribución de cada componente al resultado de la alternativa en foco, en euros de cada año. Cada barra parte de donde termina la anterior.')),
+      fm(t('resultado = rendimiento de la cartera + ingresos ± revalorización − gastos − intereses − gastos de adquisición y venta − tributación [− alternativa nula]')),
+      dp(t('El rendimiento de la cartera recoge el coste de oportunidad: es negativo cuando los desembolsos dejan la cartera en saldo negativo.'))]);
+    case 'cSens': return card(t('Sensibilidad a la rentabilidad'), [
+      dp(t('Resultado de cada alternativa para rentabilidades alternativas entre −2 % y 12 %. La envolvente superior es la alternativa óptima en cada caso.')),
+      dp(t('Los puntos marcan las rentabilidades de indiferencia (TIR diferencial): donde dos alternativas dan el mismo resultado y cambia la óptima.'))]);
+    case 'cBal': return card(t('Composición del patrimonio'), [
+      dp(t('Balance de la alternativa en foco al final de cada año: valor de mercado del activo, cartera de inversión (negativa si se ha agotado) y deuda pendiente.')),
+      fm(t('valor de liquidación = activo + cartera − deuda − gastos de venta − tributación'))]);
+    case 'cFlow': return card(t('Desembolso mensual medio'), [
+      dp(t('Media mensual de los flujos de caja de cada año: cuotas del préstamo, gastos corrientes e importes únicos, menos ingresos. Mide la carga sobre tu liquidez; el desembolso inicial (año 0) se indica aparte.'))]);
     case 'mes': return card(t('Gastos este mes'), [
       ixRow(IX.fill(O), t('Gastado'), t('salidas de tu cuenta este mes, sin contar el ahorro.')),
       ixRow(IX.mark, t('Planificado'), t('ingresos del mes − objetivo de ahorro del mes.')),
@@ -1873,11 +1885,13 @@ function calcResult(c, k = cmpc(c)) {
     ${sw('calctax', k.tax, t('Tributación de ganancias'), t('IRPF, base del ahorro (19–30 %).'), 'cTax')}
     ${sw('calcreal', real, t('Valores reales'), t('Deflactados con una inflación del {p} anual.', { p: pctx(+c.infl || 0) }), 'cReal')}</div>`;
   const gains = k.scen.map((x) => calcGain(c, k, x)), g = gains[sel];
+  const order = g.map((_, i) => i).sort((x, y) => g[y] - g[x]), b = order[0], sec = order[1];
+  // the alternative in focus: the one the charts that show one alternative are about, and the one the others bring forward
+  const F = UI.calcFocus != null && UI.calcFocus < names.length ? UI.calcFocus : b;
   const matrix = `<div class="cm-wrap"><table class="cm" style="--n:${k.scen.length}"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
-    <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = gains[j][i];
+    <tbody>${names.map((nm, i) => `<tr${i === F ? ' class="cm-focus"' : ''}><th scope="row"><button type="button" class="cm-n" data-act="calcfocus" data-i="${i}" aria-pressed="${i === F}"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></button></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = gains[j][i];
       return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b class="${gainCls(v)}">${sgn0(v)}</b>${best ? `<span class="cm-b">${t('óptima')}</span>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
   // the verdict, in the scenario you chose, and what would change it
-  const order = g.map((_, i) => i).sort((x, y) => g[y] - g[x]), b = order[0], sec = order[1];
   const what = calcRelOn() ? t('valor final neto') : t('variación del patrimonio neto');
   let verdict;
   if (!many) verdict = t('Al {r}, {w} a {n} años: {x}.', { r: pctx(s.ret), w: what, n: H, x: sgn0(g[b]) });
@@ -1904,8 +1918,8 @@ function calcResult(c, k = cmpc(c)) {
   const lines = s.pn.map((w) => w.map((v, y) => { const d = real ? (1 + infl) ** y : 1; return v / d - (calcRelOn() ? s.none[y] / d : K); })), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
   const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: lines[0].map((_, y) => String(y)),
     tips: lines[0].map((_, y) => tipx(lab(y), names.map((_, i) => i).sort((x, z) => lines[z][y] - lines[x][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: sgn0(lines[i][y]) })), real ? t('ganancia o pérdida si lo dejaras entonces, en euros de hoy') : t('ganancia o pérdida si lo dejaras entonces'))),
-    aria: t('Ganancia o pérdida de patrimonio de cada alternativa, año a año') }));
-  const legend = `<div class="calc-leg">${names.map((nm, i) => `<span><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span>`).join('')}</div>`;
+    aria: t('Ganancia o pérdida de patrimonio de cada alternativa, año a año'), focus: many ? F : null }));
+  const legend = calcLegend(names, F);
   // the accounts of each alternative, in the chosen scenario: where the gain or loss comes from
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
   const brk = table([t('Concepto'), ...names], [
@@ -1922,11 +1936,85 @@ function calcResult(c, k = cmpc(c)) {
     br(t('En términos reales'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K))]).replace(t('Ver como tabla'), t('Cuenta de resultados al {r}', { r: pctx(s.ret) }));
   const brkC = swatchHeads(brk, names);
   const measure = calcRelOn() ? t('Valor final neto a {n} años', { n: H }) : t('Variación del patrimonio neto a {n} años', { n: H });
-  return `${unit}<div class="calc-res-g"><section class="card calc-res"><div class="row between"><h2>${measure} ${info(calcRelOn() ? 'cVfn' : 'cPn')}</h2></div>${matrix}
+  const evo = `<section class="card calc-chart calc-cc" data-c="evo"><div class="row between"><h2>${t('Valor de liquidación anual, al {r}', { r: pctx(s.ret) })} ${info('cLiq')}</h2></div>
+      ${legend}${chart}
+      ${swatchHeads(table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => sgn0(w[y]))])), names)}</section>`;
+  const tab = UI.calcTab || 'evo', TABS = [['evo', t('Evolución')], ['wf', t('Desglose')], ['sens', t('Sensibilidad')], ['bal', t('Patrimonio')], ['flow', t('Flujos')]];
+  const tabs = `<div class="seg calc-tabsr" role="tablist" aria-label="${t('Gráficos')}">${TABS.map(([v, l]) => `<button type="button" role="tab" data-act="calctab" data-v="${v}" aria-selected="${tab === v}" aria-pressed="${tab === v}">${l}</button>`).join('')}</div>`;
+  return `${unit}<div class="calc-res-g" data-t="${tab}"><section class="card calc-res"><div class="row between"><h2>${measure} ${info(calcRelOn() ? 'cVfn' : 'cPn')}</h2></div>${matrix}
       <p class="calc-verdict">${many ? `<i class="tcc-sw" style="background:${CALC_C[b]}"></i>` : ''}<span>${esc(verdict)}</span></p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brkC}</section>
-    <section class="card calc-chart"><div class="row between"><h2>${t('Valor de liquidación anual, al {r}', { r: pctx(s.ret) })} ${info('cLiq')}</h2></div>
-      <p class="fine">${t('Resultado de liquidar cada alternativa al final de cada año: transmisión del activo (con gastos de venta y tributación) y cancelación del préstamo.')}</p>${legend}${chart}
-      ${swatchHeads(table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => sgn0(w[y]))])), names)}</section></div>`;
+    ${evo}${tabs}${calcWaterfall(c, k, s, F, names)}${calcSens(c, k, F, names)}${calcBalance(c, k, s, F, names)}${calcFlows(c, k, F, names)}</div>`;
+}
+/** The alternatives as a legend you can press: pressing one puts it in focus in every chart. */
+const calcLegend = (names, F) => `<div class="calc-leg" role="group" aria-label="${t('Alternativa en foco')}">${names.map((nm, i) => `<button type="button" class="calc-legb" data-act="calcfocus" data-i="${i}" aria-pressed="${i === F}"><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</button>`).join('')}</div>`;
+const calcDeflate = (c, y) => (UI.calcReal ? (1 + (+c.infl || 0) / 100) ** y : 1);
+/**
+ * Where the result of the alternative in focus comes from: a bridge (waterfall) from 0, one bar per component, each starting
+ * where the previous ended, to the result. Euros of each year (the components are sums over the years).
+ */
+function calcWaterfall(c, k, s, F, names) {
+  const r = k.base[F], H = k.H, rel = calcRelOn();
+  const port = s.dpn[F] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost - r.income + s.tax[F];
+  const parts = [
+    [t('Rendimiento de la cartera'), port, port >= 0 ? 'var(--sav)' : null],
+    [t('Ingresos'), r.income, 'var(--in)'],
+    [r.value >= r.price ? t('Revalorización del activo') : t('Depreciación del activo'), r.value - r.price, 'var(--sav)'],
+    [t('Gastos corrientes'), -r.running], [t('Gastos de adquisición'), -r.once], [t('Intereses del préstamo'), -r.interest],
+    [t('Gastos de venta'), -r.sellCost], ...(k.tax ? [[t('Tributación de ganancias'), -s.tax[F]]] : []),
+    ...(rel ? [[t('Alternativa nula'), -(s.none[H] - k.K)]] : []),
+  ].filter(([, v]) => Math.abs(v) >= 0.5);
+  const total = parts.reduce((a, [, v]) => a + v, 0);
+  let run = 0; const steps = parts.map(([l, v, col]) => { const from = run; run += v; return { l, v, from, to: run, col }; });
+  const lo = Math.min(0, ...steps.map((x) => Math.min(x.from, x.to))), hi = Math.max(0, ...steps.map((x) => Math.max(x.from, x.to))), span = hi - lo || 1;
+  const pc = (v) => ((v - lo) / span * 100).toFixed(2);
+  const bar = (from, to, cls, col) => `<span class="wf-track"><i class="wf-zero" style="left:${pc(0)}%"></i><i class="wf-bar ${cls}" style="left:${pc(Math.min(from, to))}%;width:${Math.max(0.4, Math.abs(to - from) / span * 100).toFixed(2)}%${col ? `;background:${col}` : ''}"></i></span>`;
+  const rows = steps.map((x) => `<div class="wf-row"><span class="wf-l">${esc(x.l)}</span>${bar(x.from, x.to, x.v >= 0 ? 'up' : 'down', x.v >= 0 ? x.col : null)}<b class="num">${sgn0(x.v)}</b></div>`).join('');
+  const label = rel ? t('Valor final neto') : t('Variación del patrimonio neto');
+  return `<section class="card calc-cc" data-c="wf"><div class="row between"><h2>${t('Desglose del resultado, al {r}', { r: pctx(s.ret) })} ${info('cWf')}</h2></div>
+    ${calcLegend(names, F)}<p class="fine">${esc(names[F])} · ${t('euros de cada año')}</p>
+    <div class="wf">${rows}<div class="wf-row wf-tot"><span class="wf-l">${label}</span>${bar(0, total, total >= 0 ? 'pos' : 'neg')}<b class="num ${gainCls(total)}">${sgn0(total)}</b></div></div></section>`;
+}
+/** How the result of every alternative moves with the return, from −2 % to 12 %; where the best one changes, a marked point. */
+function calcSens(c, k, F, names) {
+  const R = Array.from({ length: 29 }, (_, j) => -2 + j * 0.5), many = names.length > 1;
+  const sc = R.map((r) => calcGain(c, k, scenario(k, r, k.tax)));
+  const series = names.map((_, i) => ({ vals: sc.map((g) => g[i]), c: CALC_C[i] }));
+  const best = sc.map((g) => g.reduce((bi, v, i) => (v > g[bi] ? i : bi), 0)), pts = [];
+  for (let j = 1; j < R.length && many; j++) if (best[j] !== best[j - 1]) {
+    const e = evenRet(k, best[j - 1], best[j], k.tax); if (e == null || e < R[0] || e > R[R.length - 1]) continue;
+    const g = calcGain(c, k, scenario(k, e, k.tax)); pts.push({ x: (e - R[0]) / 0.5, y: g[best[j]], label: pctx(e) });
+  }
+  const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: R.map((r) => (Number.isInteger(r) && r % 4 === 0 ? pctx(r) : '')), focus: many ? F : null, pts,
+    tips: R.map((r, j) => tipx(t('Rentabilidad del {r}', { r: pctx(r) }), names.map((_, i) => i).sort((x, z) => sc[j][z] - sc[j][x]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: sgn0(sc[j][i]) })))),
+    aria: t('Resultado de cada alternativa según la rentabilidad alternativa') }));
+  return `<section class="card calc-cc" data-c="sens"><div class="row between"><h2>${t('Sensibilidad a la rentabilidad')} ${info('cSens')}</h2></div>
+    ${calcLegend(names, F)}${chart}<p class="fine">${pts.length ? t('Puntos: rentabilidades de indiferencia, donde cambia la alternativa óptima.') : t('La alternativa óptima no cambia entre −2 % y 12 %.')}</p></section>`;
+}
+/** What the alternative in focus holds each year: the asset, the portfolio (below zero if it ran out) and the debt; its liquidation value over them. */
+function calcBalance(c, k, s, F, names) {
+  const r = k.base[F], H = k.H, A = 'var(--pot)', P = 'var(--sav)', D = 'color-mix(in srgb, var(--muted) 70%, var(--panel))';
+  const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
+  const cols = Array.from({ length: H + 1 }, (_, y) => {
+    const d = calcDeflate(c, y), asset = r.worthY[y] / d, port = s.cash[F][y] / d, debt = -r.owedY[y] / d, liq = s.pn[F][y] / d;
+    return { label: String(y), line: liq, parts: [{ v: asset, c: A }, { v: Math.max(0, port), c: P }, { v: Math.min(0, port), c: D }, { v: debt, c: D }],
+      tip: tipx(lab(y), [{ c: A, k: 'solid', l: t('Valor del activo'), v: fmt0(asset) }, { c: P, k: 'solid', l: t('Cartera'), v: sgn0(port) }, { c: D, k: 'solid', l: t('Deuda pendiente'), v: sgn0(debt) }, { k: 'line', l: t('Valor de liquidación'), v: sgn0(liq) }]) };
+  });
+  const chart = withChartWidth(calcChartRoom(), () => stackCols({ cols, aria: t('Composición del patrimonio de {a}, año a año', { a: names[F] }) }));
+  const key = `<div class="legend"><span><i class="sw" style="background:${A}"></i>${t('Activo')}</span><span><i class="sw" style="background:${P}"></i>${t('Cartera')}</span><span><i class="sw" style="background:${D}"></i>${t('Deuda o cartera negativa')}</span><span><i class="lg-plan"></i>${t('Valor de liquidación')}</span></div>`;
+  return `<section class="card calc-cc" data-c="bal"><div class="row between"><h2>${t('Composición del patrimonio')} ${info('cBal')}</h2></div>
+    ${calcLegend(names, F)}<p class="fine">${esc(names[F])} · ${UI.calcReal ? t('euros de hoy') : t('euros de cada año')}</p>${key}${chart}</section>`;
+}
+/** What each alternative takes out of your pocket each year, as a monthly average: payments, costs and one-offs, minus incomes. */
+function calcFlows(c, k, F, names) {
+  const H = k.H, many = names.length > 1;
+  const yrs = k.base.map((b) => Array.from({ length: H }, (_, y) => { let sm = 0; for (let m = 12 * y + 1; m <= 12 * (y + 1); m++) sm += b.cf[m]; return sm / 12 / calcDeflate(c, y + 1); }));
+  const series = yrs.map((v, i) => ({ vals: v, c: CALC_C[i] }));
+  const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: yrs[0].map((_, y) => String(y + 1)), focus: many ? F : null,
+    tips: yrs[0].map((_, y) => tipx(cap(t('año {n}', { n: y + 1 })), names.map((_, i) => i).sort((x, z) => yrs[z][y] - yrs[x][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: `${fmt0(yrs[i][y])} ${t('/mes')}` })), t('media mensual de ese año'))),
+    aria: t('Desembolso mensual medio de cada alternativa, año a año') }));
+  const initial = names.map((nm, i) => `<span class="nw"><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)} ${fmt0(k.base[i].cf[0])}</span>`).join(' ');
+  return `<section class="card calc-cc" data-c="flow"><div class="row between"><h2>${t('Desembolso mensual medio')} ${info('cFlow')}</h2></div>
+    ${calcLegend(names, F)}${chart}<p class="fine calc-init">${t('Desembolso inicial (año 0):')} ${initial}</p></section>`;
 }
 /** A table whose column heads are the alternatives: each head gets its colour swatch (the table helper escapes plain text). */
 const swatchHeads = (html, names) => names.reduce((h, nm, i) => h.replace(`<th>${esc(nm)}</th>`, `<th><span class="th-sw"><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span></th>`), html);
@@ -1972,7 +2060,7 @@ function calcRedraw(focus) {
 /** With a sheet open over it (the concepts on a phone): redraw the page behind it, without touching the sheet. */
 function calcRedrawKeepDialog() { if (UI.tab === 'calc' && UI.calc) { const y = scrollY; $('#view').innerHTML = calcView(); scrollTo(0, y); } }
 function calcOpen(c) {
-  UI.calcDirty = false; UI.calcAlt = 0;
+  UI.calcDirty = false; UI.calcAlt = 0; UI.calcFocus = null;
   UI.calc = normCalcs([JSON.parse(JSON.stringify(c))])[0]; // saved by an older version: same shape as now
   history.pushState({ tab: 'calc', depth: (history.state?.depth || 0) + 1, calc: c.id }, '', '#' + ROUTES.calc);
   render(true); window.scrollTo(0, 0);
@@ -2741,6 +2829,8 @@ function onAct(b, sure = false) {
     case 'calcaddret': { const c = UI.calc; if (c.rets.length >= CALC_MAX.rets) break; c.rets.push(Math.min(30, Math.max(...c.rets) + 2)); calcRedraw(`[data-cr="${c.rets.length - 1}"]`); calcChanged(); break; }
     case 'calcrmret': { const c = UI.calc, i = +b.dataset.i; if (c.rets.length < 2) break; c.rets.splice(i, 1); if (c.sel >= i && c.sel > 0) c.sel--; calcRedraw(); calcChanged(); break; }
     case 'calcsel': UI.calc.sel = +b.dataset.i; calcChanged(); break;
+    case 'calcfocus': UI.calcFocus = +b.dataset.i; { const box = $('#calc-res'); if (box) box.innerHTML = calcResult(UI.calc); } break;
+    case 'calctab': UI.calcTab = b.dataset.v; { const g = $('.calc-res-g'); if (g) { g.dataset.t = b.dataset.v; g.querySelectorAll('[data-act="calctab"]').forEach((x) => { const on = x.dataset.v === b.dataset.v; x.setAttribute('aria-selected', on); x.setAttribute('aria-pressed', on); }); } } break;
     case 'calcbuy': UI.calcBuy = UI.calc.id; calcRedraw('[data-ca="0"][data-k="price"]'); break;
     case 'calcreal': case 'calctax': case 'calcrel': {
       if (act === 'calcreal') UI.calcReal = !UI.calcReal; else if (act === 'calcrel') UI.calcRel = !calcRelOn(); else UI.calcTax = UI.calcTax === false;

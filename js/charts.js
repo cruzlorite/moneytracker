@@ -272,7 +272,7 @@ export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = n
  * Several cumulative lines over the same years (the options of a comparison), one colour each, scrubbed like the balance
  * chart: the tooltip lists every option at that point. series: [{ vals, c (CSS colour) }]; labels/tips: one per point.
  */
-export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 }) {
+export function multiLines({ series, labels = [], tips = [], aria = '', h = 180, focus = null, pts = [] }) {
   const W = CW, padL = 44, padR = 10, padT = 14, padB = 22, n = Math.max(1, (series[0]?.vals.length || 1) - 1);
   // a finer rounding than nice(): a range of 63K ends at 80K, not 100K; lines only below zero (losses) get 0 on top
   const fine = (v) => { if (v <= 0) return 0; const p = 10 ** Math.floor(Math.log10(v)), r = v / p; return [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((f) => r <= f + 1e-9) * p; };
@@ -287,10 +287,50 @@ export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 
   const step = Math.max(1, Math.ceil(n / 7));
   const lx = labels.map((l, i) => (l && (i === 0 || i === n || (i % step === 0 && n - i >= step / 2)) ? `<text class="ch-x ${i === 0 ? 'ch-x0' : i === n ? 'ch-xn' : ''}" x="${X(i).toFixed(1)}" y="${h - 5}">${esc(l)}</text>` : '')).join('');
   const ys = series.map((s) => s.vals.map((v) => +Y(v).toFixed(1)));
-  const paths = series.map((s, j) => `<path class="ch-line ml-line" style="stroke:${s.c}" d="${xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${ys[j][i]}`).join('')}"/>`).join('');
-  const ends = series.map((s, j) => `<circle class="ml-end" cx="${xs[n].toFixed(1)}" cy="${ys[j][n]}" r="3.5" style="fill:${s.c}"/>`).join('');
+  // with a focus, the chosen line stays and the rest step back (drawn first, so the chosen one is on top)
+  const dim = (j) => (focus != null && j !== focus ? ' ml-dim' : focus === j ? ' ml-focus' : '');
+  const order = series.map((_, j) => j).sort((a, b) => (a === focus) - (b === focus));
+  const paths = order.map((j) => `<path class="ch-line ml-line${dim(j)}" style="stroke:${series[j].c}" d="${xs.map((x, i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${ys[j][i]}`).join('')}"/>`).join('');
+  const ends = order.map((j) => `<circle class="ml-end${dim(j)}" cx="${xs[n].toFixed(1)}" cy="${ys[j][n]}" r="3.5" style="fill:${series[j].c}"/>`).join('');
+  // marked points (where two lines cross): a ring and a short label above
+  const marks = pts.map((p) => { const x = X(p.x), y = Y(p.y), anchor = x < padL + 30 ? 'start' : x > W - padR - 30 ? 'end' : 'middle';
+    return `<circle class="ml-pt" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5"/>${p.label ? `<text class="ml-ptl" text-anchor="${anchor}" x="${x.toFixed(1)}" y="${(y - 9).toFixed(1)}">${esc(p.label)}</text>` : ''}`; }).join('');
   const geo = { w: W, x: xs.map((v) => +v.toFixed(1)), y: xs.map((_, i) => Math.min(...ys.map((y) => y[i]))), ys, l: xs.map((_, i) => tips[i] || labels[i] || ''), top: padT, bottom: padT + ph };
   const hits = `<rect class="bl-hit" x="0" y="0" width="${W}" height="${h}"/>
     <g class="bl-hover" hidden><line class="bl-guide" y1="${padT}" y2="${padT + ph}"/><circle class="bl-dot" r="0"/>${series.map((s) => `<circle class="bl-dotm" r="4.5" style="fill:${s.c}"/>`).join('')}<g class="bl-label"><rect rx="6"/><text/></g></g>`;
-  return `<svg class="chart bal-chart ml-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}${paths}${ends}${lx}${hits}</svg>`;
+  return `<svg class="chart bal-chart ml-chart" viewBox="0 0 ${W} ${h}" role="img" aria-label="${esc(aria)}" data-geo="${esc(JSON.stringify(geo))}">${grid}${paths}${ends}${marks}${lx}${hits}</svg>`;
+}
+
+/**
+ * Stacked columns around zero, one per period: parts above zero stack upwards, parts below stack downwards, and an optional
+ * line runs over them (a total). cols: [{ label, parts: [{ v, c }], line, tip }]. Columns at most 24 wide, 2px gaps, the
+ * data ends rounded; each column is a tooltip target.
+ */
+export function stackCols({ cols, aria = '', h = 190, lineColor = 'var(--ink)' }) {
+  const W = CW, padL = 44, padR = 8, padT = 12, padB = 22, n = cols.length;
+  const fine = (v) => { if (v <= 0) return 0; const p = 10 ** Math.floor(Math.log10(v)), r = v / p; return [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((f) => r <= f + 1e-9) * p; };
+  const ups = cols.map((c) => c.parts.reduce((a, p) => a + Math.max(0, p.v), 0)), downs = cols.map((c) => c.parts.reduce((a, p) => a + Math.min(0, p.v), 0));
+  const hi = Math.max(0, ...ups, ...cols.map((c) => c.line ?? 0)), lo = Math.min(0, ...downs, ...cols.map((c) => c.line ?? 0));
+  const mx = hi > 0 ? fine(hi) : 0, mn = lo < 0 ? -fine(-lo) : 0, ph = h - padT - padB, span = mx - mn || 1;
+  const Y = (v) => padT + (mx - v) / span * ph, band = (W - padL - padR) / Math.max(1, n), w = Math.min(24, band * 0.66);
+  const ticks = (mn && mx ? [mx, 0, mn] : mn ? [0, mn / 2, mn] : [mx || 1, (mx || 1) / 2, 0]).filter((v, _, a) => v === 0 || a.every((u) => u === v || Math.abs(Y(u) - Y(v)) >= 12));
+  const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
+    <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
+  const step = Math.max(1, Math.ceil(n / 7));
+  const body = cols.map((c, i) => {
+    const x = padL + band * i + (band - w) / 2, cx = padL + band * i + band / 2;
+    let up = 0, down = 0;
+    const segs = c.parts.map((p) => {
+      if (Math.abs(p.v) < 0.5) return '';
+      const from = p.v > 0 ? up : down, to = from + p.v; if (p.v > 0) up = to; else down = to;
+      const y0 = Y(from), y1 = Y(to), gap = 1; // a 2px surface gap between stacked parts
+      const top = Math.min(y0, y1) + (p.v > 0 ? gap : 0), hgt = Math.max(0, Math.abs(y1 - y0) - gap);
+      return `<rect class="sc-seg" x="${x.toFixed(1)}" y="${top.toFixed(1)}" width="${w.toFixed(1)}" height="${hgt.toFixed(1)}" rx="2" style="fill:${p.c}"/>`;
+    }).join('');
+    const lab = c.label && (i === 0 || i === n - 1 || i % step === 0) ? `<text class="ch-x" x="${cx.toFixed(1)}" y="${h - 5}">${esc(c.label)}</text>` : '';
+    return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip || c.label)}" data-tip="${esc(c.tip || '')}"><rect class="ch-hit" x="${(padL + band * i).toFixed(1)}" y="0" width="${band.toFixed(1)}" height="${h}"/>${segs}${lab}</g>`;
+  }).join('');
+  const lineCols = cols.map((c, i) => (c.line == null ? null : [padL + band * i + band / 2, Y(c.line)])).filter(Boolean);
+  const line = lineCols.length ? `<path class="sc-line" style="stroke:${lineColor}" d="${lineCols.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join('')}"/>${lineCols.map(([x, y]) => `<circle class="sc-dot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" style="fill:${lineColor}"/>`).join('')}` : '';
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${grid}${body}${line}</svg>`;
 }

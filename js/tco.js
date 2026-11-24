@@ -108,7 +108,8 @@ export function tco(o, c, retOverride = null) {
   const total = paid[M] + exitAt(H), pv = pvPaid[M] + exitAt(H) * disc(M);
   const month = rm ? pv * rm / (1 - (1 + rm) ** -M) : pv / M; // the fixed monthly payment worth the same as all of it
   return {
-    cf, exit: Array.from({ length: H + 1 }, (_, k) => exitAt(k)), net: Array.from({ length: H + 1 }, (_, k) => worth(k) * (1 - sc)), // for compare(): what leaves your pocket each month, and what selling costs (−: gives) each year
+    cf, exit: Array.from({ length: H + 1 }, (_, k) => exitAt(k)), net: Array.from({ length: H + 1 }, (_, k) => worth(k) * (1 - sc)),
+    worthY: Array.from({ length: H + 1 }, (_, k) => r2(worth(k))), owedY: Array.from({ length: H + 1 }, (_, k) => r2(owedAt(12 * k))), // the balance sheet, year by year // for compare(): what leaves your pocket each month, and what selling costs (−: gives) each year
     H, M, price: P, loan: F, sellCost: r2(worth(H) * sc), pay: r2(pay), interest: r2(pay * Math.min(n, M) + owedAt(M) - F), owed: r2(owedAt(M)), value: r2(worth(H)),
     running: r2(running), once: r2(once), income: r2(income), total: r2(total), pv: r2(pv), month: r2(month), sell,
     out: Array.from({ length: H + 1 }, (_, k) => r2(paid[12 * k])), // money paid by the end of each year (nothing sold)
