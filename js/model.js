@@ -659,7 +659,7 @@ export function normSpend(e) {
  * rets: [% a year the money would earn invested, net — one per scenario], sel (the scenario shown), rows, alts }.
  * rows: the concepts every alternative is compared on { id, n, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10'
  * every that many years, fix: true if it does not go up with inflation (a lease), ag: the % a year it also goes up (maintenance,
- * repairs) or down (insurance) with age, on top of inflation }.
+ * repairs) or down (insurance) with age, on top of inflation, inc: true if it is an income (the rent a flat brings in) }.
  * alts: the alternatives { name, price, how it keeps its value (vm, dep, vc, ve, life), sellc (% it costs to sell), a loan
  * (loan, rate, term in months; none when 0), v: { rowId: amount } }.
  * Saved by an older version (one list of costs per option, one return): the costs become shared rows, the return one scenario.
@@ -689,7 +689,7 @@ export function normCalcs(arr) {
     if (Array.isArray(c.alts)) {
       const seen = new Set();
       rows = (Array.isArray(c.rows) ? c.rows : []).filter((r) => r && /^[\w-]{1,16}$/.test(String(r.id)) && !seen.has(String(r.id)) && seen.add(String(r.id)))
-        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.f === 'o' ? {} : r.fix ? { fix: true } : agOf(r) ? { ag: agOf(r) } : {}) }));
+        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.inc ? { inc: true } : {}), ...(r.f === 'o' ? {} : r.fix ? { fix: true } : agOf(r) ? { ag: agOf(r) } : {}) }));
       alts = c.alts.slice(0, CALC_MAX.alts).map((a) => {
         const v = {};
         for (const r of rows) { const x = n(a?.v?.[r.id]); if (x) v[r.id] = x; }

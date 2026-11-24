@@ -155,3 +155,12 @@ test('a cost can be fixed, follow inflation, or also rise or fall with age', () 
   near(run({ ag: 10 }), 100 + 121 + 146.41, 0.01); // (1,1 × 1,1) a year
   near(run({ ag: -10 }), 100 + 99 + 98.01, 0.01); // (1,1 × 0,9) a year: falls a little
 });
+
+test('an income (a flat let out) comes into your pocket and raises net worth', () => {
+  const c = { years: 5, infl: 0, rets: [0], rows: [{ id: 'r', n: 'Alquiler', f: 'm', inc: true }, { id: 'g', n: 'IBI', f: 'y' }],
+    alts: [{ name: 'Piso', price: 100000, vm: 'rate', dep: 0, v: { r: 500, g: 400 } }, { name: 'Nada', price: 0, vm: 'none', v: {} }] };
+  const k = compare(c), s = k.scen[0];
+  near(k.base[0].income, 500 * 60, 0.01); near(k.base[0].running, 400 * 5, 0.01);
+  near(s.dpn[0], 500 * 60 - 400 * 5, 0.05); // at 0 % and no change in value: rent minus costs
+  near(s.dpn[1], 0, 0.01);
+});

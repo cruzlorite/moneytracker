@@ -60,7 +60,7 @@ test('the sheet keeps the language and currency of the device', () => {
 
 test('saved decisions survive the sheet', () => {
   const calc = { id: 'calc-1', name: 'Coche', at: '2026-11-17', years: 8, infl: 2.5, rets: [3, 5, 10], sel: 1,
-    rows: [{ id: 'r1', n: 'Seguro', f: 'y' }, { id: 'r2', n: 'Gasolina', f: 'm' }, { id: 'r3', n: 'Cuota', f: 'm', fix: true }, { id: 'r4', n: 'Matrícula', f: 'o' }],
+    rows: [{ id: 'r1', n: 'Seguro', f: 'y', ag: -5 }, { id: 'r2', n: 'Gasolina', f: 'm' }, { id: 'r3', n: 'Cuota', f: 'm', fix: true }, { id: 'r4', n: 'Matrícula', f: 'o' }, { id: 'r5', n: 'Alquiler', f: 'm', inc: true }],
     alts: [
       { name: 'Nuevo', price: 24000, vm: 'curve', dep: 0, vc: 'carNew', loan: 18000, rate: 7, term: 72, v: { r1: 550, r2: 110, r4: 300 } },
       { name: 'Usado', price: 11000, vm: 'rate', dep: -10, sellc: 3, loan: 0, rate: 0, term: 0, v: { r1: 450, r2: 130 } },

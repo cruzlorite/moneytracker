@@ -1554,6 +1554,11 @@ const CALC_TPL = () => ({
     calt('Comprar', 250000, ['rate', 2], { compra: 25000, ibi: 450, com: 70, seg: 300, mant: 1500 }, [200000, 3, 360], 4),
     calt('Alquilar', 0, ['rate', 2], { alq: 1000, segi: 150 }),
     calt('Casa de los padres', 0, ['rate', 2], { aport: 200 })] },
+  letting: { cat: 'casa', label: t('Comprar vivienda para alquilar o invertir'), years: 15, rows: [
+    { ...cr('alq', 'Alquiler que cobras', 'm'), inc: true }, cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'),
+    cr('seg', 'Seguro de hogar e impago', 'y'), { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: 3 }, cr('vacio', 'Meses vacío y gestión', 'y'), cr('irpf', 'IRPF del alquiler', 'y')], alts: [
+    calt('Piso para alquilar', 200000, ['rate', 2], { alq: 900, compra: 22000, ibi: 400, com: 60, seg: 450, mant: 1000, vacio: 700, irpf: 600 }, [150000, 3, 360], 4),
+    calt('Invertir el dinero', 0, ['rate', 2], {})] },
   fuel: { cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
     cr('carg', 'Cargador en casa', 'o'), cr('seg', 'Seguro', 'y'), cr('imp', 'Impuesto de circulación', 'y'), cr('mant', 'Mantenimiento', 'y'), cr('ener', 'Combustible o electricidad', 'm')], alts: [
     calt('Gasolina', 22000, ['curve', 'carNew'], { seg: 500, imp: 120, mant: 450, ener: 120 }),
@@ -1618,7 +1623,7 @@ function calcEdit(c) {
       <span class="calc-acts" id="calc-acts">${calcActs(c)}</span></div>
     <p class="fine calc-state" id="calc-state">${calcStateText(c)}</p>
     ${calcAss(c)}
-    <section class="card calc-alts"><div class="calc-alts-h"><h2>${t('Alternativas')}</h2><p class="fine">${t('Deja en blanco lo que no aplique. Cada gasto puede subir con la inflación, tener precio fijo o, además, subir o bajar con la edad.')}</p></div>
+    <section class="card calc-alts"><div class="calc-alts-h"><h2>${t('Alternativas')}</h2><p class="fine">${t('Deja en blanco lo que no aplique. Cada gasto o ingreso puede subir con la inflación, tener precio fijo o, además, subir o bajar con la edad.')}</p></div>
       ${calcWide() ? calcTable(c) : calcAltForm(c)}</section>
     <div id="calc-res">${calcResult(c)}</div>
     ${calcHow()}`;
@@ -1657,13 +1662,13 @@ function calcTable(c) {
     row(t('Plazo'), '', each((a, i) => inp(i, `data-ca="${i}" data-k="term"`, a.term, t('meses'), t('Plazo'), 'numeric'))),
     row(t('Cuota del préstamo'), '', each((a, i) => `<td class="cg-ro num" id="cg-pay-${i}">${payOf(a) ? fmt(payOf(a)) : '—'}</td>`), 'cg-calc'),
     row(t('Valor con los años'), t('lo que recuperas al venderlo'), each((a, i) => `<td><button type="button" class="cg-val" data-act="calcval" data-i="${i}" id="cg-val-${i}" ${+a.price > 0 ? '' : 'disabled'}>${valSummary(a, c)}</button></td>`)),
-    sec(t('Gastos')),
-    ...c.rows.map((r, j) => `<tr><th scope="row"><div class="cg-rh"><div class="cg-rt"><textarea class="cg-rn" rows="1" data-rn="${j}" placeholder="${t('Concepto')}" aria-label="${t('Concepto')}" autocomplete="off" maxlength="60">${esc(r.n)}</textarea>
+    sec(t('Gastos e ingresos')),
+    ...c.rows.map((r, j) => `<tr class="${r.inc ? 'cg-inc' : ''}"><th scope="row"><div class="cg-rh"><div class="cg-rt"><textarea class="cg-rn" rows="1" data-rn="${j}" placeholder="${t('Concepto')}" aria-label="${t('Concepto')}" autocomplete="off" maxlength="60">${esc(r.n)}</textarea>
         <button type="button" class="iconbtn sm" data-act="calcrmrow" data-j="${j}" aria-label="${esc(t('Quitar {x}', { x: rowName(r) }))}">${ic('x')}</button></div>
-        <span class="cg-rm"><select data-rf="${j}" aria-label="${t('Cada cuánto')}">${FREQ_L().map(([v, l]) => `<option value="${v}" ${r.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <span class="cg-rm">${rowType(r, j)}<select data-rf="${j}" aria-label="${t('Cada cuánto')}">${FREQ_L().map(([v, l]) => `<option value="${v}" ${r.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
         ${rowKind(r, j)}</span></div></th>
       ${each((a, i) => inp(i, `data-ca="${i}" data-rv="${esc(r.id)}"`, a.v?.[r.id], curSym, rowName(r)))}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`),
-    c.rows.length < CALC_MAX.rows ? `<tr class="cg-addr"><th scope="row"><button type="button" class="linkbtn" data-act="calcaddrow">+ ${t('Añadir un gasto')}</button></th><td colspan="${span - 1}"></td></tr>` : '',
+    c.rows.length < CALC_MAX.rows ? `<tr class="cg-addr"><th scope="row"><button type="button" class="linkbtn" data-act="calcaddrow">+ ${t('Añadir gasto o ingreso')}</button></th><td colspan="${span - 1}"></td></tr>` : '',
   ].join('');
   return `<div class="cg-wrap"><table class="cg">${head ? `<thead>${head}</thead>` : ''}<tbody>${body}</tbody><tfoot id="cg-foot">${calcFoot(c)}</tfoot></table></div>`;
 }
@@ -1699,12 +1704,14 @@ function calcAltForm(c) {
       <div class="calc-g3">${f('loan', t('Financiado'), curSym)}${f('rate', t('Interés'), '%')}${f('term', t('Plazo'), t('meses'), 'numeric')}</div>
       <p class="fine" id="cg-pay-${i}">${payOf(a) ? t('Cuota del préstamo: {x}', { x: fmt(payOf(a)) }) : ''}</p></div>
     <div class="calc-sub"><h3>${t('Valor con los años')}</h3><button type="button" class="cg-val" data-act="calcval" data-i="${i}" id="cg-val-${i}" ${+a.price > 0 ? '' : 'disabled'}>${valSummary(a, c)}</button></div>
-    <div class="calc-sub"><h3>${t('Gastos')}</h3>
-      ${c.rows.length ? c.rows.map((r) => `<label class="ca-row"><span class="ca-n"><span>${esc(rowName(r))}</span><span class="fine">${esc(cfreqText(r.f))}${r.fix ? ' · ' + t('precio fijo') : r.ag ? ' · ' + t(r.ag > 0 ? 'sube un {p} al año con la edad' : 'baja un {p} al año con la edad', { p: pctx(Math.abs(r.ag)) }) : ''}</span></span><span class="tco-in"><input type="text" inputmode="decimal" data-ca="${i}" data-rv="${esc(r.id)}" value="${a.v?.[r.id] ? esc(n2(a.v[r.id])) : ''}" placeholder="—" autocomplete="off"><span>${curSym}</span></span></label>`).join('') : `<p class="fine">${t('Aún no hay gastos.')}</p>`}
-      <button type="button" class="linkbtn" data-act="calcrows">${t('Añadir o cambiar gastos')}</button></div>
+    <div class="calc-sub"><h3>${t('Gastos e ingresos')}</h3>
+      ${c.rows.length ? c.rows.map((r) => `<label class="ca-row${r.inc ? ' cg-inc' : ''}"><span class="ca-n"><span>${esc(rowName(r))}</span><span class="fine">${r.inc ? t('ingreso') + ' · ' : ''}${esc(cfreqText(r.f))}${r.fix ? ' · ' + t('precio fijo') : r.ag ? ' · ' + t(r.ag > 0 ? 'sube un {p} al año con la edad' : 'baja un {p} al año con la edad', { p: pctx(Math.abs(r.ag)) }) : ''}</span></span><span class="tco-in"><input type="text" inputmode="decimal" data-ca="${i}" data-rv="${esc(r.id)}" value="${a.v?.[r.id] ? esc(n2(a.v[r.id])) : ''}" placeholder="—" autocomplete="off"><span>${curSym}</span></span></label>`).join('') : `<p class="fine">${t('Aún no hay gastos.')}</p>`}
+      <button type="button" class="linkbtn" data-act="calcrows">${t('Añadir o cambiar gastos e ingresos')}</button></div>
     <div class="calc-opt-f">${c.alts.length < CALC_MAX.alts ? `<button type="button" class="linkbtn" data-act="calcdupalt" data-i="${i}">${t('Duplicar')}</button>` : ''}${c.alts.length > 1 ? `<button type="button" class="linkbtn c-spend" data-act="calcrmalt" data-i="${i}">${t('Quitar alternativa')}</button>` : ''}</div>
   </div>`;
 }
+/** A concept is a cost (it goes out) or an income (it comes in: the rent a flat brings). */
+const rowType = (r, j) => `<select class="cg-rt" data-rt="${j}" aria-label="${t('Gasto o ingreso')}"><option value="out" ${r.inc ? '' : 'selected'}>${t('gasto')}</option><option value="in" ${r.inc ? 'selected' : ''}>${t('ingreso')}</option></select>`;
 /** How a cost goes up over the years: with inflation, not at all (a fixed price) or with age too (maintenance, repairs). */
 const ROW_KINDS = () => [['infl', t('sube con la inflación')], ['fix', t('precio fijo')], ['up', t('sube con la edad')], ['down', t('baja con la edad')]];
 const rowKindOf = (r) => (r.fix ? 'fix' : r.ag > 0 ? 'up' : r.ag < 0 ? 'down' : 'infl');
@@ -1713,17 +1720,17 @@ const rowKind = (r, j) => `<span class="cg-kind" ${r.f === 'o' ? 'hidden' : ''}>
     ${r.ag ? `<span class="cg-ag" title="${t('Además de la inflación, cada año de edad')}"><input type="text" inputmode="decimal" data-rag="${j}" value="${esc(n2(Math.abs(r.ag)))}" aria-label="${t('% al año')}" autocomplete="off"><span>${t('%/año')}</span></span>` : ''}</span>`;
 /** The concepts, on a phone: shared by every alternative, so they are edited apart. */
 function openCalcRows() {
-  dlg.innerHTML = `<div class="sheet" id="cr-sheet"><div class="row between"><h2>${t('Gastos')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+  dlg.innerHTML = `<div class="sheet" id="cr-sheet"><div class="row between"><h2>${t('Gastos e ingresos')}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <p class="fine">${t('Son los mismos para todas las alternativas; el importe de cada una se pone en su pestaña.')}</p><div id="cr-body">${calcRowsBody(UI.calc)}</div>
     <button type="button" class="primary big" data-act="dclose">${t('Listo')}</button></div>`;
   openDialog();
 }
 function calcRowsBody(c) {
-  return `${c.rows.map((r, j) => `<div class="cr-row"><input type="text" data-rn="${j}" value="${esc(r.n)}" placeholder="${t('Concepto')}" aria-label="${t('Concepto')}" autocomplete="off" maxlength="60">
-    <select data-rf="${j}" aria-label="${t('Cada cuánto')}">${FREQ_L().map(([v, l]) => `<option value="${v}" ${r.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+  return `${c.rows.map((r, j) => `<div class="cr-row${r.inc ? ' cg-inc' : ''}"><input type="text" data-rn="${j}" value="${esc(r.n)}" placeholder="${t('Concepto')}" aria-label="${t('Concepto')}" autocomplete="off" maxlength="60">
+    ${rowType(r, j)}<select data-rf="${j}" aria-label="${t('Cada cuánto')}">${FREQ_L().map(([v, l]) => `<option value="${v}" ${r.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
     ${rowKind(r, j)}
     <button type="button" class="iconbtn sm" data-act="calcrmrow" data-j="${j}" aria-label="${esc(t('Quitar {x}', { x: rowName(r) }))}">${ic('x')}</button></div>`).join('')}
-    ${c.rows.length < CALC_MAX.rows ? `<button type="button" class="linkbtn" data-act="calcaddrow">+ ${t('Añadir un gasto')}</button>` : ''}`;
+    ${c.rows.length < CALC_MAX.rows ? `<button type="button" class="linkbtn" data-act="calcaddrow">+ ${t('Añadir gasto o ingreso')}</button>` : ''}`;
 }
 /** How one alternative keeps its value: its own small sheet (a mode, its figure, what selling costs, and the line). */
 function openCalcVal(i) {
@@ -1821,7 +1828,8 @@ function calcResult(c, k = compare(c)) {
   // the accounts of each alternative, in the chosen scenario: where the gain or loss comes from
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
   const brk = table([t('Concepto'), ...names], [
-    br(t('Lo que rinde o deja de rendir tu dinero'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost)),
+    br(t('Lo que rinde o deja de rendir tu dinero'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost - r.income)),
+    ...(rs.some((r) => r.income > 0.5) ? [br(t('Ingresos'), (r) => sgn0(r.income))] : []),
     br(t('Revalorización o depreciación'), (r) => sgn0(r.value - r.price)),
     br(t('Gastos de uso'), (r) => sgn0(-r.running)),
     br(t('Pagos únicos (impuestos, matrícula…)'), (r) => sgn0(-r.once)),
@@ -2723,6 +2731,7 @@ function onAct(b, sure = false) {
 
 document.addEventListener('change', (e) => {
   if (UI.calc && e.target.dataset?.rf != null) { const r = UI.calc.rows[+e.target.dataset.rf]; if (r) { r.f = e.target.value; if (r.f === 'o') { delete r.fix; delete r.ag; } const fx = e.target.parentElement?.querySelector('.cg-kind'); if (fx) fx.hidden = r.f === 'o'; calcChanged(); if (!calcWide()) calcRedrawKeepDialog(); } }
+  if (UI.calc && e.target.dataset?.rt != null) { const r = UI.calc.rows[+e.target.dataset.rt]; if (r) { if (e.target.value === 'in') r.inc = true; else delete r.inc; e.target.closest('tr, .cr-row')?.classList.toggle('cg-inc', !!r.inc); calcChanged(); if (!calcWide()) calcRedrawKeepDialog(); } }
   if (UI.calc && e.target.dataset?.rk != null) { const j = +e.target.dataset.rk, r = UI.calc.rows[j]; if (r) {
     delete r.fix; delete r.ag; const v = e.target.value;
     if (v === 'fix') r.fix = true; else if (v === 'up') r.ag = AGE_UP; else if (v === 'down') r.ag = AGE_DOWN;

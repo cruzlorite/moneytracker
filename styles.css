@@ -1799,3 +1799,7 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 @media (max-width: 360px) { .cm td b { font-size: 12px; letter-spacing: -.01em; } .cm tbody th { max-width: 70px; font-size: 12px; } .cm .tcc-sw { display: none; } .cm-s { padding: 3px 5px; font-size: 12px; } }
 @media (max-width: 360px) { .calc-res .cm-wrap { margin: 0 -10px; } }
 .cg-rt { display: flex; align-items: flex-start; gap: 2px; } .cg-rt .cg-rn { flex: 1; min-width: 0; } .cg-rt .iconbtn.sm { min-width: 28px; min-height: 28px; flex: none; }
+/* an income (the rent a flat brings) wears the income colour */
+.cg tr.cg-inc .cg-rn, .cr-row.cg-inc input[data-rn], .ca-row.cg-inc .ca-n > span:first-child { color: var(--in); }
+.cg-rm .cg-rt, .cr-row .cg-rt { width: auto; padding: 3px 4px; font-size: 12px; border-radius: 6px; background: transparent; }
+.cr-row { grid-template-columns: auto auto auto minmax(0, 1fr); }
