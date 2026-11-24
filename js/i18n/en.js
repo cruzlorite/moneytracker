@@ -1378,4 +1378,6 @@ export default {
   'A 20 años': "Over 20 years",
   'A 30 años': "Over 30 years",
   'Otras': "Others",
+  'Cifras en euros de hoy ({p} al año).': "Figures in today's euros ({p} a year).",
+  'Al vender, por tramos del ahorro (19–30 %).': "When selling, by savings bands (19–30 %).",
 };

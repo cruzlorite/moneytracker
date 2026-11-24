@@ -1812,8 +1812,9 @@ function calcResult(c, k = cmpc(c)) {
   const names = c.alts.map(altName), H = k.H, sel = Math.min(c.sel, k.scen.length - 1), s = k.scen[sel], many = names.length > 1;
   const infl = (+c.infl || 0) / 100, real = !!UI.calcReal, K = k.K;
   const sw = (act, on, label, hint) => `<button type="button" class="calc-sw" role="switch" data-act="${act}" aria-checked="${on}"><i aria-hidden="true"></i><span><b>${label}</b><span class="fine">${hint}</span></span></button>`;
-  const unit = `<div class="calc-unit">${sw('calcreal', real, t('Descontar la inflación'), real ? t('En euros de hoy: lo que se podría comprar hoy con ese dinero ({p} al año).', { p: pctx(+c.infl || 0) }) : t('En euros de cada año, sin descontar la inflación.'))}
-    ${sw('calctax', k.tax, t('Impuestos sobre las ganancias'), k.tax ? t('Al vender: por lo que ganaron tus inversiones y la ganancia de la venta (tramos del ahorro, 19–30 %).') : t('Sin impuestos sobre las ganancias.'))}</div>`;
+  // the line under each switch says what it does, the same on and off: the card never changes size
+  const unit = `<div class="calc-unit">${sw('calcreal', real, t('Descontar la inflación'), t('Cifras en euros de hoy ({p} al año).', { p: pctx(+c.infl || 0) }))}
+    ${sw('calctax', k.tax, t('Impuestos sobre las ganancias'), t('Al vender, por tramos del ahorro (19–30 %).'))}</div>`;
   const gains = k.scen.map((x) => calcGain(c, k, x)), g = gains[sel];
   const matrix = `<div class="cm-wrap"><table class="cm" style="--n:${k.scen.length}"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
     <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = gains[j][i];
