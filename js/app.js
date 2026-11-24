@@ -1759,10 +1759,15 @@ function calcResult(c, k = compare(c)) {
   }
   const base = `<p class="fine calc-base">${t('Todas parten del mismo dinero: {k} al empezar y, cada mes, lo que pide la más cara ({b} en {n} años). Lo que una alternativa no gasta se invierte. Supone que inviertes de verdad esa diferencia: si se acaba gastando, la ventaja de las más baratas desaparece.', { k: fmt0(k.K), b: fmt0(k.put - k.K), n: H })}</p>`;
   // the years in between: wealth if you stopped (and sold) that year
+  // two ways to look at the years: wealth (investments + what the thing is worth − debt: all start equal, buying swaps money
+  // for a thing) or only the money invested (buying takes it out on day one; the thing's value comes back when sold)
   const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
-  const series = s.wealth.map((w, i) => ({ vals: w, c: CALC_C[i] }));
-  const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: s.wealth[0].map((_, y) => String(y)),
-    tips: s.wealth[0].map((_, y) => tipx(lab(y), names.map((nm, i) => ({ c: CALC_C[i], k: 'solid', l: nm, v: fmt0(s.wealth[i][y]) })), t('patrimonio si lo dejaras entonces'))), aria: t('Patrimonio de cada alternativa año a año') }));
+  const cashView = UI.calcLine === 'cash', lines = cashView ? s.cash : s.wealth;
+  const series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
+  const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: lines[0].map((_, y) => String(y)),
+    tips: lines[0].map((_, y) => tipx(lab(y), names.map((nm, i) => ({ c: CALC_C[i], k: 'solid', l: nm, v: fmt0(lines[i][y]) })), cashView ? t('dinero invertido, sin contar lo comprado') : t('patrimonio si lo dejaras entonces'))),
+    aria: cashView ? t('Dinero invertido de cada alternativa año a año') : t('Patrimonio de cada alternativa año a año') }));
+  const lineSeg = `<div class="seg calc-lseg" role="group" aria-label="${t('Qué se muestra')}"><button type="button" data-act="calcline" data-v="wealth" aria-pressed="${!cashView}">${t('Patrimonio')}</button><button type="button" data-act="calcline" data-v="cash" aria-pressed="${cashView}">${t('Solo dinero invertido')}</button></div>`;
   const legend = `<div class="calc-leg">${names.map((nm, i) => `<span><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span>`).join('')}</div>`;
   // where each one's money goes, in the chosen scenario
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
@@ -1779,8 +1784,9 @@ function calcResult(c, k = compare(c)) {
     br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Desglose al {r}', { r: pctx(s.ret) }));
   return `<div class="calc-res-g"><section class="card calc-res"><h2>${t('Patrimonio a {n} años', { n: H })}</h2>${matrix}
       <p class="calc-verdict">${esc(verdict)}</p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${base}${brk}</section>
-    <section class="card calc-chart"><h2>${t('Año a año, al {r}', { r: pctx(s.ret) })}</h2><p class="fine">${t('Lo que tendrías con cada alternativa si lo dejaras ese año (vendiendo y saldando el préstamo). Donde se cruzan las líneas cambia la mejor.')}</p>${legend}${chart}
-      ${table([t('Año'), ...names], s.wealth[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...s.wealth.map((w) => fmt0(w[y]))]))}</section></div>`;
+    <section class="card calc-chart"><h2>${t('Año a año, al {r}', { r: pctx(s.ret) })}</h2>${lineSeg}
+      <p class="fine">${cashView ? t('Solo el dinero invertido: comprar lo saca el primer día. No cuenta lo que vale lo que compraste; esa es la diferencia con el patrimonio.') : t('Lo invertido más lo que vale lo que compraste, menos lo que debas: lo que tendrías si lo dejaras ese año. Al empezar todas valen lo mismo, porque comprar cambia dinero por un bien. Donde se cruzan las líneas cambia la mejor.')}</p>${legend}${chart}
+      ${table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => fmt0(w[y]))]))}</section></div>`;
 }
 /** The chart's room: half the page beside the matrix on a computer, the card's width on a phone. */
 function calcChartRoom() {
@@ -2593,6 +2599,7 @@ function onAct(b, sure = false) {
     case 'calcaddret': { const c = UI.calc; if (c.rets.length >= CALC_MAX.rets) break; c.rets.push(Math.min(30, Math.max(...c.rets) + 2)); calcRedraw(`[data-cr="${c.rets.length - 1}"]`); calcChanged(); break; }
     case 'calcrmret': { const c = UI.calc, i = +b.dataset.i; if (c.rets.length < 2) break; c.rets.splice(i, 1); if (c.sel >= i && c.sel > 0) c.sel--; calcRedraw(); calcChanged(); break; }
     case 'calcsel': UI.calc.sel = +b.dataset.i; calcChanged(); break;
+    case 'calcline': UI.calcLine = b.dataset.v; { const box = $('#calc-res'); if (box) box.innerHTML = calcResult(UI.calc); } break;
     case 'calcval': openCalcVal(+b.dataset.i); break;
     case 'calcrows': openCalcRows(); break;
     case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;

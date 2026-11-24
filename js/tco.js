@@ -111,12 +111,13 @@ export function compare(c) {
     const rm = (1 + (+ret || 0) / 100) ** (1 / 12) - 1;
     const runs = base.map((b) => {
       let P = K - b.cf[0];
-      const w = [r2(P - b.exit[0])];
-      for (let m = 1; m <= M; m++) { P = P * (1 + rm) + (B[m] - b.cf[m]); if (m % 12 === 0) w.push(r2(P - b.exit[m / 12])); }
-      return { w, port: r2(P) };
+      const w = [r2(P - b.exit[0])], cash = [r2(P)];
+      for (let m = 1; m <= M; m++) { P = P * (1 + rm) + (B[m] - b.cf[m]); if (m % 12 === 0) { w.push(r2(P - b.exit[m / 12])); cash.push(r2(P)); } }
+      return { w, cash, port: r2(P) };
     });
     const wealth = runs.map((x) => x.w), fin = wealth.map((w) => w[H]);
-    return { ret: +ret || 0, wealth, port: runs.map((x) => x.port), fin, best: fin.reduce((b, v, i) => (v > fin[b] ? i : b), 0) };
+    // cash[i][k]: only the money invested, not counting what the thing is worth (buying takes it out on day one)
+    return { ret: +ret || 0, wealth, cash: runs.map((x) => x.cash), port: runs.map((x) => x.port), fin, best: fin.reduce((b, v, i) => (v > fin[b] ? i : b), 0) };
   });
   return { H, M, os, base, K: r2(K), put: r2(put), scen };
 }

@@ -1229,4 +1229,11 @@ export default {
   'Seminuevo': "Nearly new",
   'Segunda mano': "Used",
   'Android de gama alta': "High-end Android",
+  'dinero invertido, sin contar lo comprado': "money invested, not counting what you bought",
+  'Dinero invertido de cada alternativa año a año': "Money invested by each alternative year by year",
+  'Qué se muestra': "What is shown",
+  'Solo dinero invertido': "Only money invested",
+  'Solo el dinero invertido: comprar lo saca el primer día. No cuenta lo que vale lo que compraste; esa es la diferencia con el patrimonio.': "Only the money invested: buying takes it out on day one. It doesn't count what you bought is worth; that is the difference from wealth.",
+  'Lo invertido más lo que vale lo que compraste, menos lo que debas: lo que tendrías si lo dejaras ese año. Al empezar todas valen lo mismo, porque comprar cambia dinero por un bien. Donde se cruzan las líneas cambia la mejor.': "What is invested plus what you bought is worth, minus what you owe: what you would have if you stopped that year. At the start they are all worth the same, because buying swaps money for a thing. Where the lines cross, the best one changes.",
+  'Patrimonio': "Wealth",
 };

@@ -1757,3 +1757,5 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 .cm-g { display: block; font-size: 12px; color: var(--muted); }
 .calc-base { margin: 0; }
 @media (max-width: 420px) { .cm th, .cm td { padding: 7px 3px; } .cm td b { font-size: 14px; } .cm { font-size: 13px; } .cm-s { padding: 3px 7px; } }
+.calc-lseg { justify-self: start; }
+.calc-chart { align-content: start; }
