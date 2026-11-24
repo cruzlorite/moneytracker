@@ -143,21 +143,36 @@ export function prepare(c) {
 
 /**
  * One return scenario. Nothing is added each month: what you pay comes out of your net worth (money you stop having, and stop
- * earning on), so each alternative depends only on itself and the money they all start with. With `tax`, selling (at the end
- * or the year you stop) pays Spain's savings tax on what the investments earned and on the gain of selling the thing (its
- * price after selling costs, minus what it cost and its one-off purchase costs); a loss on a car is not deductible.
+ * earning on), so each alternative depends only on itself and the money they all start with. With `tax`, Spain's savings tax:
+ * each year on the gains realized by taking money out of the investments, and when selling (at the end or the year you stop)
+ * on the gain still in them and on the gain of selling the thing (its price after selling costs, minus what it cost and its
+ * one-off purchase costs); a loss on a car is not deductible. taxes[i][k]: all the tax paid if you stopped after k years.
  */
 export function scenario(p, ret, tax = true) {
   const { H, M, K, base } = p;
   const rm = (1 + (+ret || 0) / 100) ** (1 / 12) - 1;
   const runs = base.map((b) => {
-    let P = K - b.cf[0], earned = 0;
-    const taxAt = (k) => (tax ? savingsTax(Math.max(0, earned) + Math.max(0, b.net[k] - b.price - b.once)) : 0);
-    const w = [r2(P - b.exit[0] - taxAt(0))], cash = [r2(P)], taxes = [r2(taxAt(0))];
+    // the invested money (P) and what it cost (basis): taking money out realizes the gain in it, taxed that year with that
+    // year's bands (each year starts again at 19 %); what stays invested is taxed only when you sell, at the end or the year
+    // you stop. A negative balance is money you didn't have (borrowed at the scenario's return): it earns nothing taxable.
+    let P = K - b.cf[0], basis = Math.max(0, P), yr = 0, paid = 0;
+    const saleGain = (k) => Math.max(0, b.net[k] - b.price - b.once);
+    const sellTax = (k) => (tax ? savingsTax(yr + Math.max(0, P - basis) + saleGain(k)) : 0);
+    const w = [r2(P - b.exit[0] - sellTax(0))], cash = [r2(P)], taxes = [r2(sellTax(0))];
     for (let m = 1; m <= M; m++) {
-      const gain = P * rm; if (P > 0) earned += gain; // what positive money earns is taxed; a negative balance is money you didn't have
-      P = P + gain - b.cf[m];
-      if (m % 12 === 0) { const k = m / 12, tx = taxAt(k); w.push(r2(P - b.exit[k] - tx)); cash.push(r2(P)); taxes.push(r2(tx)); }
+      P += P * rm;
+      const out = b.cf[m];
+      if (out > 0 && P > 0) { const take = Math.min(out, P), g = Math.max(0, (P - basis) / P); yr += take * g; basis -= take * (1 - g); }
+      const before = P; P -= out;
+      if (out < 0) basis += before < 0 ? Math.max(0, P) : -out; // money coming in: first it pays back what was borrowed
+      if (P <= 0) basis = 0;
+      if (m % 12 === 0) {
+        const k = m / 12, tx = sellTax(k);
+        w.push(r2(P - b.exit[k] - tx)); cash.push(r2(P)); taxes.push(r2(paid + tx));
+        // not selling: this year's realized gains pay their tax now, out of the investments
+        if (tax && yr > 0) { const ty = savingsTax(yr); paid += ty; P -= ty; basis = Math.min(basis, Math.max(0, P)); }
+        yr = 0;
+      }
     }
     return { w, cash, port: r2(P), taxes };
   });

@@ -195,3 +195,14 @@ test('a concept can apply only some years: the salary given up the year you stud
   const once = tco({ price: 0, costs: [{ n: 'x', a: 500, f: 'o', from: 3 }] }, c);
   assert.equal(once.cf.findIndex((v) => v > 0), 25); // paid at the start of year 3
 });
+
+test('taking money out of the investments pays tax that year on the gain in it; each year starts again at the lowest band', () => {
+  // a fund that pays a cost every year: its gains are realized bit by bit, so they pay less than all at once at the end
+  const c = { years: 20, infl: 0, rets: [6], rows: [{ id: 'g', n: 'Gasto', f: 'y' }], alts: [{ name: 'A', price: 0, vm: 'none', v: { g: 9000 } }, { name: 'Caro', price: 200000, vm: 'none', v: {} }] };
+  const yes = compare(c).scen[0], no = compare(c, { tax: false }).scen[0];
+  const earnedNoTax = no.dpn[0] + 9000 * 20; // what the investments earned, before tax
+  assert.ok(yes.tax[0] > 0 && yes.tax[0] < savingsTax(earnedNoTax), `${yes.tax[0]} < ${savingsTax(earnedNoTax)}`);
+  // money that was never there (a negative balance) earns nothing taxable
+  const neg = compare({ ...c, alts: [{ name: 'B', price: 0, vm: 'none', v: { g: 9000 } }] }).scen[0];
+  near(neg.tax[0], 0, 0.01);
+});
