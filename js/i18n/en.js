@@ -1384,4 +1384,12 @@ export default {
   'Taxi, VTC o coche compartido': "Taxi, ride-hailing or car sharing",
   'Tren, autobús o avión en viajes': "Train, coach or plane on trips",
   'Coche de alquiler para viajes': "Rental car for trips",
+  'Nuevo al contado': "New, paid in cash",
+  'Nuevo financiado': "New, financed",
+  'Al contado o con hipoteca': "Cash or mortgage",
+  'Al contado': "Cash",
+  'Hipoteca a 20 años': "20-year mortgage",
+  'Hipoteca a 30 años': "30-year mortgage",
+  'La mejor cambia según la rentabilidad: {l}.': "The best one changes with the return: {l}.",
+  'al {r}, {a}': "at {r}, {a}",
 };

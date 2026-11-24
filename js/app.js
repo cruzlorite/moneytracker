@@ -1548,7 +1548,8 @@ const CALC_TPL = () => ({
     cr('imp', 'Impuesto de circulación', 'y'), cr('neum', 'Neumáticos', '4'), cr('park', 'Aparcamiento', 'm'), cr('abono', 'Abono de transporte', 'm'), cr('taxi', 'Taxi, VTC o coche compartido', 'm'),
     cr('viajes', 'Tren, autobús o avión en viajes', 'y'), cr('alqv', 'Coche de alquiler para viajes', 'y')], alts: [
     calt('Renting', 0, ['rate', -15], { cuota: 420, comb: 110, park: 50 }),
-    calt('Nuevo', 25000, ['curve', 'carNew'], { seguro: 650, comb: 110, mant: 300, imp: 120, neum: 450, park: 50 }),
+    calt('Nuevo al contado', 25000, ['curve', 'carNew'], { seguro: 650, comb: 110, mant: 300, imp: 120, neum: 450, park: 50 }),
+    calt('Nuevo financiado', 25000, ['curve', 'carNew'], { seguro: 650, comb: 110, mant: 300, imp: 120, neum: 450, park: 50 }, [20000, 8, 72]),
     { ...calt('Seminuevo', 18000, ['curve', 'carNew'], { seguro: 550, comb: 110, mant: 450, imp: 120, neum: 450, park: 50 }), age: 2 },
     { ...calt('Segunda mano', 9000, ['curve', 'carNew'], { seguro: 400, comb: 125, mant: 800, imp: 100, neum: 400, park: 50 }), age: 8 },
     calt('Transporte público', 0, ['rate', -15], { abono: 40, taxi: 60, viajes: 500, alqv: 600 })] },
@@ -1573,9 +1574,10 @@ const CALC_TPL = () => ({
   prepay: { grp: 'home', cat: 'alquiler', label: t('Amortizar la hipoteca o invertir'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
     calt('Amortizar 20.000 €', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [180000, 3.1, 300], 5),
     calt('Invertir los 20.000 €', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5)] },
-  term: { grp: 'home', cat: 'alquiler', label: t('Hipoteca a 20 o a 30 años'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
-    calt('A 20 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 2.9, 240], 5),
-    calt('A 30 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.2, 360], 5)] },
+  term: { grp: 'home', cat: 'alquiler', label: t('Al contado o con hipoteca'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
+    calt('Al contado', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, null, 5),
+    calt('Hipoteca a 20 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 2.9, 240], 5),
+    calt('Hipoteca a 30 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.2, 360], 5)] },
   fuel: { grp: 'car', cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
     cr('carg', 'Cargador en casa', 'o'), cr('seg', 'Seguro', 'y'), cr('imp', 'Impuesto de circulación', 'y'), cr('mant', 'Mantenimiento', 'y'), cr('ener', 'Combustible o electricidad', 'm')], alts: [
     calt('Gasolina', 22000, ['curve', 'carNew'], { seg: 500, imp: 120, mant: 450, ener: 120 }),
@@ -1830,7 +1832,9 @@ function calcResult(c, k = cmpc(c)) {
   const notes = [];
   if (many) {
     const byRet = k.scen.map((x, j) => j).sort((x, y) => k.scen[x].ret - k.scen[y].ret), lo = k.scen[byRet[0]].best, hi = k.scen[byRet[byRet.length - 1]].best;
-    if (lo !== hi) { const e = evenRet(k, lo, hi, k.tax); notes.push(e != null ? t('La rentabilidad decide: por debajo de un {e} gana {a}; por encima, {b}.', { e: pctx(e), a: names[lo], b: names[hi] }) : t('La mejor cambia según la rentabilidad.')); }
+    const winners = [...new Set(byRet.map((j) => k.scen[j].best))];
+    if (winners.length > 2) notes.push(t('La mejor cambia según la rentabilidad: {l}.', { l: byRet.map((j) => t('al {r}, {a}', { r: pctx(k.scen[j].ret), a: names[k.scen[j].best] })).join('; ') }));
+    else if (lo !== hi) { const e = evenRet(k, lo, hi, k.tax); notes.push(e != null ? t('La rentabilidad decide: por debajo de un {e} gana {a}; por encima, {b}.', { e: pctx(e), a: names[lo], b: names[hi] }) : t('La mejor cambia según la rentabilidad.')); }
     else if (k.scen.length > 1) notes.push(t('{a} es la mejor en todos los escenarios.', { a: names[lo] }));
     if (lo === hi) { const e = evenRet(k, b, sec, k.tax); if (e != null) notes.push(e > s.ret ? t('Solo si tu dinero rindiera más de un {e} al año saldría mejor {b}.', { e: pctx(e), b: names[sec] }) : t('Si tu dinero rindiera menos de un {e} al año, saldría mejor {b}.', { e: pctx(e), b: names[sec] })); }
     const y = aheadFrom(s.pn[b], s.pn[sec]);
