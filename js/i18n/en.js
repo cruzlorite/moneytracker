@@ -1417,4 +1417,6 @@ export default {
   'Precio, préstamo y valor de reventa': "Price, loan and resale value",
   'Máster público sin trabajar': "Public master's, not working",
   'Máster privado sin trabajar': "Private master's, not working",
+  'Máster público trabajando': "Public master's, while working",
+  'Máster privado trabajando': "Private master's, while working",
 };

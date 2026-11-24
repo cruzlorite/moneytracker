@@ -1589,8 +1589,9 @@ const CALC_TPL = () => ({
     cr('matr', 'Matrícula', 'o'), { ...cr('sueldo', 'Sueldo que dejas de cobrar mientras estudias', 'm'), to: 1 },
     { ...cr('subida', 'Subida de sueldo neta', 'm'), inc: true, from: 2, ag: 2 }], alts: [
     calt('Máster público sin trabajar', 0, ['none'], { matr: 1800, sueldo: 1600, subida: 250 }),
+    calt('Máster público trabajando', 0, ['none'], { matr: 1800, subida: 250 }),
     calt('Máster privado sin trabajar', 0, ['none'], { matr: 12000, sueldo: 1600, subida: 300 }),
-    calt('Máster mientras trabajas', 0, ['none'], { matr: 3000, subida: 250 }),
+    calt('Máster privado trabajando', 0, ['none'], { matr: 12000, subida: 300 }),
     calt('No hacerlo', 0, ['none'], {})] },
   phone: { grp: 'other', cat: 'tecnologia', label: t('Móvil'), years: 4, rows: [
     cr('funda', 'Funda y protector', 'o'), cr('seg', 'Seguro', 'y'), cr('otro', 'Otro móvil a los 2 años', '2')], alts: [
