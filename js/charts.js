@@ -274,10 +274,13 @@ export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = n
  */
 export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 }) {
   const W = CW, padL = 44, padR = 10, padT = 14, padB = 22, n = Math.max(1, (series[0]?.vals.length || 1) - 1);
-  const all = [0, ...series.flatMap((s) => s.vals)], mx = nice(Math.max(...all)) || 1, mn = Math.min(...all) < 0 ? -nice(-Math.min(...all)) : 0, ph = h - padT - padB;
-  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / (mx - mn) * ph;
+  // a finer rounding than nice(): a range of 63K ends at 80K, not 100K; lines only below zero (losses) get 0 on top
+  const fine = (v) => { if (v <= 0) return 0; const p = 10 ** Math.floor(Math.log10(v)), r = v / p; return [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find((f) => r <= f + 1e-9) * p; };
+  const all = [0, ...series.flatMap((s) => s.vals)], hi = Math.max(...all), lo = Math.min(...all);
+  const mx = hi > 0 ? fine(hi) : 0, mn = lo < 0 ? -fine(-lo) : 0, ph = h - padT - padB, span = mx - mn || 1;
+  const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / span * ph;
   const xs = Array.from({ length: n + 1 }, (_, i) => X(i));
-  const ticks = mn ? [mx, 0, mn] : [mx, mx / 2, 0];
+  const ticks = mn && mx ? [mx, 0, mn] : mn ? [0, mn / 2, mn] : [mx || 1, (mx || 1) / 2, 0];
   const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
   const step = Math.max(1, Math.ceil(n / 7));

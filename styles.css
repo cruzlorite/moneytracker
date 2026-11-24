@@ -1758,3 +1758,7 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 .calc-base { margin: 0; }
 @media (max-width: 420px) { .cm th, .cm td { padding: 7px 3px; } .cm td b { font-size: 14px; } .cm { font-size: 13px; } .cm-s { padding: 3px 7px; } }
 .calc-chart { align-content: start; }
+.calc-unit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 0 2px; }
+.calc-unit .seg { flex: none; } .calc-unit .seg button { padding: 6px 14px; }
+.calc-unit .fine { flex: 1 1 220px; min-width: 0; }
+#calc-res { display: grid; gap: 12px; }

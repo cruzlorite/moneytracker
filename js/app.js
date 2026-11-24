@@ -1664,11 +1664,13 @@ function calcTable(c) {
   ].join('');
   return `<div class="cg-wrap"><table class="cg">${head ? `<thead>${head}</thead>` : ''}<tbody>${body}</tbody><tfoot id="cg-foot">${calcFoot(c)}</tfoot></table></div>`;
 }
+/** The amounts in euros of each year, or (UI.calcReal) in today's euros: divided by the inflation of the years in between. */
+const calcEur = (c) => { const i = (+c.infl || 0) / 100; return (v, y) => (UI.calcReal ? v / (1 + i) ** y : v); };
 /** Under the table, as you type: what each one costs you in the scenario you are looking at. */
 function calcFoot(c, k = compare(c)) {
   const s = k.scen[c.sel]; if (!s) return '';
-  const N = c.alts.length, many = N > 1;
-  return `<tr><th scope="row"><span class="cg-l">${t('Lo que te cuesta en {n} años', { n: k.H })}</span><span class="cg-s">${t('al {r} · en euros de cada año', { r: pctx(s.ret) })}</span></th>${s.costFin.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b>${fmt0(v)}</b>${many && i === s.best ? `<span class="cm-b">${t('la más barata')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
+  const N = c.alts.length, many = N > 1, eur = calcEur(c);
+  return `<tr><th scope="row"><span class="cg-l">${t('Lo que te cuesta en {n} años', { n: k.H })}</span><span class="cg-s">${UI.calcReal ? t('al {r} · en euros de hoy', { r: pctx(s.ret) }) : t('al {r} · en euros de cada año', { r: pctx(s.ret) })}</span></th>${s.costFin.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b>${fmt0(eur(v, k.H))}</b>${many && i === s.best ? `<span class="cm-b">${t('la más barata')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
 }
 /** On a phone: one alternative at a time, chosen with tabs; the same fields. */
 function calcAltForm(c) {
@@ -1742,15 +1744,18 @@ function calcSpark(o, c) {
 function calcResult(c, k = compare(c)) {
   if (!c.alts.length || !k.scen.length) return '';
   const names = c.alts.map(altName), H = k.H, sel = Math.min(c.sel, k.scen.length - 1), s = k.scen[sel], many = names.length > 1;
-  const today = (v) => v / (1 + (+c.infl || 0) / 100) ** H;
+  const today = (v) => v / (1 + (+c.infl || 0) / 100) ** H, eur = calcEur(c), real = !!UI.calcReal, E = (v) => fmt0(eur(v, H));
+  const unit = `<div class="calc-unit"><span class="label">${t('Importes en euros de')}</span><div class="seg" role="group" aria-label="${t('Importes en euros de')}"><button type="button" data-act="calcreal" data-v="0" aria-pressed="${!real}">${t('cada año')}</button><button type="button" data-act="calcreal" data-v="1" aria-pressed="${real}">${t('hoy')}</button></div>
+    <span class="fine">${real ? t('Descontada la inflación ({p} al año): lo que se podría comprar hoy con ese dinero.', { p: pctx(+c.infl || 0) }) : t('Los euros de cada momento, sin descontar la inflación.')}</span></div>`;
   const matrix = `<div class="cm-wrap"><table class="cm"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
     <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i;
-      return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b>${fmt0(x.costFin[i])}</b>${many ? (best ? `<span class="cm-b">${t('la más barata')}</span>` : `<span class="cm-g">+${fmt0(x.costFin[i] - x.costFin[x.best])}</span>`) : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
+      return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b>${E(x.costFin[i])}</b>${many ? (best ? `<span class="cm-b">${t('la más barata')}</span>` : `<span class="cm-g">+${E(x.costFin[i] - x.costFin[x.best])}</span>`) : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
   // the verdict, in the scenario you chose, and what would change it
   const order = s.costFin.map((_, i) => i).sort((x, y) => s.costFin[x] - s.costFin[y]), b = order[0], sec = order[1];
   let verdict;
-  if (!many) verdict = t('Al {r}, en {n} años te cuesta {x} ({y} en euros de hoy).', { r: pctx(s.ret), n: H, x: fmt0(s.costFin[b]), y: fmt0(today(s.costFin[b])) });
+  if (!many) verdict = real ? t('Al {r}, en {n} años te cuesta {x} en euros de hoy.', { r: pctx(s.ret), n: H, x: E(s.costFin[b]) }) : t('Al {r}, en {n} años te cuesta {x} ({y} en euros de hoy).', { r: pctx(s.ret), n: H, x: fmt0(s.costFin[b]), y: fmt0(today(s.costFin[b])) });
   else if (s.costFin[sec] - s.costFin[b] < 1) verdict = t('Al {r}, {a} y {b} te cuestan lo mismo.', { r: pctx(s.ret), a: names[b], b: names[sec] });
+  else if (real) verdict = t('Al {r}, la más barata es {a}: en {n} años te cuesta {x}, {d} menos que {b}, en euros de hoy.', { r: pctx(s.ret), a: names[b], n: H, x: E(s.costFin[b]), d: E(s.costFin[sec] - s.costFin[b]), b: names[sec] });
   else verdict = t('Al {r}, la más barata es {a}: en {n} años te cuesta {x}, {d} menos que {b} ({e} en euros de hoy).', { r: pctx(s.ret), a: names[b], n: H, x: fmt0(s.costFin[b]), d: fmt0(s.costFin[sec] - s.costFin[b]), b: names[sec], e: fmt0(today(s.costFin[sec] - s.costFin[b])) });
   const notes = [];
   if (many) {
@@ -1764,10 +1769,11 @@ function calcResult(c, k = compare(c)) {
   const how = `<p class="fine calc-base">${t('Lo que te cuesta = lo que pagas + lo que ese dinero habría ganado invertido − lo que recuperas al venderlo. Comprar no cuesta el primer día lo que vale: cuesta lo que pierde después y lo que dejas de ganar. Supone que el dinero que no gastas lo inviertes de verdad.')}</p>`;
   // the years in between: what it would have cost you if you stopped (and sold) that year
   const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
-  const lines = s.cost, series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
+  // drawn as a loss: every line starts at 0 and goes down as the alternative costs you money (a line going up reads as a gain)
+  const lines = s.cost.map((w) => w.map((v, y) => -eur(v, y))), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
   const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: lines[0].map((_, y) => String(y)),
-    tips: lines[0].map((_, y) => tipx(lab(y), names.map((_, i) => i).sort((x, z) => lines[x][y] - lines[z][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: fmt0(lines[i][y]) })), t('lo que te habría costado si lo dejaras entonces'))),
-    aria: t('Lo que cuesta cada alternativa año a año') }));
+    tips: lines[0].map((_, y) => tipx(lab(y), names.map((_, i) => i).sort((x, z) => lines[z][y] - lines[x][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: fmt0(lines[i][y]) })), real ? t('lo que habrías perdido si lo dejaras entonces, en euros de hoy') : t('lo que habrías perdido si lo dejaras entonces'))),
+    aria: t('Lo que pierdes con cada alternativa año a año') }));
   const legend = `<div class="calc-leg">${names.map((nm, i) => `<span><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span>`).join('')}</div>`;
   // where each one's cost comes from, in the chosen scenario
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
@@ -1781,10 +1787,10 @@ function calcResult(c, k = compare(c)) {
     br(t('Lo que te cuesta'), (r, i) => `<b>${fmt0(s.costFin[i])}</b>`),
     br(t('En euros de hoy'), (r, i) => fmt0(today(s.costFin[i]))),
     br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Desglose al {r}', { r: pctx(s.ret) }));
-  return `<div class="calc-res-g"><section class="card calc-res"><h2>${t('Lo que te cuesta en {n} años', { n: H })}</h2>${matrix}
+  return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Lo que te cuesta en {n} años', { n: H })}</h2>${matrix}
       <p class="calc-verdict">${esc(verdict)}</p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brk}</section>
-    <section class="card calc-chart"><h2>${t('Año a año, al {r}', { r: pctx(s.ret) })}</h2>
-      <p class="fine">${t('Lo que te habría costado cada alternativa si la dejaras ese año (vendiendo y saldando el préstamo). Cuanto más sube la línea, más dinero pierdes. Donde se cruzan cambia la más barata.')}</p>${legend}${chart}
+    <section class="card calc-chart"><h2>${t('Lo que pierdes, año a año, al {r}', { r: pctx(s.ret) })}</h2>
+      <p class="fine">${t('Todas empiezan en 0. Cada año, cuánto dinero menos tendrías que sin gastar nada si la dejaras entonces (vendiendo y saldando el préstamo). Cuanto más baja la línea, más pierdes. Donde se cruzan cambia la más barata.')}</p>${legend}${chart}
       ${table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => fmt0(w[y]))]))}</section></div>`;
 }
 /** The chart's room: half the page beside the matrix on a computer, the card's width on a phone. */
@@ -2598,6 +2604,7 @@ function onAct(b, sure = false) {
     case 'calcaddret': { const c = UI.calc; if (c.rets.length >= CALC_MAX.rets) break; c.rets.push(Math.min(30, Math.max(...c.rets) + 2)); calcRedraw(`[data-cr="${c.rets.length - 1}"]`); calcChanged(); break; }
     case 'calcrmret': { const c = UI.calc, i = +b.dataset.i; if (c.rets.length < 2) break; c.rets.splice(i, 1); if (c.sel >= i && c.sel > 0) c.sel--; calcRedraw(); calcChanged(); break; }
     case 'calcsel': UI.calc.sel = +b.dataset.i; calcChanged(); break;
+    case 'calcreal': { UI.calcReal = b.dataset.v === '1'; const k = compare(UI.calc), box = $('#calc-res'); if (box) box.innerHTML = calcResult(UI.calc, k); const ft = $('#cg-foot'); if (ft) ft.innerHTML = calcFoot(UI.calc, k); break; }
     case 'calcval': openCalcVal(+b.dataset.i); break;
     case 'calcrows': openCalcRows(); break;
     case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
