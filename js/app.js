@@ -8,7 +8,7 @@ import {
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
 import { tco, cheapestOf, evenYear, evenReturn, valueAt } from './tco.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx, setChartWidth } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
@@ -172,14 +172,23 @@ function ensureFrame() {
     <div class="syncbar" id="syncbar" role="status" hidden></div>
     <main id="view" class="wrap"></main>
     <nav class="tabs" aria-label="${t('Secciones')}"><div class="in">
+      <div class="sidebrand" aria-hidden="true">${ic('coin')}<span>MoneyTracker</span></div>
       ${tab('home', t('Hoy'), 'home')}${tab('metas', t('Año'), 'year')}
       ${tab('ana', t('Análisis'), 'chart')}${tab('plan', t('Plan'), 'plan')}
       <button data-act="tab" data-tab="settings" id="navset">${ic('gear')}<i class="navdot" id="navdot" hidden></i><span>${t('Ajustes')}</span></button>
     </div></nav>
-    <button class="plusbtn fab" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}">${ic('plus')}</button>`;
+    <button class="plusbtn fab" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}">${ic('plus')}<span class="fab-l" aria-hidden="true">${t('Apuntar un gasto')}</span></button>`;
   // the + rides on the bar's real height (it changes with the phone's gesture area and the browser's own bars)
   const nav = $('nav.tabs'), setH = () => document.documentElement.style.setProperty('--navh', nav.offsetHeight + 'px');
   setH(); new ResizeObserver(setH).observe(nav); addEventListener('resize', setH);
+  // charts are drawn for the room they have: when the window changes enough to change it, draw them again
+  let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { const w = chartRoom(); if (setChartWidth(w) !== UI.chartW) render(); }, 200); });
+}
+/** The width inside a card in the main column (what a chart gets). */
+function chartRoom() {
+  const v = $('#view'); if (!v) return 0;
+  const cs = getComputedStyle(v);
+  return v.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 32;
 }
 
 // ---------- years: the plan year you are looking at (0 = the one in progress) ----------
@@ -224,6 +233,7 @@ function render(force) {
   UI.pending = false;
   UI.yearOff = clamp(UI.yearOff || 0, yearBounds().min, yearBounds().max);
   const m = ['metas', 'ana', 'plan'].includes(UI.tab) ? computeYear(UI.yearOff) : UI.tab === 'mes' ? mFor(UI.mesYM || compute(store.data).curYM) : compute(store.data);
+  UI.chartW = setChartWidth(chartRoom());
   const views = { home, mes, ana: analisis, metas, plan, settings, calc: calcView };
   view.innerHTML = (views[UI.tab] || home)(m);
   if (UI.lastTab !== UI.tab) {

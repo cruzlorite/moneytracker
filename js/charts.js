@@ -12,6 +12,11 @@ const nice = (v) => {
 };
 const compact = (v) => (Math.abs(v) >= 10000 ? Math.round(v / 1000) + 'K' : new Intl.NumberFormat(locale, { useGrouping: 'always' }).format(Math.round(v)));
 
+/** The width charts are drawn at, in the same units as their text: 340 on a phone; wider on a big screen, so a wide chart
+ * gets more room instead of bigger letters (they grow a little, up to 1.2×). */
+let CW = 340;
+export function setChartWidth(px) { CW = Math.round(Math.max(340, Math.min(640, (px || 0) / 1.2))); return CW; }
+
 /** A bar from y0 (baseline) to y1, rounded 4px at the data end only. */
 function colPath(x, w, y0, y1) {
   const up = y1 < y0, h = Math.abs(y0 - y1), r = Math.min(4, h, w / 2);
@@ -27,7 +32,7 @@ function colPath(x, w, y0, y1) {
  * limit: a reference line (a budget, the monthly target) · labels: indexes of the columns to label
  */
 export function columns({ cols, limit = null, limitLabel = '', labels = [], aria = '', h = 150 }) {
-  const W = 340, padL = 34, padR = 6, padT = 16, padB = 20;
+  const W = CW, padL = 34, padR = 6, padT = 16, padB = 20;
   const vals = cols.flatMap((c) => [c.value, c.mark]).filter((v) => v != null);
   const hi = nice(Math.max(0, ...vals, limit ?? 0)), lo = -nice(Math.max(0, ...vals.map((v) => -v)));
   const span = hi - lo || 1, ph = h - padT - padB;
@@ -52,7 +57,7 @@ export function columns({ cols, limit = null, limitLabel = '', labels = [], aria
 
 /** Two series side by side per month (e.g. what came in and what went out). */
 export function pairs({ cols, aria = '', h = 160 }) {
-  const W = 340, padL = 34, padR = 6, padT = 12, padB = 20;
+  const W = CW, padL = 34, padR = 6, padT = 12, padB = 20;
   const hi = nice(Math.max(1, ...cols.flatMap((c) => [c.a ?? 0, c.b ?? 0])));
   const ph = h - padT - padB, y = (v) => padT + (hi - v) / hi * ph;
   const band = (W - padL - padR) / cols.length, w = Math.min(11, (band - 6) / 2);
@@ -123,7 +128,7 @@ function curve(xs, ys, m, a, b) {
 }
 
 export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFrom = null }) {
-  const W = 340, padL = 38, padR = 12, padT = 22, padB = 20;
+  const W = CW, padL = 38, padR = 12, padT = 22, padB = 20;
   const ys = pts.map((p) => p.y);
   const hi = nice(Math.max(0, ...ys)), lo = -nice(Math.max(0, ...ys.map((v) => -v)));
   const span = hi - lo || 1, ph = h - padT - padB, n = pts.length - 1;
@@ -160,7 +165,7 @@ export function line({ pts, marks = [], aria = '', h = 170, xTicks = [], projFro
  */
 export function balanceLine({ pts, aria = '', h = 170 }) {
   if (pts.length < 2) return '';
-  const W = 340, padL = 44, padR = 12, padT = 22, padB = 22, n = pts.length - 1;
+  const W = CW, padL = 44, padR = 12, padT = 22, padB = 22, n = pts.length - 1;
   const vs = pts.map((p) => p.bal), mn = Math.min(...vs), mx = Math.max(...vs), pad = (mx - mn) * 0.12 || Math.max(50, Math.abs(mx) * 0.05);
   const lo = mn - pad, hi = mx + pad, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (hi - v) / (hi - lo) * ph;
@@ -217,7 +222,7 @@ export function bindBalance(show, hide) {
  * (the estimate). plan, real: arrays of the same length; labels: one per point (shown for a few).
  */
 export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = null, labels = [], tips = [], aria = '', h = 170 }) {
-  const W = 340, padL = 44, padR = 50, padT = 22, padB = 22, n = plan.length - 1;
+  const W = CW, padL = 44, padR = 50, padT = 22, padB = 22, n = plan.length - 1;
   const all = [...plan, ...real, 0], mx = Math.max(...all), mn = Math.min(...all), span = mx - mn || 1, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / span * ph;
   const xs = plan.map((_, i) => X(i)), pyP = plan.map((v) => Y(v)), pyR = real.map((v) => Y(v));
@@ -256,7 +261,7 @@ export function cumLines({ plan, real, projFrom = null, nowIdx = null, today = n
  * chart: the tooltip lists every option at that point. series: [{ vals, c (CSS colour) }]; labels/tips: one per point.
  */
 export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 }) {
-  const W = 340, padL = 44, padR = 10, padT = 14, padB = 22, n = Math.max(1, (series[0]?.vals.length || 1) - 1);
+  const W = CW, padL = 44, padR = 10, padT = 14, padB = 22, n = Math.max(1, (series[0]?.vals.length || 1) - 1);
   const all = [0, ...series.flatMap((s) => s.vals)], mx = nice(Math.max(...all)) || 1, mn = Math.min(...all) < 0 ? -nice(-Math.min(...all)) : 0, ph = h - padT - padB;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / (mx - mn) * ph;
   const xs = Array.from({ length: n + 1 }, (_, i) => X(i));
