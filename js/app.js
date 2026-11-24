@@ -1672,8 +1672,8 @@ function calcTable(c) {
   const row = (label, sub, cells, cls = '') => `<tr class="${cls}"><th scope="row"><span class="cg-l">${label}</span>${sub ? `<span class="cg-s">${sub}</span>` : ''}</th>${cells}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
   const each = (f) => c.alts.map((a, i) => f(a, i)).join('');
   const head = `<tr><th class="cg-corner" scope="col"><span class="sr">${t('Concepto')}</span></th>${each((a, i) => `<th scope="col" style="--tc:${CALC_C[i]}"><div class="cg-h"><i class="tcc-sw"></i><textarea class="cg-name" rows="1" data-ca="${i}" data-k="name" placeholder="${esc(altName({}, i))}" aria-label="${t('Nombre de la alternativa')}" autocomplete="off" maxlength="60">${esc(a.name)}</textarea>
-      ${N > 1 ? `<button type="button" class="iconbtn sm" data-act="calcrmalt" data-i="${i}" aria-label="${esc(t('Quitar {x}', { x: altName(a, i) }))}" title="${t('Quitar')}">${ic('x')}</button>` : ''}</div>
-      ${N < CALC_MAX.alts ? `<button type="button" class="cg-dup" data-act="calcdupalt" data-i="${i}">${t('Duplicar')}</button>` : ''}</th>`)}${N < CALC_MAX.alts ? `<th class="cg-add" scope="col"><button type="button" class="btn-sec sm" data-act="calcaddalt">+ ${t('Alternativa')}</button></th>` : ''}</tr>`;
+      </div>
+      <div class="cg-acts">${N < CALC_MAX.alts ? `<button type="button" class="cg-dup" data-act="calcdupalt" data-i="${i}">${t('Duplicar')}</button>` : ''}${N > 1 ? `<button type="button" class="cg-dup" data-act="calcrmalt" data-i="${i}" aria-label="${esc(t('Quitar {x}', { x: altName(a, i) }))}">${t('Quitar')}</button>` : ''}</div></th>`)}${N < CALC_MAX.alts ? `<th class="cg-add" scope="col"><button type="button" class="btn-sec sm" data-act="calcaddalt">+ ${t('Alternativa')}</button></th>` : ''}</tr>`;
   const sec = (label) => `<tr class="cg-sec"><th colspan="${span}" scope="colgroup">${label}</th></tr>`;
   const body = [
     sec(t('Compra')),
@@ -1691,7 +1691,8 @@ function calcTable(c) {
       ${each((a, i) => inp(i, `data-ca="${i}" data-rv="${esc(r.id)}"`, a.v?.[r.id], curSym, rowName(r)))}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`),
     c.rows.length < CALC_MAX.rows ? `<tr class="cg-addr"><th scope="row"><button type="button" class="linkbtn" data-act="calcaddrow">+ ${t('Añadir gasto o ingreso')}</button></th><td colspan="${span - 1}"></td></tr>` : '',
   ].join('');
-  return `<div class="cg-wrap"><table class="cg">${head ? `<thead>${head}</thead>` : ''}<tbody>${body}</tbody><tfoot id="cg-foot">${calcFoot(c)}</tfoot></table></div>`;
+  const cols = `<colgroup><col>${c.alts.map((_, i) => `<col class="cg-col" style="--tc:${CALC_C[i]}">`).join('')}${N < CALC_MAX.alts ? '<col>' : ''}</colgroup>`;
+  return `<div class="cg-wrap"><table class="cg">${cols}${head ? `<thead>${head}</thead>` : ''}<tbody>${body}</tbody><tfoot id="cg-foot">${calcFoot(c)}</tfoot></table></div>`;
 }
 /** The amounts in euros of each year, or (UI.calcReal) in today's euros: divided by the inflation of the years in between. */
 const calcEur = (c) => { const i = (+c.infl || 0) / 100; return (v, y) => (UI.calcReal ? v / (1 + i) ** y : v); };
@@ -1757,7 +1758,7 @@ function calcRowsBody(c) {
 function openCalcVal(i) {
   const a = UI.calc.alts[i]; if (!a) return;
   UI.calcValI = i;
-  dlg.innerHTML = `<div class="sheet" id="cv-sheet" style="--tc:${CALC_C[i]}"><div class="row between"><h2>${t('Valor con los años')} · ${esc(altName(a, i))}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
+  dlg.innerHTML = `<div class="sheet" id="cv-sheet" style="--tc:${CALC_C[i]}"><div class="row between"><h2 class="cv-h"><i class="tcc-sw"></i>${t('Valor con los años')} · ${esc(altName(a, i))}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div id="cv-body">${calcValBody(UI.calc, a)}</div><button type="button" class="primary big" data-act="dclose">${t('Listo')}</button></div>`;
   openDialog();
 }
@@ -1864,12 +1865,15 @@ function calcResult(c, k = cmpc(c)) {
     br(t('Ganancia o pérdida'), (r, i) => `<b>${sgn0(s.dpn[i])}</b>`),
     br(t('En euros de hoy'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K)),
     br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Cuentas de cada alternativa al {r}', { r: pctx(s.ret) }));
+  const brkC = swatchHeads(brk, names);
   return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Ganancia o pérdida de patrimonio en {n} años', { n: H })}</h2>${matrix}
-      <p class="calc-verdict">${esc(verdict)}</p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brk}</section>
+      <p class="calc-verdict">${many ? `<i class="tcc-sw" style="background:${CALC_C[b]}"></i>` : ''}<span>${esc(verdict)}</span></p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brkC}</section>
     <section class="card calc-chart"><h2>${t('Año a año, al {r}', { r: pctx(s.ret) })}</h2>
       <p class="fine">${t('Lo que ganarías o perderías con cada alternativa si la dejaras ese año: vendiendo (con sus gastos de venta) y saldando el préstamo. Por eso lo que compras empieza por debajo de 0: los impuestos y gastos de compra se pierden el primer día, y venderlo ese mismo día costaría además sus gastos de venta.')}</p>${legend}${chart}
-      ${table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => sgn0(w[y]))]))}</section></div>`;
+      ${swatchHeads(table([t('Año'), ...names], lines[0].map((_, y) => [y === 0 ? t('Al empezar') : String(y), ...lines.map((w) => sgn0(w[y]))])), names)}</section></div>`;
 }
+/** A table whose column heads are the alternatives: each head gets its colour swatch (the table helper escapes plain text). */
+const swatchHeads = (html, names) => names.reduce((h, nm, i) => h.replace(`<th>${esc(nm)}</th>`, `<th><span class="th-sw"><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span></th>`), html);
 /** The chart's room: half the page beside the matrix on a computer, the card's width on a phone. */
 function calcChartRoom() {
   const v = $('#view'); if (!v) return 0;
