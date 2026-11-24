@@ -1762,7 +1762,7 @@ function calcResult(c, k = compare(c)) {
   const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
   const series = s.wealth.map((w, i) => ({ vals: w, c: CALC_C[i] }));
   const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: s.wealth[0].map((_, y) => String(y)),
-    tips: s.wealth[0].map((_, y) => tipx(lab(y), names.map((nm, i) => ({ c: CALC_C[i], k: 'line', l: nm, v: fmt0(s.wealth[i][y]) })), t('patrimonio si lo dejaras entonces'))), aria: t('Patrimonio de cada alternativa año a año') }));
+    tips: s.wealth[0].map((_, y) => tipx(lab(y), names.map((nm, i) => ({ c: CALC_C[i], k: 'solid', l: nm, v: fmt0(s.wealth[i][y]) })), t('patrimonio si lo dejaras entonces'))), aria: t('Patrimonio de cada alternativa año a año') }));
   const legend = `<div class="calc-leg">${names.map((nm, i) => `<span><i class="tcc-sw" style="background:${CALC_C[i]}"></i>${esc(nm)}</span>`).join('')}</div>`;
   // where each one's money goes, in the chosen scenario
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
