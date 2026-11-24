@@ -1380,4 +1380,8 @@ export default {
   'Otras': "Others",
   'Cifras en euros de hoy ({p} al año).': "Figures in today's euros ({p} a year).",
   'Al vender, por tramos del ahorro (19–30 %).': "When selling, by savings bands (19–30 %).",
+  'Aparcamiento': "Parking",
+  'Taxi, VTC o coche compartido': "Taxi, ride-hailing or car sharing",
+  'Tren, autobús o avión en viajes': "Train, coach or plane on trips",
+  'Coche de alquiler para viajes': "Rental car for trips",
 };

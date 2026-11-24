@@ -1545,12 +1545,13 @@ const HOME_ROWS = () => [cr('compra', 'Impuestos y gastos de compra', 'o'), cr('
 const CALC_TPL = () => ({
   car: { grp: 'car', cat: 'coche', label: t('Comprar coche'), years: 8, rows: [
     cr('cuota', 'Cuota de renting (con seguro y mantenimiento)', 'm', true), { ...cr('seguro', 'Seguro', 'y'), ag: AGE_DOWN }, cr('comb', 'Combustible', 'm'), { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: AGE_UP },
-    cr('imp', 'Impuesto de circulación', 'y'), cr('neum', 'Neumáticos', '4'), cr('abono', 'Abono de transporte', 'm'), cr('taxi', 'Taxi, VTC o alquiler puntual', 'm')], alts: [
-    calt('Renting', 0, ['rate', -15], { cuota: 420, comb: 110 }),
-    calt('Nuevo', 25000, ['curve', 'carNew'], { seguro: 650, comb: 110, mant: 300, imp: 120, neum: 450 }),
-    { ...calt('Seminuevo', 18000, ['curve', 'carNew'], { seguro: 550, comb: 110, mant: 450, imp: 120, neum: 450 }), age: 2 },
-    { ...calt('Segunda mano', 9000, ['curve', 'carNew'], { seguro: 400, comb: 125, mant: 800, imp: 100, neum: 400 }), age: 8 },
-    calt('Transporte público', 0, ['rate', -15], { abono: 40, taxi: 80 })] },
+    cr('imp', 'Impuesto de circulación', 'y'), cr('neum', 'Neumáticos', '4'), cr('park', 'Aparcamiento', 'm'), cr('abono', 'Abono de transporte', 'm'), cr('taxi', 'Taxi, VTC o coche compartido', 'm'),
+    cr('viajes', 'Tren, autobús o avión en viajes', 'y'), cr('alqv', 'Coche de alquiler para viajes', 'y')], alts: [
+    calt('Renting', 0, ['rate', -15], { cuota: 420, comb: 110, park: 50 }),
+    calt('Nuevo', 25000, ['curve', 'carNew'], { seguro: 650, comb: 110, mant: 300, imp: 120, neum: 450, park: 50 }),
+    { ...calt('Seminuevo', 18000, ['curve', 'carNew'], { seguro: 550, comb: 110, mant: 450, imp: 120, neum: 450, park: 50 }), age: 2 },
+    { ...calt('Segunda mano', 9000, ['curve', 'carNew'], { seguro: 400, comb: 125, mant: 800, imp: 100, neum: 400, park: 50 }), age: 8 },
+    calt('Transporte público', 0, ['rate', -15], { abono: 40, taxi: 60, viajes: 500, alqv: 600 })] },
   // Housing, with standard Spanish figures (2026): resale price ≈2.800 €/m² and rent ≈15 €/m² a month (idealista, 2nd quarter;
   // gross yield ≈6,5 %); purchase taxes and fees ≈10 % second-hand (ITP 4–10 % by region + notary, registry, agency, valuation)
   // and ≈13 % new (IVA 10 % + AJD + fees); mortgages ≈3,1 % fixed over 25 years, 80 % financed (INE); IBI 0,4–1,1 % of the
