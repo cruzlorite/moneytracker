@@ -1345,4 +1345,5 @@ export default {
   'Lo bajan los gastos de uso, los intereses, los impuestos y gastos de compra y venta, y lo que pierde el bien con los años. Los gastos suben cada año con la inflación, salvo los de precio fijo; los que cambian con la edad suben (mantenimiento, reparaciones: un {u} % más al año) o bajan (seguro: un {d} % menos) además de la inflación. Lo suben su revalorización y lo que rinde el dinero que no gastas.': "Running costs, interest, purchase and sale taxes and fees, and what the thing loses over the years take it down. Costs rise every year with inflation, except fixed-price ones; those that change with age rise (maintenance, repairs: {u} % more a year) or fall (insurance: {d} % less) on top of inflation. Its appreciation and what the money you don't spend earns take it up.",
   'Aportación en casa': "Contribution at home",
   'Casa de los padres': "Parents' home",
+  'Lo que rinde o deja de rendir tu dinero': "What your money earns or stops earning",
 };

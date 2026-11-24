@@ -1821,7 +1821,7 @@ function calcResult(c, k = compare(c)) {
   // the accounts of each alternative, in the chosen scenario: where the gain or loss comes from
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
   const brk = table([t('Concepto'), ...names], [
-    br(t('Rentabilidad de lo invertido'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost)),
+    br(t('Lo que rinde o deja de rendir tu dinero'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost)),
     br(t('Revalorización o depreciación'), (r) => sgn0(r.value - r.price)),
     br(t('Gastos de uso'), (r) => sgn0(-r.running)),
     br(t('Pagos únicos (impuestos, matrícula…)'), (r) => sgn0(-r.once)),
