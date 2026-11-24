@@ -58,14 +58,30 @@ test('the sheet keeps the language and currency of the device', () => {
   assert.equal(back.settings.cur, 'GBP');
 });
 
-test('saved cost comparisons survive the sheet', () => {
-  const calc = { id: 'calc-1', name: 'Coche', at: '2026-11-17', years: 8, infl: 2.5, ret: 4, opts: [
-    { name: 'Nuevo', price: 24000, vm: 'curve', dep: 0, vc: 'carNew', fin: true, loan: 18000, rate: 7, term: 72, costs: [{ n: 'Seguro', a: 550, f: 'y' }] },
-    { name: 'Usado', price: 11000, vm: 'rate', dep: -10, fin: false, loan: 0, rate: 0, term: 0, costs: [{ n: 'Gasolina', a: 130, f: 'm' }, { n: 'ITV', a: 40, f: '2' }, { n: 'Cambio', a: 300, f: 'o' }] }] };
+test('saved decisions survive the sheet', () => {
+  const calc = { id: 'calc-1', name: 'Coche', at: '2026-11-17', years: 8, infl: 2.5, rets: [3, 5, 10], sel: 1,
+    rows: [{ id: 'r1', n: 'Seguro', f: 'y' }, { id: 'r2', n: 'Gasolina', f: 'm' }, { id: 'r3', n: 'Cuota', f: 'm', fix: true }, { id: 'r4', n: 'Matrícula', f: 'o' }],
+    alts: [
+      { name: 'Nuevo', price: 24000, vm: 'curve', dep: 0, vc: 'carNew', loan: 18000, rate: 7, term: 72, v: { r1: 550, r2: 110, r4: 300 } },
+      { name: 'Usado', price: 11000, vm: 'rate', dep: -10, sellc: 3, loan: 0, rate: 0, term: 0, v: { r1: 450, r2: 130 } },
+      { name: 'Renting', price: 0, vm: 'none', dep: 0, loan: 0, rate: 0, term: 0, v: { r3: 420, r2: 110 } }] };
   const d = base({ calcs: [calc] });
   const rows = toRows(d);
   const back = parseSheet(Object.entries(TABS).map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
   assert.deepEqual(back.calcs, [calc]);
   const none = parseSheet(Object.entries(TABS).filter(([k]) => k !== 'calcs').map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
   assert.deepEqual(none.calcs, []); // a sheet made before the calculator
+});
+
+test('a comparison saved by the older version reads as a decision: its costs become shared rows', () => {
+  const head = TABS.calcs.head;
+  const old = [{ name: 'Nuevo', price: 24000, vm: 'curve', dep: 0, vc: 'carNew', fin: true, loan: 18000, rate: 7, term: 72, costs: [{ n: 'Seguro', a: 550, f: 'y' }, { n: 'Gasolina', a: 110, f: 'm' }] },
+    { name: 'Usado', price: 11000, vm: 'rate', dep: -10, fin: false, loan: 9000, rate: 5, term: 48, costs: [{ n: 'gasolina ', a: 130, f: 'm' }, { n: 'ITV', a: 40, f: '2' }] }];
+  const rows = toRows(base());
+  rows.calcs = [head, ['calc-9', 'Coche', '2026-01-01', 8, 2.5, 4, JSON.stringify(old)]];
+  const [c] = parseSheet(Object.entries(TABS).map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] }))).calcs;
+  assert.deepEqual(c.rets, [4]); assert.equal(c.sel, 0);
+  assert.deepEqual(c.rows, [{ id: 'r1', n: 'Seguro', f: 'y' }, { id: 'r2', n: 'Gasolina', f: 'm' }, { id: 'r3', n: 'ITV', f: '2' }]);
+  assert.deepEqual(c.alts.map((a) => a.v), [{ r1: 550, r2: 110 }, { r2: 130, r3: 40 }]);
+  assert.deepEqual(c.alts.map((a) => [a.loan, a.term]), [[18000, 72], [0, 0]]); // a loan that was switched off stays off
 });

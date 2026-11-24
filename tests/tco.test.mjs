@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tco, cheapestOf, evenYear, evenReturn, valueAt, CURVES } from '../js/tco.js';
+import { tco, cheapestOf, evenYear, evenReturn, valueAt, CURVES, compare, optOf, aheadFrom } from '../js/tco.js';
 
 const near = (a, b, eps = 0.05) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const car = { price: 20000, dep: -10, fin: true, loan: 15000, rate: 6, term: 60, costs: [{ n: 'Seguro', a: 500, f: 'y' }, { n: 'Gasolina', a: 100, f: 'm' }, { n: 'Matrícula', a: 300, f: 'o' }] };
@@ -64,4 +64,45 @@ test('resale value: each mode', () => {
   const v5 = valueAt({ ...P, vm: 'curve', vc: 'carNew' }, 5, 5) / 10000;
   assert.ok(v5 > 0.4 && v5 < 0.6, String(v5));
   assert.ok(Object.values(CURVES).every((c) => c.every((x) => x > 0 && x < 100)));
+});
+
+// ---------- decisions: the same money for everyone, what is not spent is invested ----------
+const dec = (rets = [0, 5]) => ({ years: 8, infl: 2, rets, sel: 0,
+  rows: [{ id: 's', n: 'Seguro', f: 'y' }, { id: 'g', n: 'Gasolina', f: 'm' }, { id: 'a', n: 'Abono', f: 'm', fix: true }],
+  alts: [{ name: 'Coche', price: 20000, vm: 'rate', dep: -12, loan: 10000, rate: 6, term: 60, v: { s: 500, g: 100 } },
+    { name: 'Bus', price: 0, vm: 'none', loan: 0, rate: 0, term: 0, v: { a: 50 } }] });
+
+test('an alternative becomes an option with the decision\'s rows and its own amounts', () => {
+  const o = optOf(dec().alts[1], dec().rows);
+  assert.equal(o.fin, false);
+  assert.deepEqual(o.costs.map((x) => [x.n, x.a, x.f, !!x.fix]), [['Seguro', 0, 'y', false], ['Gasolina', 0, 'm', false], ['Abono', 50, 'm', true]]);
+  assert.equal(optOf({ loan: 5000, term: 0 }, []).fin, false); // no term, no loan
+});
+
+test('everyone starts with the same money; at 0 % the wealth gap is exactly the gap in what they cost', () => {
+  const c = dec([0]), k = compare(c), s = k.scen[0];
+  const tot = k.base.map((b) => b.total);
+  near(s.fin[1] - s.fin[0], tot[0] - tot[1], 0.05);
+  assert.equal(k.K, k.base[0].cf[0]); // the dearest first day: the car's down payment
+  near(s.wealth[0][0], s.wealth[1][0], 0.01); // on day one nobody is richer: the car is worth what it cost
+  near(k.put, k.base.reduce((m, b) => Math.max(m, b.cf[0]), 0) + Array.from({ length: k.M }, (_, i) => Math.max(...k.base.map((b) => b.cf[i + 1]))).reduce((x, y) => x + y, 0), 0.05);
+});
+
+test('with a return, ranking by wealth is ranking by cost in today\'s money, and the gap grows with it', () => {
+  const c = dec([3, 8]), k = compare(c);
+  for (const s of k.scen) {
+    const pv = k.os.map((o) => tco(o, c, s.ret).pv), g = (1 + s.ret / 100) ** k.H;
+    near(s.fin[1] - s.fin[0], (pv[0] - pv[1]) * g, 1); // future value of the difference in present cost
+    assert.equal(s.best, pv[1] < pv[0] ? 1 : 0);
+  }
+  assert.ok(k.scen[1].fin[1] - k.scen[1].fin[0] > k.scen[0].fin[1] - k.scen[0].fin[0]);
+});
+
+test('identical alternatives leave identical wealth; aheadFrom finds when one line stays above', () => {
+  const c = dec([5]); c.alts = [c.alts[0], { ...c.alts[0], name: 'Igual' }];
+  const s = compare(c).scen[0];
+  assert.deepEqual(s.wealth[0], s.wealth[1]);
+  assert.equal(aheadFrom([0, 1, 3, 5], [0, 2, 2, 4]), 2);
+  assert.equal(aheadFrom([0, 1, 1], [0, 0, 2]), null);
+  assert.equal(aheadFrom([5, 5], [1, 1]), 0);
 });

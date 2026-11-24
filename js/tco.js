@@ -76,10 +76,57 @@ export function tco(o, c, retOverride = null) {
   const total = paid[M] + exitAt(H), pv = pvPaid[M] + exitAt(H) * disc(M);
   const month = rm ? pv * rm / (1 - (1 + rm) ** -M) : pv / M; // the fixed monthly payment worth the same as all of it
   return {
+    cf, exit: Array.from({ length: H + 1 }, (_, k) => exitAt(k)), // for compare(): what leaves your pocket each month, and what selling costs (−: gives) each year
     H, M, price: P, loan: F, sellCost: r2(worth(H) * sc), pay: r2(pay), interest: r2(pay * Math.min(n, M) + owedAt(M) - F), owed: r2(owedAt(M)), value: r2(worth(H)),
     running: r2(running), once: r2(once), total: r2(total), pv: r2(pv), month: r2(month), sell,
     out: Array.from({ length: H + 1 }, (_, k) => r2(paid[12 * k])), // money paid by the end of each year (nothing sold)
   };
+}
+
+/**
+ * A decision's alternative ({ name, price, value mode…, loan, rate, term, v: { rowId: amount } }) as an option for tco():
+ * the decision's concepts (rows: { id, n, f, fix }) with this alternative's amounts. A loan counts when it has an amount and a term.
+ */
+export function optOf(a, rows = []) {
+  const loan = pos(a?.loan), term = Math.round(pos(a?.term));
+  return { ...a, fin: !!(loan && term), loan, rate: pos(a?.rate), term, costs: rows.map((r) => ({ n: r.n, a: pos(a?.v?.[r.id]), f: r.f, ...(r.fix ? { fix: true } : {}) })) };
+}
+
+/**
+ * The opportunity cost made explicit. Every alternative starts with the same money: what the dearest one needs on day one,
+ * and each month what the dearest one needs that month. Whatever an alternative doesn't spend is invested at the scenario's
+ * return; at the end (or any year) it has those investments plus what the thing is worth, minus what is still owed.
+ * c: { years, infl, rets: [%…], rows, alts }. For each return, wealth[i][k] is alternative i's wealth after k years
+ * (if it sold then), in euros of that year. Ranking by final wealth is the same as ranking by cost in today's money.
+ */
+export function compare(c) {
+  const os = (c.alts || []).map((a) => optOf(a, c.rows));
+  const base = os.map((o) => tco(o, c));
+  if (!base.length) return { H: 0, M: 0, os, base, K: 0, put: 0, scen: [] };
+  const { H, M } = base[0];
+  const K = Math.max(...base.map((b) => b.cf[0])); // what the dearest one needs the first day
+  const B = [0]; let put = K;
+  for (let m = 1; m <= M; m++) { B.push(Math.max(...base.map((b) => b.cf[m]))); put += B[m]; }
+  const scen = (c.rets || []).map((ret) => {
+    const rm = (1 + (+ret || 0) / 100) ** (1 / 12) - 1;
+    const runs = base.map((b) => {
+      let P = K - b.cf[0];
+      const w = [r2(P - b.exit[0])];
+      for (let m = 1; m <= M; m++) { P = P * (1 + rm) + (B[m] - b.cf[m]); if (m % 12 === 0) w.push(r2(P - b.exit[m / 12])); }
+      return { w, port: r2(P) };
+    });
+    const wealth = runs.map((x) => x.w), fin = wealth.map((w) => w[H]);
+    return { ret: +ret || 0, wealth, port: runs.map((x) => x.port), fin, best: fin.reduce((b, v, i) => (v > fin[b] ? i : b), 0) };
+  });
+  return { H, M, os, base, K: r2(K), put: r2(put), scen };
+}
+
+/** The year from which wealth line `a` stays at or above `b` (0: always; null: not at the end). */
+export function aheadFrom(a, b) {
+  let k = a.length - 1;
+  if (a[k] < b[k]) return null;
+  while (k > 0 && a[k - 1] >= b[k - 1]) k--;
+  return k;
 }
 
 /** The index of the cheapest option (in today's money). */

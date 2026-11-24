@@ -29,6 +29,9 @@ const rnd = (n) => (curDecimals ? Math.round((+n || 0) * 100) / 100 : Math.round
 export const fmtN = (n) => nf.format(rnd(n));
 /** Money in the chosen currency and the language's way of writing it: "1.680,60 €", "€1,680.60", "$1,680.60". */
 export const fmt = (n) => money.format(rnd(n)).replace(/\u00a0/g, ' ');
+/** Whole amounts, for big figures compared side by side (41.200 €): cents would only add noise. */
+const money0 = new Intl.NumberFormat(locale, { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0, useGrouping: 'always' });
+export const fmt0 = (n) => money0.format(Math.round(+n || 0)).replace(/\u00a0/g, ' ').replace(/^-/, '−');
 export const fmtSigned = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + fmt(Math.abs(n));
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const uid = (p = 'x') => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -652,30 +655,61 @@ export function normSpend(e) {
 }
 
 /**
- * Saved cost-of-ownership comparisons: { id, name, at, years, infl (% a year the costs go up), ret (% a year the money would earn
- * invested, net), opts: [option] }. An option: price, dep (% its value changes a year: −15 loses, +2 gains), financing, and
- * costs { n, a, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10' every that many years, fix: true if its price does
- * not go up with inflation (a lease, a fixed-rate contract) }.
+ * Saved decisions (what to do about something: buy a car, rent or buy a home): { id, name, at, years, infl (% a year costs go up),
+ * rets: [% a year the money would earn invested, net — one per scenario], sel (the scenario shown), rows, alts }.
+ * rows: the concepts every alternative is compared on { id, n, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10'
+ * every that many years, fix: true if it does not go up with inflation (a lease) }.
+ * alts: the alternatives { name, price, how it keeps its value (vm, dep, vc, ve, life), sellc (% it costs to sell), a loan
+ * (loan, rate, term in months; none when 0), v: { rowId: amount } }.
+ * Saved by an older version (one list of costs per option, one return): the costs become shared rows, the return one scenario.
  */
 export const CALC_FREQ = ['m', 'y', '2', '3', '4', '5', '6', '8', '10', 'o'];
+export const CALC_MAX = { alts: 6, rows: 30, rets: 4 };
 export function normCalcs(arr) {
   if (!Array.isArray(arr)) return [];
   const n = (v) => Math.max(0, num(v) ?? 0), lim = (v, a, b, d) => { const x = num(v); return x == null ? d : Math.min(b, Math.max(a, x)); };
-  return arr.filter((c) => c && c.id).map((c) => {
-    const years = Math.min(50, Math.max(1, Math.round(n(c.years) || n(c.opts?.[0]?.years) || 5)));
+  const freq = (f) => (CALC_FREQ.includes(String(f)) ? String(f) : 'm');
+  const alt = (o, years, v) => {
+    // saved long ago: what it was worth at the end, in % of the price → the yearly change that gets there
+    const dep = num(o?.dep) != null ? lim(o.dep, -100, 50, 0) : num(o?.residual) != null ? Math.round(((Math.min(100, n(o.residual)) / 100) ** (1 / years) - 1) * 1000) / 10 : 0;
+    const fin = o?.fin === undefined ? true : !!o.fin; // the old shape had a switch; now a loan is simply an amount and a term
     return {
-      id: String(c.id), name: String(c.name || '').slice(0, 80), at: String(c.at || ''), years,
-      infl: lim(c.infl, -5, 30, 2.5), ret: lim(c.ret, -10, 30, 4),
-      opts: (Array.isArray(c.opts) ? c.opts : []).slice(0, 4).map((o) => {
-        // saved before: what it was worth at the end, in % of the price → the yearly change that gets there
-        const dep = num(o?.dep) != null ? lim(o.dep, -100, 50, 0) : num(o?.residual) != null ? Math.round(((Math.min(100, n(o.residual)) / 100) ** (1 / years) - 1) * 1000) / 10 : 0;
-        return {
-          name: String(o?.name || '').slice(0, 60), price: n(o?.price), vm: ['curve', 'rate', 'end', 'linear', 'none'].includes(o?.vm) ? o.vm : 'rate', dep,
-          ...(o?.vc ? { vc: String(o.vc) } : {}), ...(n(o?.ve) ? { ve: n(o.ve) } : {}), ...(n(o?.life) ? { life: Math.min(50, n(o.life)) } : {}), ...(n(o?.sellc) ? { sellc: Math.min(100, n(o.sellc)) } : {}),
-          fin: !!o?.fin, loan: n(o?.loan), rate: n(o?.rate), term: Math.round(n(o?.term)),
-          costs: (Array.isArray(o?.costs) ? o.costs : []).map((x) => ({ n: String(x?.n || '').slice(0, 60), a: n(x?.a), f: CALC_FREQ.includes(String(x?.f)) ? String(x.f) : 'm', ...(x?.fix ? { fix: true } : {}) })),
-        };
-      }),
+      name: String(o?.name || '').slice(0, 60), price: n(o?.price), vm: ['curve', 'rate', 'end', 'linear', 'none'].includes(o?.vm) ? o.vm : 'rate', dep,
+      ...(o?.vc ? { vc: String(o.vc) } : {}), ...(n(o?.ve) ? { ve: n(o.ve) } : {}), ...(n(o?.life) ? { life: Math.min(50, n(o.life)) } : {}), ...(n(o?.sellc) ? { sellc: Math.min(100, n(o.sellc)) } : {}),
+      loan: fin ? n(o?.loan) : 0, rate: fin ? Math.min(50, n(o?.rate)) : 0, term: fin ? Math.min(600, Math.round(n(o?.term))) : 0, v,
+    };
+  };
+  return arr.filter((c) => c && c.id).map((c0) => {
+    const c = c0.opts && typeof c0.opts === 'object' && !Array.isArray(c0.opts) ? { ...c0, ...c0.opts } : c0; // from the sheet: the details travel in one cell
+    const years = Math.min(50, Math.max(1, Math.round(n(c.years) || n(c.opts?.[0]?.years) || 5)));
+    let rows = [], alts = [];
+    if (Array.isArray(c.alts)) {
+      const seen = new Set();
+      rows = (Array.isArray(c.rows) ? c.rows : []).filter((r) => r && /^[\w-]{1,16}$/.test(String(r.id)) && !seen.has(String(r.id)) && seen.add(String(r.id)))
+        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.fix && r.f !== 'o' ? { fix: true } : {}) }));
+      alts = c.alts.slice(0, CALC_MAX.alts).map((a) => {
+        const v = {};
+        for (const r of rows) { const x = n(a?.v?.[r.id]); if (x) v[r.id] = x; }
+        return alt(a, years, v);
+      });
+    } else {
+      // one list of costs per option → shared concepts: the same name, frequency and kind is the same row
+      const key = new Map();
+      alts = (Array.isArray(c.opts) ? c.opts : []).slice(0, CALC_MAX.alts).map((o) => {
+        const v = {};
+        for (const x of Array.isArray(o?.costs) ? o.costs : []) {
+          const nm = String(x?.n || '').slice(0, 60), f = freq(x?.f), fix = !!x?.fix && f !== 'o', k = `${nm.trim().toLowerCase()}|${f}|${fix}`;
+          if (!key.has(k)) { if (rows.length >= CALC_MAX.rows) continue; const id = 'r' + (rows.length + 1); key.set(k, id); rows.push({ id, n: nm, f, ...(fix ? { fix: true } : {}) }); }
+          const id = key.get(k); v[id] = (v[id] || 0) + n(x?.a);
+        }
+        return alt(o, years, v);
+      });
+      for (const a of alts) a.v = Object.fromEntries(rows.filter((r) => a.v[r.id]).map((r) => [r.id, a.v[r.id]])); // in the rows' order
+    }
+    const rets = [...new Set((Array.isArray(c.rets) && c.rets.length ? c.rets : [c.ret ?? 4]).map((r) => lim(r, -10, 30, 4)))].slice(0, CALC_MAX.rets);
+    return {
+      id: String(c.id), name: String(c.name || '').slice(0, 80), at: String(c.at || ''), years, infl: lim(c.infl, -5, 30, 2.5),
+      rets, sel: Math.min(rets.length - 1, Math.max(0, Math.round(num(c.sel) ?? 0))), rows, alts,
     };
   });
 }
