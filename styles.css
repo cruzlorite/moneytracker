@@ -1409,10 +1409,8 @@ dialog .sheet { overscroll-behavior: contain; }
 .ss-st { text-align: right; font-weight: 700; }
 
 /* columns for months still to come: the same colour, light and outlined, read as an estimate */
-.ch-pcol { fill-opacity: .28; stroke-width: 1.4; stroke-dasharray: 3 2; }
-.ch-pcol.ch-in { stroke: var(--s1); } .ch-pcol.ch-out { stroke: var(--s2); }
-.ch-pcol.ch-1 { stroke: var(--s1); }
-.lg-est { display: inline-block; width: 12px; height: 10px; border-radius: 2px; border: 1.4px dashed var(--muted); margin-right: 6px; vertical-align: -1px; }
+/* estimated columns: hatched like every other estimate (the stripes come from a mask in the chart) */
+.ch-pcol { stroke: none; }
 .ss-part i.ss-assumed { background: repeating-linear-gradient(135deg, var(--c) 0 3px, color-mix(in srgb, var(--c) 35%, var(--panel)) 3px 6px); }
 .ss-n { display: grid; } .ss-n .fine { font-size: 11.5px; }
 .ss-n { display: block; } .ss-note { margin: -2px 0 2px 20px; font-size: 11.5px; }
@@ -1598,8 +1596,8 @@ dialog .sheet { overscroll-behavior: contain; }
 
 /* ================= wide screens (a computer, a tablet on its side) =================
    The phone layout stays as it is; from 960px the tabs become a sidebar with the name, the column grows a little and stays
-   centred in the space left, and the + turns into a labelled button at the column's bottom right. */
-.sidebrand, .fab-l { display: none; }
+   centred in the space left, and the + moves to the margin beside it. */
+.sidebrand { display: none; }
 @media (min-width: 960px) {
   :root { --side: 232px; --col: 704px; --nav-h: 0px; }
   #app { padding-left: var(--side); }
@@ -1619,14 +1617,26 @@ dialog .sheet { overscroll-behavior: contain; }
   #navset { margin-top: auto; }
   .navdot { top: 6px; left: 26px; }
 
-  .plusbtn.fab { width: auto; height: 48px; padding: 0 20px 0 16px; border-radius: 24px; display: inline-flex !important; gap: 8px; font-size: 15px; font-weight: 600;
-    right: auto; bottom: 28px; left: calc(var(--side) + (100% - var(--side) + var(--col)) / 2 - 24px); translate: -100% 0; }
-  .plusbtn.fab svg { width: 20px; height: 20px; }
-  .fab-l { display: inline; }
+  /* the + sits in the margin just right of the column when there is room, so it covers nothing */
+  .plusbtn.fab { right: auto; bottom: 28px; left: min(calc(var(--side) + (100% - var(--side) + var(--col)) / 2 + 8px), calc(100% - 72px)); }
   #toast { left: calc(var(--side) + (100% - var(--side)) / 2); bottom: 96px; }
   #updbar { left: calc(var(--side) + 16px); right: 16px; max-width: 640px; margin: 0 auto; }
   .syncbar { padding: 10px 24px; }
 }
+/* dialogs once they are no longer a sheet at the bottom: rounded all round (the phone rule above squares the bottom) */
+@media (min-width: 600px) { .sheet, dialog.full .sheet { border-radius: 22px; } }
+/* on a computer they open over the column (not over the sidebar), with more air, and appear in place instead of sliding up;
+   the tall ones only take the height they need */
+@media (min-width: 960px) {
+  dialog { translate: calc(var(--side) / 2) 0; max-height: calc(100dvh - 64px); }
+  dialog[open] { animation: dlgIn .18s cubic-bezier(.2, .8, .2, 1); }
+  .sheet { padding: 20px 24px 24px; gap: 14px; max-height: calc(100dvh - 64px); box-shadow: 0 24px 64px -12px rgb(0 0 0 / .35); }
+  dialog.full .sheet { min-height: 0; max-height: calc(100dvh - 64px); }
+  dialog#confirm { max-width: 400px; }
+  dialog#confirm .sheet { padding: 22px 24px; }
+}
+@keyframes dlgIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+
 /* with a mouse: what can be pressed says so when you go over it */
 @media (hover: hover) and (pointer: fine) {
   nav.tabs button:not([aria-current="page"]):hover { background: var(--panel-2); color: var(--ink); }

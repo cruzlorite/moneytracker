@@ -8,7 +8,7 @@ import {
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
 import { tco, cheapestOf, evenYear, evenReturn, valueAt } from './tco.js';
-import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx, setChartWidth } from './charts.js';
+import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx, setChartWidth, withChartWidth } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
@@ -177,7 +177,7 @@ function ensureFrame() {
       ${tab('ana', t('Análisis'), 'chart')}${tab('plan', t('Plan'), 'plan')}
       <button data-act="tab" data-tab="settings" id="navset">${ic('gear')}<i class="navdot" id="navdot" hidden></i><span>${t('Ajustes')}</span></button>
     </div></nav>
-    <button class="plusbtn fab" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}">${ic('plus')}<span class="fab-l" aria-hidden="true">${t('Apuntar un gasto')}</span></button>`;
+    <button class="plusbtn fab" id="fab" data-act="quick" aria-label="${t('Apuntar un gasto')}" title="${t('Apuntar un gasto')}">${ic('plus')}</button>`;
   // the + rides on the bar's real height (it changes with the phone's gesture area and the browser's own bars)
   const nav = $('nav.tabs'), setH = () => document.documentElement.style.setProperty('--navh', nav.offsetHeight + 'px');
   setH(); new ResizeObserver(setH).observe(nav); addEventListener('resize', setH);
@@ -1462,13 +1462,13 @@ function analisis(m) {
 
   <section class="card" aria-label="${t('Ahorro cada mes')}">
     <h2>${t('Ahorro cada mes')} ${info('ahorradoMes')}</h2>
-    <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span><span><i class="lg-est"></i>${t('estimado')}</span></div>
+    <div class="legend"><span><span class="swatches" aria-hidden="true"><i class="sv-red"></i><i class="sv-yellow"></i><i class="sv-lite"></i><i class="sv-deep"></i></span>${t('ahorrado (de peor a mejor)')}</span><span><i class="lg-tick"></i>${t('planificado del mes')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('estimado')}</span></div>
     ${columns({ cols: left, labels: lastI >= 0 ? [lastI] : [], aria: t('Ahorrado / planificado de cada mes') })}
     ${table([t('Mes'), t('Ahorrado'), t('Planificado'), t('Diferencia')], sm.map(({ ym }, i) => [esc(cap(ymLabel(ym))), left[i].value == null ? '—' : fmt(left[i].value), fmt(m.targetOf(ym)), left[i].value == null ? '—' : diffCell(left[i].value, m.targetOf(ym), 'good')]))}
   </section>
 
   <section class="card" aria-label="${t('Ingresos y gastos')}">
-    <div class="row between"><h2>${t('Ingresos y gastos')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span><span><i class="lg-est"></i>${t('estimado')}</span></span></div>
+    <div class="row between"><h2>${t('Ingresos y gastos')}</h2><span class="legend"><span><i class="sw ch-in"></i>${t('ingresado')}</span><span><i class="sw ch-out"></i>${t('gastado')}</span><span><i class="lg-proj" style="--pc: var(--muted)"></i>${t('estimado')}</span></span></div>
     ${pairs({ cols: io, aria: t('Ingresos y gastos de cada mes') })}
     ${table([t('Mes'), t('Ingresado'), t('Gastado'), t('Diferencia')], sm.map(({ ym, has }) => [esc(cap(ymLabel(ym))), fmt(m.incomeTo(ym)), has ? fmt(outOfM(ym)) : '—', has ? diffCell(m.incomeTo(ym), outOfM(ym), 'good') : '—']))}
   </section>`;
@@ -2027,10 +2027,12 @@ function closeCalc() {
       return `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explica lo apuntado.', { x: fmt(x) })} ${pend ? t('¿Alguno de los de arriba no ocurrió o costó menos? Desmárcalo o corrige su importe.') : t('Puede ser un ingreso que no apuntaste.')}</p>`;
     })()}
     <p class="cl-line">${r.save > 0.5 ? t('Pasaste {x} al ahorro.', { x: `<b>${fmt(r.save)}</b>` }) + ' ' : ''}${savedM >= -0.5 ? t('Aportas {x} a tu ahorro.', { x: `<b class="c-ok">${fmt(savedM)}</b>` }) : t('Consumes {x} de tu ahorro.', { x: `<b class="c-spend">${fmt(-savedM)}</b>` })}</p>
-    ${moneyChart(m, ym, bal)}
+    ${inSheet(() => moneyChart(m, ym, bal))}
     <button class="primary" data-act="closeset" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>`;
 }
 /** The month's money as a line: 0 on day 1, up when the pay comes in, down as it goes. */
+/** Charts inside a dialog are drawn for the dialog's width, not the page's. */
+const inSheet = (fn) => withChartWidth(Math.min(560, innerWidth) - (innerWidth >= 960 ? 48 : 32) - 32, fn);
 function moneyChart(m, ym, bal) {
   const live = bal == null, cv = live ? m.curveNow(ym) : m.curveOf(ym, bal);
   if (!cv) return '';
@@ -2478,7 +2480,7 @@ function onAct(b, sure = false) {
     case 'catdetail': case 'linedetail': {
       if (UI.ptr && UI.ptr !== 'mouse' && !UI.wasTip && b.dataset.tip) break; // first tap: its tooltip (shown on pointerdown); the next one opens the detail
       hideTip();
-      if (act === 'catdetail') openCatDetail(b.dataset.cat); else openLineDetail(b.dataset.kind);
+      inSheet(() => (act === 'catdetail' ? openCatDetail(b.dataset.cat) : openLineDetail(b.dataset.kind)));
       break;
     }
     case 'movesall': UI.movesAll = true; render(true); break;

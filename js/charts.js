@@ -16,6 +16,16 @@ const compact = (v) => (Math.abs(v) >= 10000 ? Math.round(v / 1000) + 'K' : new 
  * gets more room instead of bigger letters (they grow a little, up to 1.2×). */
 let CW = 340;
 export function setChartWidth(px) { CW = Math.round(Math.max(340, Math.min(640, (px || 0) / 1.2))); return CW; }
+/** Draws with `fn` for another room (a dialog is narrower than the page), then goes back. */
+export function withChartWidth(px, fn) { const keep = CW; setChartWidth(px); try { return fn(); } finally { CW = keep; } }
+
+/** What is still an estimate is hatched, as everywhere else in the app (bars, the balance line): stripes of the column's own colour
+ * at 55 % and 25 %, through a mask so one definition serves every colour. Each chart gets its own ids. */
+let hatchN = 0;
+function hatchDefs(W, h) {
+  const id = 'hz' + (++hatchN);
+  return { id, defs: `<defs><pattern id="${id}p" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)"><rect width="7" height="7" fill="#fff" fill-opacity=".25"/><rect width="3.5" height="7" fill="#fff" fill-opacity=".6"/></pattern><mask id="${id}" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${h}"><rect width="${W}" height="${h}" fill="url(#${id}p)"/></mask></defs>` };
+}
 
 /** A bar from y0 (baseline) to y1, rounded 4px at the data end only. */
 function colPath(x, w, y0, y1) {
@@ -41,9 +51,10 @@ export function columns({ cols, limit = null, limitLabel = '', labels = [], aria
   const ticks = [hi, ...(lo < 0 ? [0, lo] : [0])].filter((t, i, a) => a.indexOf(t) === i);
   const grid = ticks.map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
+  const hz = hatchDefs(W, h);
   const marks = cols.map((c, i) => {
     const x = padL + band * i + (band - w) / 2, cx = padL + band * i + band / 2;
-    const bar = c.value == null ? '' : `<path class="ch-col ${c.cls || 'ch-1'}${c.proj ? ' ch-pcol' : ''}" d="${colPath(x, w, y(0), y(c.value))}"${c.fill ? ` style="fill:${c.fill}; stroke:${c.fill}"` : ''}/>`;
+    const bar = c.value == null ? '' : `<path class="ch-col ${c.cls || 'ch-1'}${c.proj ? ' ch-pcol' : ''}" d="${colPath(x, w, y(0), y(c.value))}"${c.proj ? ` mask="url(#${hz.id})"` : ''}${c.fill ? ` style="fill:${c.fill}"` : ''}/>`;
     const lab = c.value != null && labels.includes(i)
       ? `<text class="ch-val" x="${cx}" y="${(c.value >= 0 ? y(c.value) - 5 : y(c.value) + 12).toFixed(1)}">${esc(c.short ?? compact(c.value))}</text>` : '';
     return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip)}" data-tip="${esc(c.tip)}">
@@ -52,7 +63,7 @@ export function columns({ cols, limit = null, limitLabel = '', labels = [], aria
   }).join('');
   const lim = limit == null ? '' : `<line class="ch-limit" x1="${padL}" x2="${W - padR}" y1="${y(limit).toFixed(1)}" y2="${y(limit).toFixed(1)}"/>
     ${limitLabel ? `<text class="ch-limit-t" x="${W - padR}" y="${(y(limit) - 4).toFixed(1)}">${esc(limitLabel)}</text>` : ''}`;
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${grid}${marks}${lim}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${hz.defs}${grid}${marks}${lim}</svg>`;
 }
 
 /** Two series side by side per month (e.g. what came in and what went out). */
@@ -63,15 +74,16 @@ export function pairs({ cols, aria = '', h = 160 }) {
   const band = (W - padL - padR) / cols.length, w = Math.min(11, (band - 6) / 2);
   const grid = [hi, hi / 2, 0].map((t) => `<line class="ch-grid ${t === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${y(t).toFixed(1)}" y2="${y(t).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(y(t) + 3.5).toFixed(1)}">${compact(t)}</text>`).join('');
+  const hz = hatchDefs(W, h), hm = (p) => (p ? ` ch-pcol" mask="url(#${hz.id})` : '');
   const marks = cols.map((c, i) => {
     const x0 = padL + band * i + band / 2 - w - 1, cx = padL + band * i + band / 2;
     return `<g class="ch-band" tabindex="0" role="img" aria-label="${esc(c.tip)}" data-tip="${esc(c.tip)}">
       <rect class="ch-hit" x="${padL + band * i}" y="0" width="${band}" height="${h}"/>
-      ${c.a == null ? '' : `<path class="ch-col ch-in${c.pa ? ' ch-pcol' : ''}" d="${colPath(x0, w, y(0), y(c.a))}"/>`}
-      ${c.b == null ? '' : `<path class="ch-col ch-out${c.pb ? ' ch-pcol' : ''}" d="${colPath(x0 + w + 2, w, y(0), y(c.b))}"/>`}
+      ${c.a == null ? '' : `<path class="ch-col ch-in${hm(c.pa)}" d="${colPath(x0, w, y(0), y(c.a))}"/>`}
+      ${c.b == null ? '' : `<path class="ch-col ch-out${hm(c.pb)}" d="${colPath(x0 + w + 2, w, y(0), y(c.b))}"/>`}
       <text class="ch-x ${c.now ? 'now' : ''}" x="${cx}" y="${h - 5}">${esc(c.label)}</text></g>`;
   }).join('');
-  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${grid}${marks}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${h}" role="group" aria-label="${esc(aria)}">${hz.defs}${grid}${marks}</svg>`;
 }
 
 /**
