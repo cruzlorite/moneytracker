@@ -147,3 +147,11 @@ test('each alternative depends only on itself: adding a dearer one changes nobod
   // a car with costs only goes down: depreciation and payments never turn into a gain
   assert.ok(a.pn[0].every((v, k) => k === 0 || v <= a.pn[0][k - 1] + 0.01));
 });
+
+test('a cost can be fixed, follow inflation, or also rise or fall with age', () => {
+  const c = { years: 3, infl: 10, ret: 0 }, run = (x) => tco({ price: 0, costs: [{ n: 'x', a: 100, f: 'y', ...x }] }, c).running;
+  near(run({ fix: true }), 300, 0.01);
+  near(run({}), 100 + 110 + 121, 0.01);
+  near(run({ ag: 10 }), 100 + 121 + 146.41, 0.01); // (1,1 × 1,1) a year
+  near(run({ ag: -10 }), 100 + 99 + 98.01, 0.01); // (1,1 × 0,9) a year: falls a little
+});

@@ -91,3 +91,9 @@ test('a decision saved with the old used-car curve becomes the average curve at 
   const [c] = normCalcs([{ id: 'x', years: 5, rets: [4], rows: [], alts: [{ name: 'Usado', price: 9000, vm: 'curve', vc: 'carUsed', v: {} }, { name: 'Otro', price: 9000, vm: 'curve', vc: 'carNew', age: 4, v: {} }] }]);
   assert.deepEqual([c.alts[0].vc, c.alts[0].age, c.alts[1].vc, c.alts[1].age], ['carNew', 3, 'carNew', 4]);
 });
+
+test('a concept\'s change with age is kept (and an older "grow" flag reads as +10 % a year)', async () => {
+  const { normCalcs } = await import('../js/model.js');
+  const [c] = normCalcs([{ id: 'x', years: 5, rets: [4], rows: [{ id: 'a', n: 'Mant', f: 'y', ag: 12 }, { id: 'b', n: 'Seg', f: 'y', ag: -5 }, { id: 'c', n: 'Old', f: 'y', grow: true }, { id: 'd', n: 'Once', f: 'o', ag: 5 }], alts: [] }]);
+  assert.deepEqual(c.rows.map((r) => r.ag), [12, -5, 10, undefined]);
+});

@@ -1781,3 +1781,21 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 .lf-xe { text-anchor: end; }
 #cv-body { display: grid; gap: 12px; }
 .cm td b.c-ok, .cm td b.c-spend, .cg tfoot b.c-ok, .cg tfoot b.c-spend { color: inherit; } .cm td b.c-spend, .cg tfoot b.c-spend { color: var(--spend-ink); } .cm td b.c-ok, .cg tfoot b.c-ok { color: var(--ok-ink); }
+.cg-kind { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.cg-kind[hidden] { display: none; }
+.cg-rm .cg-rk, .cr-row .cg-rk { width: auto; padding: 3px 4px; font-size: 12px; border-radius: 6px; background: transparent; }
+.cg-ag { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+.cg-ag input { width: 38px; padding: 3px 4px; font-size: 12px; text-align: right; border-radius: 6px; }
+.cr-row .cg-kind { grid-column: 1 / -1; }
+/* the concept's controls wrap as a group, never inside a word; the % a year stays together */
+.cg-rm { flex-wrap: wrap; row-gap: 4px; }
+.cg-ag, .cg-ag > span { white-space: nowrap; }
+.cg tbody th, .cg tfoot th { width: 290px; }
+/* phone: three scenarios fit, names take two lines */
+@media (max-width: 420px) {
+  .cm td b { font-size: 13px; } .cm td { padding: 6px 2px; } .cm-g, .cm-b { font-size: 10.5px; }
+  .cm tbody th { max-width: 88px; font-size: 13px; } .cm-n { gap: 5px; }
+}
+@media (max-width: 360px) { .cm td b { font-size: 12px; letter-spacing: -.01em; } .cm tbody th { max-width: 70px; font-size: 12px; } .cm .tcc-sw { display: none; } .cm-s { padding: 3px 5px; font-size: 12px; } }
+@media (max-width: 360px) { .calc-res .cm-wrap { margin: 0 -10px; } }
+.cg-rt { display: flex; align-items: flex-start; gap: 2px; } .cg-rt .cg-rn { flex: 1; min-width: 0; } .cg-rt .iconbtn.sm { min-width: 28px; min-height: 28px; flex: none; }

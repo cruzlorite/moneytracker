@@ -46,6 +46,12 @@ export function valueAt(o, k, H) {
     default: return P * Math.max(0, 1 + Math.max(-100, +o.dep || 0) / 100) ** k;
   }
 }
+/**
+ * The starting figures for a cost that changes with age, on top of inflation: maintenance and repairs of a car +10 % a year
+ * (about twice in seven years; Consumer Reports, GIPA and the BLS find spending climbs with age, most once the warranty ends,
+ * though none gives one figure); insurance −5 % a year (it follows the car's value down). The user can change them.
+ */
+export const AGE_UP = 10, AGE_DOWN = -5;
 const r2 = (v) => Math.round(v * 100) / 100;
 
 /**
@@ -68,7 +74,9 @@ export function tco(o, c, retOverride = null) {
     const a = pos(x.a);
     if (!a) continue;
     if (x.f === 'o') { cf[0] += a; once += a; continue; }
-    const g = x.fix ? 0 : i; // a fixed price (a lease) does not follow inflation
+    // a fixed price (a lease) does not follow inflation; the rest does, and with x.ag a % more (maintenance, repairs) or less
+    // (insurance, as the car is worth less) every year of age
+    const g = x.fix ? 0 : (1 + i) * (1 + Math.max(-50, Math.min(50, +x.ag || 0)) / 100) - 1;
     if (x.f === 'm') { for (let m = 1; m <= M; m++) { const v = a * (1 + g) ** Math.floor((m - 1) / 12); cf[m] += v; running += v; } continue; }
     // a year, or every N years: paid at the start of that year, at that year's prices ("every 2 years": in years 3, 5…)
     const every = x.f === 'y' ? 1 : Math.max(1, +x.f || 1);
@@ -98,7 +106,7 @@ export function tco(o, c, retOverride = null) {
  */
 export function optOf(a, rows = []) {
   const loan = pos(a?.loan), term = Math.round(pos(a?.term));
-  return { ...a, fin: !!(loan && term), loan, rate: pos(a?.rate), term, costs: rows.map((r) => ({ n: r.n, a: pos(a?.v?.[r.id]), f: r.f, ...(r.fix ? { fix: true } : {}) })) };
+  return { ...a, fin: !!(loan && term), loan, rate: pos(a?.rate), term, costs: rows.map((r) => ({ n: r.n, a: pos(a?.v?.[r.id]), f: r.f, ...(r.fix ? { fix: true } : r.ag ? { ag: r.ag } : {}) })) };
 }
 
 /**

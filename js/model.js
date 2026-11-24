@@ -658,7 +658,8 @@ export function normSpend(e) {
  * Saved decisions (what to do about something: buy a car, rent or buy a home): { id, name, at, years, infl (% a year costs go up),
  * rets: [% a year the money would earn invested, net — one per scenario], sel (the scenario shown), rows, alts }.
  * rows: the concepts every alternative is compared on { id, n, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10'
- * every that many years, fix: true if it does not go up with inflation (a lease) }.
+ * every that many years, fix: true if it does not go up with inflation (a lease), ag: the % a year it also goes up (maintenance,
+ * repairs) or down (insurance) with age, on top of inflation }.
  * alts: the alternatives { name, price, how it keeps its value (vm, dep, vc, ve, life), sellc (% it costs to sell), a loan
  * (loan, rate, term in months; none when 0), v: { rowId: amount } }.
  * Saved by an older version (one list of costs per option, one return): the costs become shared rows, the return one scenario.
@@ -669,6 +670,7 @@ export function normCalcs(arr) {
   if (!Array.isArray(arr)) return [];
   const n = (v) => Math.max(0, num(v) ?? 0), lim = (v, a, b, d) => { const x = num(v); return x == null ? d : Math.min(b, Math.max(a, x)); };
   const freq = (f) => (CALC_FREQ.includes(String(f)) ? String(f) : 'm');
+  const agOf = (r) => { const x = num(r?.ag) ?? (r?.grow ? 10 : 0); return Math.round(Math.max(-50, Math.min(50, x)) * 10) / 10; }; // % a year of age, on top of inflation
   const alt = (o, years, v) => {
     // saved long ago: what it was worth at the end, in % of the price → the yearly change that gets there
     const dep = num(o?.dep) != null ? lim(o.dep, -100, 50, 0) : num(o?.residual) != null ? Math.round(((Math.min(100, n(o.residual)) / 100) ** (1 / years) - 1) * 1000) / 10 : 0;
@@ -687,7 +689,7 @@ export function normCalcs(arr) {
     if (Array.isArray(c.alts)) {
       const seen = new Set();
       rows = (Array.isArray(c.rows) ? c.rows : []).filter((r) => r && /^[\w-]{1,16}$/.test(String(r.id)) && !seen.has(String(r.id)) && seen.add(String(r.id)))
-        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.fix && r.f !== 'o' ? { fix: true } : {}) }));
+        .slice(0, CALC_MAX.rows).map((r) => ({ id: String(r.id), n: String(r.n || '').slice(0, 60), f: freq(r.f), ...(r.f === 'o' ? {} : r.fix ? { fix: true } : agOf(r) ? { ag: agOf(r) } : {}) }));
       alts = c.alts.slice(0, CALC_MAX.alts).map((a) => {
         const v = {};
         for (const r of rows) { const x = n(a?.v?.[r.id]); if (x) v[r.id] = x; }
