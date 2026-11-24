@@ -1539,8 +1539,11 @@ const DEF_RETS = [0, 3, 5, 10]; // 0 %: the money just sits there
 const cr = (id, n, f, fix) => ({ id, n: t(n), f, ...(fix ? { fix: true } : {}) });
 /** v: how it keeps its value — ['curve', id] | ['rate', ±%] | ['none']… (see valueAt in tco.js) · fin: [loan, rate %, months] · amounts: { rowId: € } */
 const calt = (name, price, v, amounts, fin = null, sellc = 0) => ({ name: t(name), price, vm: v[0], dep: v[0] === 'rate' ? v[1] : 0, ...(v[0] === 'curve' ? { vc: v[1] } : {}), ...(sellc ? { sellc } : {}), loan: fin?.[0] || 0, rate: fin?.[1] || 0, term: fin?.[2] || 0, v: amounts });
+/** The concepts of a home: buying it, keeping it, renting, or living with your parents. */
+const HOME_ROWS = () => [cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'), cr('seg', 'Seguro de hogar', 'y'),
+  { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: 2 }, cr('alq', 'Alquiler', 'm'), cr('segi', 'Seguro de inquilino', 'y'), cr('aport', 'Aportación en casa', 'm')];
 const CALC_TPL = () => ({
-  car: { cat: 'coche', label: t('Comprar coche'), years: 8, rows: [
+  car: { grp: 'car', cat: 'coche', label: t('Comprar coche'), years: 8, rows: [
     cr('cuota', 'Cuota de renting (con seguro y mantenimiento)', 'm', true), { ...cr('seguro', 'Seguro', 'y'), ag: AGE_DOWN }, cr('comb', 'Combustible', 'm'), { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: AGE_UP },
     cr('imp', 'Impuesto de circulación', 'y'), cr('neum', 'Neumáticos', '4'), cr('abono', 'Abono de transporte', 'm'), cr('taxi', 'Taxi, VTC o alquiler puntual', 'm')], alts: [
     calt('Renting', 0, ['rate', -15], { cuota: 420, comb: 110 }),
@@ -1548,27 +1551,40 @@ const CALC_TPL = () => ({
     { ...calt('Seminuevo', 18000, ['curve', 'carNew'], { seguro: 550, comb: 110, mant: 450, imp: 120, neum: 450 }), age: 2 },
     { ...calt('Segunda mano', 9000, ['curve', 'carNew'], { seguro: 400, comb: 125, mant: 800, imp: 100, neum: 400 }), age: 8 },
     calt('Transporte público', 0, ['rate', -15], { abono: 40, taxi: 80 })] },
-  home: { cat: 'casa', label: t('Comprar vivienda o alquilar'), years: 20, rows: [
-    cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'), cr('seg', 'Seguro de hogar', 'y'), cr('mant', 'Mantenimiento', 'y'),
-    cr('alq', 'Alquiler', 'm'), cr('segi', 'Seguro de inquilino', 'y'), cr('aport', 'Aportación en casa', 'm')], alts: [
-    calt('Comprar', 250000, ['rate', 2], { compra: 25000, ibi: 450, com: 70, seg: 300, mant: 1500 }, [200000, 3, 360], 4),
-    calt('Alquilar', 0, ['rate', 2], { alq: 1000, segi: 150 }),
+  // Housing, with standard Spanish figures (2026): resale price ≈2.800 €/m² and rent ≈15 €/m² a month (idealista, 2nd quarter;
+  // gross yield ≈6,5 %); purchase taxes and fees ≈10 % second-hand (ITP 4–10 % by region + notary, registry, agency, valuation)
+  // and ≈13 % new (IVA 10 % + AJD + fees); mortgages ≈3,1 % fixed over 25 years, 80 % financed (INE); IBI 0,4–1,1 % of the
+  // cadastral value (≈500 €/year for 90 m²), community 50–100 €/month, home insurance ≈250 €/year, selling ≈5 % (agency 3–5 %
+  // + VAT, municipal plusvalía). Starting points: each home is different.
+  home: { grp: 'home', cat: 'alquiler', label: t('Comprar vivienda o alquilar'), years: 20, rows: HOME_ROWS(), alts: [
+    calt('Comprar (segunda mano)', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5),
+    calt('Alquilar', 0, ['rate', 2], { alq: 1350, segi: 150 }),
     calt('Casa de los padres', 0, ['rate', 2], { aport: 200 })] },
-  letting: { cat: 'casa', label: t('Comprar vivienda para alquilar o invertir'), years: 15, rows: [
+  homeNew: { grp: 'home', cat: 'alquiler', label: t('Obra nueva, segunda mano o alquilar'), years: 20, rows: HOME_ROWS(), alts: [
+    calt('Obra nueva', 300000, ['rate', 2], { compra: 39000, ibi: 550, com: 90, seg: 250, mant: 500 }, [240000, 3.1, 300], 5),
+    calt('Segunda mano', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5),
+    calt('Alquilar', 0, ['rate', 2], { alq: 1350, segi: 150 })] },
+  letting: { grp: 'home', cat: 'alquiler', label: t('Comprar vivienda para alquilar o invertir'), years: 15, rows: [
     { ...cr('alq', 'Alquiler que cobras', 'm'), inc: true }, cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'),
-    cr('seg', 'Seguro de hogar e impago', 'y'), { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: 3 }, cr('vacio', 'Meses vacío y gestión', 'y'), cr('irpf', 'IRPF del alquiler', 'y')], alts: [
-    calt('Piso para alquilar', 200000, ['rate', 2], { alq: 900, compra: 22000, ibi: 400, com: 60, seg: 450, mant: 1000, vacio: 700, irpf: 600 }, [150000, 3, 360], 4),
+    cr('seg', 'Seguro de hogar e impago', 'y'), { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: 2 }, cr('vacio', 'Meses vacío y gestión', 'y'), cr('irpf', 'IRPF del alquiler', 'y')], alts: [
+    calt('Piso para alquilar', 200000, ['rate', 2], { alq: 1080, compra: 20000, ibi: 400, com: 60, seg: 650, mant: 1000, vacio: 1100, irpf: 500 }, [140000, 3.2, 300], 5),
     calt('Invertir el dinero', 0, ['rate', 2], {})] },
-  fuel: { cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
+  prepay: { grp: 'home', cat: 'alquiler', label: t('Amortizar la hipoteca o invertir'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
+    calt('Amortizar 20.000 €', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [180000, 3.1, 300], 5),
+    calt('Invertir los 20.000 €', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5)] },
+  term: { grp: 'home', cat: 'alquiler', label: t('Hipoteca a 20 o a 30 años'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
+    calt('A 20 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 2.9, 240], 5),
+    calt('A 30 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.2, 360], 5)] },
+  fuel: { grp: 'car', cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
     cr('carg', 'Cargador en casa', 'o'), cr('seg', 'Seguro', 'y'), cr('imp', 'Impuesto de circulación', 'y'), cr('mant', 'Mantenimiento', 'y'), cr('ener', 'Combustible o electricidad', 'm')], alts: [
     calt('Gasolina', 22000, ['curve', 'carNew'], { seg: 500, imp: 120, mant: 450, ener: 120 }),
     calt('Eléctrico', 30000, ['curve', 'carEV'], { carg: 1000, seg: 600, imp: 30, mant: 200, ener: 35 })] },
-  phone: { cat: 'tecnologia', label: t('Móvil'), years: 4, rows: [
+  phone: { grp: 'other', cat: 'tecnologia', label: t('Móvil'), years: 4, rows: [
     cr('funda', 'Funda y protector', 'o'), cr('seg', 'Seguro', 'y'), cr('otro', 'Otro móvil a los 2 años', '2')], alts: [
     calt('iPhone', 1100, ['curve', 'phoneApple'], { funda: 40, seg: 80 }),
     calt('Android de gama alta', 900, ['curve', 'phoneAndroid'], { funda: 40, seg: 70 }),
     calt('Gama media', 400, ['curve', 'phoneBudget'], { funda: 25, otro: 400 })] },
-  blank: { cat: '', label: t('En blanco'), years: 5, rows: [], alts: [calt('', 0, ['rate', -10], {}), calt('', 0, ['rate', -10], {})] },
+  blank: { grp: 'other', cat: '', label: t('En blanco'), years: 5, rows: [], alts: [calt('', 0, ['rate', -10], {}), calt('', 0, ['rate', -10], {})] },
 });
 const CURVE_L = () => ({ carNew: t('Coche: media del mercado'), carKeep: t('Coche que mantiene su valor (híbridos, modelos muy buscados)'), carPremium: t('Coche premium o de lujo'), carEV: t('Coche eléctrico'),
   phoneApple: t('Móvil iPhone'), phoneAndroid: t('Móvil Android de gama alta'), phoneBudget: t('Móvil económico') });
@@ -1618,7 +1634,7 @@ function calcList() {
   return `<div class="calc-intro"><h1>${t('Comparar alternativas')}</h1><p class="fine">${t('¿Comprar o alquilar? ¿Nuevo o de segunda mano? Mira cuánto dinero tendrías al final con cada alternativa, invirtiendo lo que no gastas.')}</p></div>
     ${list.length ? `<h2 class="calc-sec">${t('Tus decisiones')}</h2><div class="calc-list">${list.map(item).join('')}</div>` : ''}
     <h2 class="calc-sec">${t('Nueva decisión')}</h2>
-    <div class="calc-tpls">${Object.entries(CALC_TPL()).map(([k, v]) => `<button type="button" class="calc-tpl" data-act="calcnew" data-k="${k}">${catEl(v.cat || '')}<span class="calc-tpl-t"><b>${esc(v.label)}</b><span class="fine">${v.alts.some((a) => a.name) ? esc(v.alts.map((a) => a.name).join(' · ')) : t('Empieza de cero')}</span></span>${ic('right')}</button>`).join('')}</div>`;
+    ${[['home', t('Vivienda')], ['car', t('Coche')], ['other', t('Otras')]].map(([g, gl]) => `<div class="calc-tgrp"><h3 class="calc-tgh">${gl}</h3><div class="calc-tpls">${Object.entries(CALC_TPL()).filter(([, v]) => v.grp === g).map(([k, v]) => `<button type="button" class="calc-tpl" data-act="calcnew" data-k="${k}">${catEl(v.cat || '')}<span class="calc-tpl-t"><b>${esc(v.label)}</b><span class="fine">${v.alts.some((a) => a.name) ? esc(v.alts.map((a) => a.name).join(' · ')) : t('Empieza de cero')}</span></span>${ic('right')}</button>`).join('')}</div></div>`).join('')}`;
 }
 function calcEdit(c) {
   return `<div class="calc-top"><textarea class="calc-name" rows="1" data-cn placeholder="${t('¿Qué quieres decidir?')}" aria-label="${t('Nombre de la decisión')}" autocomplete="off" maxlength="80">${esc(c.name)}</textarea>
