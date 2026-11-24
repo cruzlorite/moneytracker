@@ -280,7 +280,8 @@ export function multiLines({ series, labels = [], tips = [], aria = '', h = 180 
   const mx = hi > 0 ? fine(hi) : 0, mn = lo < 0 ? -fine(-lo) : 0, ph = h - padT - padB, span = mx - mn || 1;
   const X = (i) => padL + i / n * (W - padL - padR), Y = (v) => padT + (mx - v) / span * ph;
   const xs = Array.from({ length: n + 1 }, (_, i) => X(i));
-  const ticks = mn && mx ? [mx, 0, mn] : mn ? [0, mn / 2, mn] : [mx || 1, (mx || 1) / 2, 0];
+  // ticks never closer than 12 units: a small top beside 0 is left without its label (0 always keeps its own)
+  const ticks = (mn && mx ? [mx, 0, mn] : mn ? [0, mn / 2, mn] : [mx || 1, (mx || 1) / 2, 0]).filter((v, _, a) => v === 0 || a.every((w) => w === v || Math.abs(Y(w) - Y(v)) >= 12));
   const grid = ticks.map((v) => `<line class="ch-grid ${v === 0 ? 'zero' : ''}" x1="${padL}" x2="${W - padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/>
     <text class="ch-tick" x="${padL - 6}" y="${(Y(v) + 3.5).toFixed(1)}">${compact(v)}</text>`).join('');
   const step = Math.max(1, Math.ceil(n / 7));

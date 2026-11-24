@@ -1343,4 +1343,6 @@ export default {
   'baja un {p} al año con la edad': "falls {p} a year with age",
   'Deja en blanco lo que no aplique. Cada gasto puede subir con la inflación, tener precio fijo o, además, subir o bajar con la edad.': "Leave blank what doesn't apply. Each cost can rise with inflation, have a fixed price or, on top, rise or fall with age.",
   'Lo bajan los gastos de uso, los intereses, los impuestos y gastos de compra y venta, y lo que pierde el bien con los años. Los gastos suben cada año con la inflación, salvo los de precio fijo; los que cambian con la edad suben (mantenimiento, reparaciones: un {u} % más al año) o bajan (seguro: un {d} % menos) además de la inflación. Lo suben su revalorización y lo que rinde el dinero que no gastas.': "Running costs, interest, purchase and sale taxes and fees, and what the thing loses over the years take it down. Costs rise every year with inflation, except fixed-price ones; those that change with age rise (maintenance, repairs: {u} % more a year) or fall (insurance: {d} % less) on top of inflation. Its appreciation and what the money you don't spend earns take it up.",
+  'Aportación en casa': "Contribution at home",
+  'Casa de los padres': "Parents' home",
 };

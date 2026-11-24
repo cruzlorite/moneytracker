@@ -1550,9 +1550,10 @@ const CALC_TPL = () => ({
     calt('Transporte público', 0, ['rate', -15], { abono: 40, taxi: 80 })] },
   home: { cat: 'casa', label: t('Comprar vivienda o alquilar'), years: 20, rows: [
     cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'), cr('seg', 'Seguro de hogar', 'y'), cr('mant', 'Mantenimiento', 'y'),
-    cr('alq', 'Alquiler', 'm'), cr('segi', 'Seguro de inquilino', 'y')], alts: [
-    calt('Comprar', 250000, ['rate', 2], { compra: 25000, ibi: 450, com: 70, seg: 300, mant: 1500 }, [200000, 3, 360], 4),
-    calt('Alquilar', 0, ['rate', 2], { alq: 1000, segi: 150 })] },
+    cr('alq', 'Alquiler', 'm'), cr('segi', 'Seguro de inquilino', 'y'), cr('aport', 'Aportación en casa', 'm')], alts: [
+    calt('Comprar', 250000, ['rate', 3], { compra: 25000, ibi: 450, com: 70, seg: 300, mant: 1500 }, [200000, 3, 360], 4),
+    calt('Alquilar', 0, ['rate', 3], { alq: 1000, segi: 150 }),
+    calt('Casa de los padres', 0, ['rate', 3], { aport: 200 })] },
   fuel: { cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
     cr('carg', 'Cargador en casa', 'o'), cr('seg', 'Seguro', 'y'), cr('imp', 'Impuesto de circulación', 'y'), cr('mant', 'Mantenimiento', 'y'), cr('ener', 'Combustible o electricidad', 'm')], alts: [
     calt('Gasolina', 22000, ['curve', 'carNew'], { seg: 500, imp: 120, mant: 450, ener: 120 }),
