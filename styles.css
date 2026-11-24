@@ -1803,3 +1803,16 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 .cg tr.cg-inc .cg-rn, .cr-row.cg-inc input[data-rn], .ca-row.cg-inc .ca-n > span:first-child { color: var(--in); }
 .cg-rm .cg-rt, .cr-row .cg-rt { width: auto; padding: 3px 4px; font-size: 12px; border-radius: 6px; background: transparent; }
 .cr-row { grid-template-columns: auto auto auto minmax(0, 1fr); }
+/* phone: each alternative's name on its own line, its figures under it across the whole width (four scenarios fit) */
+@media (max-width: 480px) {
+  .calc-res .cm-wrap { margin: 0; overflow: visible; }
+  .cm, .cm thead, .cm tbody { display: block; }
+  .cm tr { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); column-gap: 2px; }
+  .cm thead tr > th:first-child { display: none; }
+  .cm thead th { text-align: center; padding: 0 0 6px; }
+  .cm tbody th { grid-column: 1 / -1; max-width: none; border-bottom: 0; padding: 10px 2px 2px; font-size: 14px; }
+  .cm tbody th .tcc-sw { display: inline-block !important; }
+  .cm td { text-align: center; padding: 4px 2px 8px; }
+  .cm td b { font-size: 13px; letter-spacing: -.01em; }
+}
+@media (max-width: 360px) { .calc-res .cm-wrap { margin: 0 -10px; } .cm tr { column-gap: 4px; } .cm td b { font-size: 11.5px; letter-spacing: -.02em; } .cm-s { padding: 3px 4px; font-size: 11.5px; } }

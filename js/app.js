@@ -1535,7 +1535,7 @@ function plan(m) {
 // the same money; what one doesn't spend is invested, so the answer is the wealth each one leaves you (js/tco.js, compare()).
 // On a computer the page leaves the phone column: the alternatives side by side, as a table you fill like a spreadsheet.
 const CALC_C = [0, 1, 2, 3, 4, 5].map((i) => `var(--tc${i})`);
-const DEF_RETS = [3, 5, 10];
+const DEF_RETS = [0, 3, 5, 10]; // 0 %: the money just sits there
 const cr = (id, n, f, fix) => ({ id, n: t(n), f, ...(fix ? { fix: true } : {}) });
 /** v: how it keeps its value — ['curve', id] | ['rate', ±%] | ['none']… (see valueAt in tco.js) · fin: [loan, rate %, months] · amounts: { rowId: € } */
 const calt = (name, price, v, amounts, fin = null, sellc = 0) => ({ name: t(name), price, vm: v[0], dep: v[0] === 'rate' ? v[1] : 0, ...(v[0] === 'curve' ? { vc: v[1] } : {}), ...(sellc ? { sellc } : {}), loan: fin?.[0] || 0, rate: fin?.[1] || 0, term: fin?.[2] || 0, v: amounts });
@@ -1796,7 +1796,7 @@ function calcResult(c, k = compare(c)) {
   const unit = `<div class="calc-unit"><span class="label">${t('Importes en euros de')}</span><div class="seg" role="group" aria-label="${t('Importes en euros de')}"><button type="button" data-act="calcreal" data-v="0" aria-pressed="${!real}">${t('cada año')}</button><button type="button" data-act="calcreal" data-v="1" aria-pressed="${real}">${t('hoy')}</button></div>
     <span class="fine">${real ? t('Descontada la inflación ({p} al año): lo que se podría comprar hoy con ese dinero.', { p: pctx(+c.infl || 0) }) : t('Los euros de cada momento, sin descontar la inflación.')}</span></div>`;
   const gains = k.scen.map((x) => calcGain(c, k, x)), g = gains[sel];
-  const matrix = `<div class="cm-wrap"><table class="cm"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
+  const matrix = `<div class="cm-wrap"><table class="cm" style="--n:${k.scen.length}"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
     <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = gains[j][i];
       return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b class="${gainCls(v)}">${sgn0(v)}</b>${best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
   // the verdict, in the scenario you chose, and what would change it
@@ -2638,7 +2638,7 @@ function onAct(b, sure = false) {
     case 'donelist': openDone(b.dataset.kind); break;
     case 'tcoopen': UI.calc = null; go('calc'); break;
     case 'calcopen': { const c = (store.data.calcs || []).find((x) => x.id === b.dataset.id); if (c) calcOpen(c); break; }
-    case 'calcnew': { const tp = CALC_TPL()[b.dataset.k] || CALC_TPL().blank; calcOpen({ id: uid('calc'), name: b.dataset.k === 'blank' ? '' : tp.label, at: '', years: tp.years, infl: 2.5, rets: DEF_RETS, sel: 1, rows: tp.rows, alts: tp.alts }); break; }
+    case 'calcnew': { const tp = CALC_TPL()[b.dataset.k] || CALC_TPL().blank; calcOpen({ id: uid('calc'), name: b.dataset.k === 'blank' ? '' : tp.label, at: '', years: tp.years, infl: 2.5, rets: DEF_RETS, sel: DEF_RETS.indexOf(5), rows: tp.rows, alts: tp.alts }); break; }
     case 'calcsave': calcSave(); calcTouched(); UI.calcDirty = false; { const a = $('#calc-acts'); if (a) a.innerHTML = calcActs(UI.calc); const st = $('#calc-state'); if (st) st.textContent = calcStateText(UI.calc); } toast(t('Decisión guardada')); break;
     case 'calcdel': { const c = UI.calc; askConfirm({ title: t('¿Borrar esta decisión?'), yes: t('Borrar'), rows: [[c.name || t('Sin nombre'), c.alts.map(altName).join(' · ')]] }).then((ok) => {
       if (!ok) return; UI.calcDirty = false;
