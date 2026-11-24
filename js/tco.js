@@ -1,8 +1,8 @@
-// Total cost of ownership, the way a financial planner works it out. Every option becomes the money that leaves your pocket month
-// by month (down payment and one-off costs, loan payments, running costs that go up with inflation) and, on the day you sell,
-// what is still owed on the loan minus what you get for it. Those payments are brought to today's money at the return you would
-// get by investing instead (net present value): a euro paid in ten years costs less than one paid today, because meanwhile it
-// could be earning. The monthly figure is the fixed payment worth the same (equivalent monthly cost). No DOM, no i18n.
+// Comparing alternatives (buy a car or not, buy or rent a home…) by what they do to your net worth. Every alternative becomes
+// the money that leaves (or comes into) your pocket month by month — down payment and one-off costs, loan payments, running
+// costs that rise with inflation (and age), incomes — and, on the day you sell, what is still owed minus what you get for it.
+// compare() starts them all with the same money invested at each scenario's return, so the opportunity cost is explicit, and
+// can apply Spain's tax on gains when selling. No DOM, no i18n.
 
 const pos = (v) => Math.max(0, +v || 0);
 
@@ -203,34 +203,4 @@ export function aheadFrom(a, b) {
   if (a[k] < b[k]) return null;
   while (k > 0 && a[k - 1] >= b[k - 1]) k--;
   return k;
-}
-
-/** The index of the cheapest option (in today's money). */
-export const cheapestOf = (rs) => rs.reduce((b, x, k) => (x.pv < rs[b].pv ? k : b), 0);
-
-/**
- * The year from which option `a` stays cheaper than `b` if you sold then (0: from the start; null: never within the horizon).
- * Owning something often only pays off after some years, once the costs of buying and selling are spread out.
- */
-export function evenYear(ra, rb) {
-  let k = ra.sell.length - 1;
-  if (ra.sell[k] > rb.sell[k]) return null;
-  while (k > 1 && ra.sell[k - 1] <= rb.sell[k - 1]) k--;
-  return k === 1 && ra.sell[1] <= rb.sell[1] ? 0 : k;
-}
-
-/** The return (%, between −5 and 20) at which `a` and `b` cost the same, or null if they don't cross in that range. */
-export function evenReturn(oa, ob, c) {
-  const f = (r) => tco(oa, c, r).pv - tco(ob, c, r).pv;
-  let lo = -5, flo = f(lo);
-  for (let hi = -4.5; hi <= 20; hi += 0.5) {
-    const fhi = f(hi);
-    if (Math.sign(fhi) !== Math.sign(flo)) {
-      let a = hi - 0.5, b = hi;
-      for (let j = 0; j < 30; j++) { const mid = (a + b) / 2; if (Math.sign(f(mid)) === Math.sign(f(a))) a = mid; else b = mid; }
-      return Math.round((a + b) / 2 * 10) / 10;
-    }
-    lo = hi; flo = fhi;
-  }
-  return null;
 }

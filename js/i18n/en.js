@@ -1392,4 +1392,9 @@ export default {
   'Hipoteca a 30 años': "30-year mortgage",
   'La mejor cambia según la rentabilidad: {l}.': "The best one changes with the return: {l}.",
   'al {r}, {a}': "at {r}, {a}",
+  'iPhone': "iPhone",
+  'Amortizar {x}': "Pay off {x}",
+  'Invertir los {x}': "Invest the {x}",
+  '{a}: lo financiado no puede superar el precio; se cuentan {x}.': "{a}: the loan can't be larger than the price; {x} is counted.",
+  '{a}: sin precio no hay nada que financiar; el préstamo no se cuenta.': "{a}: with no price there is nothing to finance; the loan isn't counted.",
 };

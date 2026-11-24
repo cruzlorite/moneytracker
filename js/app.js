@@ -1572,8 +1572,8 @@ const CALC_TPL = () => ({
     calt('Piso para alquilar', 200000, ['rate', 2], { alq: 1080, compra: 20000, ibi: 400, com: 60, seg: 650, mant: 1000, vacio: 1100, irpf: 500 }, [140000, 3.2, 300], 5),
     calt('Invertir el dinero', 0, ['rate', 2], {})] },
   prepay: { grp: 'home', cat: 'alquiler', label: t('Amortizar la hipoteca o invertir'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
-    calt('Amortizar 20.000 €', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [180000, 3.1, 300], 5),
-    calt('Invertir los 20.000 €', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5)] },
+    calt(t('Amortizar {x}', { x: fmt0(20000) }), 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [180000, 3.1, 300], 5),
+    calt(t('Invertir los {x}', { x: fmt0(20000) }), 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5)] },
   term: { grp: 'home', cat: 'alquiler', label: t('Al contado o con hipoteca'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
     calt('Al contado', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, null, 5),
     calt('Hipoteca a 20 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 2.9, 240], 5),
@@ -1841,6 +1841,8 @@ function calcResult(c, k = cmpc(c)) {
     const y = aheadFrom(s.pn[b], s.pn[sec]);
     if (y > 1) notes.push(t('{a} solo sale mejor si lo mantienes al menos {k} años: si lo dejas antes, gana {b}.', { a: names[b], k: y, b: names[sec] }));
   }
+  // a loan can't be larger than what it pays for: only the price is counted
+  c.alts.forEach((a, i) => { if (+a.loan > +a.price && +a.term > 0) notes.push(+a.price > 0 ? t('{a}: lo financiado no puede superar el precio; se cuentan {x}.', { a: names[i], x: fmt0(+a.price) }) : t('{a}: sin precio no hay nada que financiar; el préstamo no se cuenta.', { a: names[i] })); });
   // gains in euros, losses in buying power: the return doesn't beat inflation
   names.forEach((nm, i) => { if (s.dpn[i] > 0.5 && s.pnFin[i] / (1 + infl) ** H < K - 0.5) notes.push(t('{a} gana patrimonio en euros, pero lo pierde en euros de hoy: lo que gana no cubre la inflación.', { a: nm })); });
   const how = `<p class="fine calc-base">${t('Todas parten de {k} invertidos (lo que pide la más cara al empezar). Comprar no cambia tu patrimonio (cambias dinero por un bien), ni pagar el capital del préstamo (es ahorro). Lo bajan los gastos, los intereses, los impuestos y lo que pierde el bien; lo suben su revalorización y lo que rinde el dinero que no gastas.', { k: fmt0(K) })}</p>`;
@@ -1863,8 +1865,7 @@ function calcResult(c, k = cmpc(c)) {
     br(t('Gastos de venta'), (r) => sgn0(-r.sellCost)),
     ...(k.tax ? [br(t('Impuestos sobre las ganancias'), (r, i) => sgn0(-s.tax[i]))] : []),
     br(t('Ganancia o pérdida'), (r, i) => `<b>${sgn0(s.dpn[i])}</b>`),
-    br(t('En euros de hoy'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K)),
-    br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Cuentas de cada alternativa al {r}', { r: pctx(s.ret) }));
+    br(t('En euros de hoy'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K))]).replace(t('Ver como tabla'), t('Cuentas de cada alternativa al {r}', { r: pctx(s.ret) }));
   const brkC = swatchHeads(brk, names);
   return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Ganancia o pérdida de patrimonio en {n} años', { n: H })}</h2>${matrix}
       <p class="calc-verdict">${many ? `<i class="tcc-sw" style="background:${CALC_C[b]}"></i>` : ''}<span>${esc(verdict)}</span></p>${notes.length ? `<ul class="calc-notes">${notes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}${how}${brkC}</section>

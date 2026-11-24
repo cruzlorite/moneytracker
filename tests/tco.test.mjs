@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tco, cheapestOf, evenYear, evenReturn, valueAt, CURVES, compare, optOf, aheadFrom, savingsTax, prepare, evenRet } from '../js/tco.js';
+import { tco, valueAt, CURVES, compare, optOf, aheadFrom, savingsTax, prepare, evenRet } from '../js/tco.js';
 
 const near = (a, b, eps = 0.05) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const car = { price: 20000, dep: -10, fin: true, loan: 15000, rate: 6, term: 60, costs: [{ n: 'Seguro', a: 500, f: 'y' }, { n: 'Gasolina', a: 100, f: 'm' }, { n: 'Matrícula', a: 300, f: 'o' }] };
@@ -36,17 +36,19 @@ test('every N years: paid at the start of those years, at their prices', () => {
 });
 
 test('buying pays off only after some years; the break-even return flips the answer', () => {
-  const c = { years: 20, infl: 2, ret: 3 };
-  const buy = { price: 200000, dep: 2, fin: true, loan: 160000, rate: 3, term: 300, costs: [{ n: 'Compra', a: 20000, f: 'o' }, { n: 'IBI', a: 400, f: 'y' }, { n: 'Mant.', a: 1000, f: 'y' }] };
-  const rent = { price: 0, dep: 0, costs: [{ n: 'Alquiler', a: 900, f: 'm' }] };
-  const rb = tco(buy, c), rr = tco(rent, c);
-  assert.equal(cheapestOf([rb, rr]), 0);
-  const y = evenYear(rb, rr);
-  assert.ok(y > 1 && y < 20, `year ${y}`);
-  assert.ok(rb.sell[y] <= rr.sell[y] && rb.sell[y - 1] > rr.sell[y - 1]);
-  const e = evenReturn(buy, rent, c);
-  assert.ok(e > 3, `return ${e}`);
-  near(tco(buy, c, e).pv, tco(rent, c, e).pv, 300);
+  const c = { years: 20, infl: 2, rets: [3], rows: [{ id: 'c', n: 'Compra', f: 'o' }, { id: 'i', n: 'IBI', f: 'y' }, { id: 'm', n: 'Mant.', f: 'y' }, { id: 'a', n: 'Alquiler', f: 'm' }],
+    alts: [{ name: 'Comprar', price: 200000, vm: 'rate', dep: 2, loan: 160000, rate: 3, term: 300, v: { c: 20000, i: 400, m: 1000 } }, { name: 'Alquilar', price: 0, vm: 'none', v: { a: 900 } }] };
+  for (const tax of [false, true]) {
+    const k = compare(c, { tax }), s = k.scen[0];
+    assert.equal(s.best, 0); // buying, over 20 years at 3 %
+    const y = aheadFrom(s.pn[0], s.pn[1]);
+    assert.ok(y > 1 && y < 20, `year ${y}`); // but only from some year on: the purchase taxes are lost on day one
+    assert.ok(s.pn[0][y] >= s.pn[1][y] && s.pn[0][y - 1] < s.pn[1][y - 1]);
+    const e = evenRet(k, 0, 1, tax);
+    assert.ok(e > 3, `return ${e}`); // above some return, renting and investing the rest wins
+    const at = compare({ ...c, rets: [e] }, { tax }).scen[0];
+    near(at.pnFin[0], at.pnFin[1], 2500); // e is rounded to 0,1 %
+  }
 });
 
 test('resale value: each mode', () => {
