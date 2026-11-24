@@ -206,3 +206,11 @@ test('taking money out of the investments pays tax that year on the gain in it; 
   const neg = compare({ ...c, alts: [{ name: 'B', price: 0, vm: 'none', v: { g: 9000 } }] }).scen[0];
   near(neg.tax[0], 0, 0.01);
 });
+
+test('a home can follow inflation (and a % more or less): it keeps its real value', () => {
+  near(valueAt({ price: 100000, vm: 'infl' }, 10, 20, 0.025), 100000 * 1.025 ** 10, 0.01);
+  near(valueAt({ price: 100000, vm: 'infl', dep: 1 }, 10, 20, 0.025), 100000 * (1.025 * 1.01) ** 10, 0.01);
+  near(valueAt({ price: 100000, vm: 'infl', dep: -1 }, 1, 20, 0.025), 100000 * 1.025 * 0.99, 0.01);
+  // tco hands it the decision's inflation
+  near(tco({ price: 100000, vm: 'infl', costs: [] }, { years: 5, infl: 3, ret: 0 }).value, 100000 * 1.03 ** 5, 0.01);
+});

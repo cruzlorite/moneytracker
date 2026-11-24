@@ -1559,25 +1559,25 @@ const CALC_TPL = () => ({
   // cadastral value (≈500 €/year for 90 m²), community 50–100 €/month, home insurance ≈250 €/year, selling ≈5 % (agency 3–5 %
   // + VAT, municipal plusvalía). Starting points: each home is different.
   home: { grp: 'home', cat: 'alquiler', label: t('Comprar vivienda o alquilar'), years: 20, rows: HOME_ROWS(), alts: [
-    calt('Comprar (segunda mano)', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5),
-    calt('Alquilar', 0, ['rate', 2], { alq: 1350, segi: 150 }),
-    calt('Casa de los padres', 0, ['rate', 2], { aport: 200 })] },
+    calt('Comprar (segunda mano)', 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5),
+    calt('Alquilar', 0, ['infl'], { alq: 1350, segi: 150 }),
+    calt('Casa de los padres', 0, ['infl'], { aport: 200 })] },
   homeNew: { grp: 'home', cat: 'alquiler', label: t('Obra nueva, segunda mano o alquilar'), years: 20, rows: HOME_ROWS(), alts: [
-    calt('Obra nueva', 300000, ['rate', 2], { compra: 39000, ibi: 550, com: 90, seg: 250, mant: 500 }, [240000, 3.1, 300], 5),
-    calt('Segunda mano', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5),
-    calt('Alquilar', 0, ['rate', 2], { alq: 1350, segi: 150 })] },
+    calt('Obra nueva', 300000, ['infl'], { compra: 39000, ibi: 550, com: 90, seg: 250, mant: 500 }, [240000, 3.1, 300], 5),
+    calt('Segunda mano', 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5),
+    calt('Alquilar', 0, ['infl'], { alq: 1350, segi: 150 })] },
   letting: { grp: 'home', cat: 'alquiler', label: t('Comprar vivienda para alquilar o invertir'), years: 15, rows: [
     { ...cr('alq', 'Alquiler que cobras', 'm'), inc: true }, cr('compra', 'Impuestos y gastos de compra', 'o'), cr('ibi', 'IBI', 'y'), cr('com', 'Comunidad', 'm'),
     cr('seg', 'Seguro de hogar e impago', 'y'), { ...cr('mant', 'Mantenimiento y reparaciones', 'y'), ag: 2 }, cr('vacio', 'Meses vacío y gestión', 'y'), cr('irpf', 'IRPF del alquiler', 'y')], alts: [
-    calt('Piso para alquilar', 200000, ['rate', 2], { alq: 1080, compra: 20000, ibi: 400, com: 60, seg: 650, mant: 1000, vacio: 1100, irpf: 500 }, [140000, 3.2, 300], 5),
-    calt('Invertir el dinero', 0, ['rate', 2], {})] },
+    calt('Piso para alquilar', 200000, ['infl'], { alq: 1080, compra: 20000, ibi: 400, com: 60, seg: 650, mant: 1000, vacio: 1100, irpf: 500 }, [140000, 3.2, 300], 5),
+    calt('Invertir el dinero', 0, ['infl'], {})] },
   prepay: { grp: 'home', cat: 'alquiler', label: t('Amortizar la hipoteca o invertir'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
-    calt(t('Amortizar {x}', { x: fmt0(20000) }), 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [180000, 3.1, 300], 5),
-    calt(t('Invertir los {x}', { x: fmt0(20000) }), 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5)] },
+    calt(t('Amortizar {x}', { x: fmt0(20000) }), 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [180000, 3.1, 300], 5),
+    calt(t('Invertir los {x}', { x: fmt0(20000) }), 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.1, 300], 5)] },
   term: { grp: 'home', cat: 'alquiler', label: t('Al contado o con hipoteca'), years: 20, rows: HOME_ROWS().filter((r) => !['alq', 'segi', 'aport'].includes(r.id)), alts: [
-    calt('Al contado', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, null, 5),
-    calt('Hipoteca a 20 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 2.9, 240], 5),
-    calt('Hipoteca a 30 años', 250000, ['rate', 2], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.2, 360], 5)] },
+    calt('Al contado', 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, null, 5),
+    calt('Hipoteca a 20 años', 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 2.9, 240], 5),
+    calt('Hipoteca a 30 años', 250000, ['infl'], { compra: 25000, ibi: 500, com: 70, seg: 250, mant: 1200 }, [200000, 3.2, 360], 5)] },
   fuel: { grp: 'car', cat: 'gasolina', label: t('Gasolina o eléctrico'), years: 8, rows: [
     cr('carg', 'Cargador en casa', 'o'), cr('seg', 'Seguro', 'y'), cr('imp', 'Impuesto de circulación', 'y'), cr('mant', 'Mantenimiento', 'y'), cr('ener', 'Combustible o electricidad', 'm')], alts: [
     calt('Gasolina', 22000, ['curve', 'carNew'], { seg: 500, imp: 120, mant: 450, ener: 120 }),
@@ -1673,7 +1673,7 @@ const payOf = (a) => { const o = optOf(a, []); return o.fin ? tco(o, { years: 1,
 /** What the value cell says: how it changes and what it is worth at the end. */
 function valSummary(a, c) {
   if (!(+a.price > 0)) return '—';
-  const end = valueAt(a, c.years, c.years), how = a.vm === 'none' ? t('No se revende') : a.vm === 'curve' ? (CURVE_S()[a.vc] || t('Curva típica')) + (+a.age > 0 ? ' · ' + t('{n} años', { n: a.age }) : '') : a.vm === 'end' ? t('Precio de venta') : a.vm === 'linear' ? t('Sin valor a los {n} años', { n: a.life || c.years }) : (+a.dep >= 0 ? t('+{p} al año', { p: pctx(+a.dep) }) : t('−{p} al año', { p: pctx(-a.dep) }));
+  const end = valueAt(a, c.years, c.years, (+c.infl || 0) / 100), how = a.vm === 'none' ? t('No se revende') : a.vm === 'infl' ? t('Con la inflación') + (+a.dep ? ` ${+a.dep > 0 ? '+' : '−'}${pctx(Math.abs(+a.dep))}` : '') : a.vm === 'curve' ? (CURVE_S()[a.vc] || t('Curva típica')) + (+a.age > 0 ? ' · ' + t('{n} años', { n: a.age }) : '') : a.vm === 'end' ? t('Precio de venta') : a.vm === 'linear' ? t('Sin valor a los {n} años', { n: a.life || c.years }) : (+a.dep >= 0 ? t('+{p} al año', { p: pctx(+a.dep) }) : t('−{p} al año', { p: pctx(-a.dep) }));
   return `<span class="cg-v1">${esc(how)}</span><span class="cg-v2">${a.vm === 'none' ? '' : esc(t('{x} al final', { x: fmt0(end) }))}</span>`;
 }
 /** On a computer: the alternatives side by side. Rows are what they are compared on, columns the alternatives. */
@@ -1782,7 +1782,7 @@ function openCalcVal(i) {
     <div id="cv-body">${calcValBody(UI.calc, a)}</div><button type="button" class="primary big" data-act="dclose">${t('Listo')}</button></div>`;
   openDialog();
 }
-const vmode = (o) => (o.vm === 'rate' ? (+o.dep > 0 ? 'up' : 'down') : o.vm || 'down');
+const vmode = (o) => (o.vm === 'rate' ? (+o.dep > 0 ? 'up' : 'down') : o.vm || 'down'); // 'infl' stays 'infl'
 function calcValBody(c, a) {
   const vm = vmode(a);
   const f = (k, label, suffix, v, mode = 'decimal') => `<label class="field tco-f"><span class="label">${label}</span><span class="tco-in"><input type="text" inputmode="${mode}" data-cv="${k}" value="${esc(n2(v ?? ''))}" autocomplete="off"><span>${suffix}</span></span></label>`;
@@ -1791,8 +1791,9 @@ function calcValBody(c, a) {
       ${f('age', t('Edad al comprarlo'), t('años'), a.age || 0, 'numeric')}`,
     down: f('dep', t('Pierde cada año'), '%', Math.abs(+a.dep || 0)), up: f('dep', t('Gana cada año'), '%', Math.abs(+a.dep || 0)),
     end: f('ve', t('Lo venderás por'), curSym, a.ve), linear: f('life', t('Sin valor a los'), t('años'), a.life, 'numeric'), none: '',
+    infl: f('dep', t('Y además, al año (±)'), '%', +a.dep || 0),
   }[vm];
-  const MODES = [['curve', t('Curva típica')], ['down', t('Pierde un % al año')], ['up', t('Se revaloriza')], ['end', t('Sé por cuánto lo venderé')], ['linear', t('Pierde lo mismo cada año')], ['none', t('No se revende')]];
+  const MODES = [['infl', t('Sigue a la inflación')], ['curve', t('Curva típica')], ['down', t('Pierde un % al año')], ['up', t('Se revaloriza')], ['end', t('Sé por cuánto lo venderé')], ['linear', t('Pierde lo mismo cada año')], ['none', t('No se revende')]];
   return `<label class="field"><span class="label">${t('Cómo cambia su valor')}</span><select data-cv="mode">${MODES.map(([k, l]) => `<option value="${k}" ${vm === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     ${vm === 'none' ? '' : vm === 'curve' ? `<div class="cv-curve">${param}</div>${f('sellc', t('Gastos al venderlo'), '%', a.sellc || 0)}` : `<div class="fields2">${param}${f('sellc', t('Gastos al venderlo'), '%', a.sellc || 0)}</div>`}
     <div id="cv-spark">${vm === 'none' ? '' : vm === 'curve' ? calcLife(a, c) : calcSpark(a, c)}</div>
@@ -1819,7 +1820,7 @@ function calcLife(a, c) {
 }
 /** How its value goes over the years: a small line from the price to what it is worth at the end. */
 function calcSpark(o, c) {
-  const H = c.years, P = +o.price || 0, vs = Array.from({ length: H + 1 }, (_, k) => valueAt(o, k, H));
+  const H = c.years, P = +o.price || 0, vs = Array.from({ length: H + 1 }, (_, k) => valueAt(o, k, H, (+c.infl || 0) / 100));
   const hi = Math.max(P, ...vs) || 1, lo0 = Math.min(P, ...vs), lo = lo0 > hi * 0.5 ? lo0 - (hi - lo0) * 0.25 : 0, W = 300, h = 54, X = (k) => 4 + k / H * (W - 8), Y = (v) => 6 + (1 - (v - lo) / (hi - lo || 1)) * (h - 12);
   const end = vs[H], ch = P ? Math.round((end / P - 1) * 100) : 0;
   return `<div class="calc-spark"><svg viewBox="0 0 ${W} ${h}" preserveAspectRatio="none" aria-hidden="true"><line x1="4" x2="${W - 4}" y1="${Y(P).toFixed(1)}" y2="${Y(P).toFixed(1)}" class="sp-ref"/><polyline points="${vs.map((v, k) => `${X(k).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}" class="sp-line"/></svg>
@@ -2795,8 +2796,8 @@ document.addEventListener('change', (e) => {
   if (UI.calc && e.target.dataset?.cv != null && e.target.tagName === 'SELECT') { const c = UI.calc, a = c.alts[UI.calcValI]; if (a) {
     if (e.target.dataset.cv === 'vc') a.vc = e.target.value;
     else {
-      const was = valueAt(a, c.years, c.years), m = e.target.value; // the new mode starts where the old one ended, when it makes sense
-      if (m === 'up') { a.vm = 'rate'; a.dep = 2; } else if (m === 'down') { a.vm = 'rate'; a.dep = -15; } else a.vm = m;
+      const was = valueAt(a, c.years, c.years, (+c.infl || 0) / 100), m = e.target.value; // the new mode starts where the old one ended, when it makes sense
+      if (m === 'up') { a.vm = 'rate'; a.dep = 2; } else if (m === 'down') { a.vm = 'rate'; a.dep = -15; } else if (m === 'infl') { a.vm = 'infl'; a.dep = 0; } else a.vm = m;
       if (m === 'curve' && !a.vc) a.vc = 'carNew';
       if (m === 'end') a.ve = Math.round(was);
       if (m === 'linear' && !a.life) a.life = c.years;
@@ -2859,7 +2860,9 @@ document.addEventListener('input', (e) => {
   if (UI.calc && e.target.dataset?.cv != null && e.target.tagName === 'INPUT') { const c = UI.calc, a = c.alts[UI.calcValI], k = e.target.dataset.cv; if (a) {
     const v = Math.max(0, num(e.target.value) ?? 0);
     // up or down is what the mode says, not the sign of the figure (while you retype it, it is 0 for a moment)
-    if (k === 'dep') { const up = dlg.querySelector('[data-cv="mode"]')?.value === 'up'; a.dep = (up ? 1 : -1) * Math.min(up ? 50 : 100, v); }
+    if (k === 'dep') { const md = dlg.querySelector('[data-cv="mode"]')?.value;
+      if (md === 'infl') a.dep = Math.max(-50, Math.min(50, num(e.target.value) ?? 0)); // a % more or less than inflation: either sign
+      else { const up = md === 'up'; a.dep = (up ? 1 : -1) * Math.min(up ? 50 : 100, v); } }
     else if (k === 'sellc') a.sellc = Math.min(100, v);
     else if (k === 'life') a.life = Math.min(50, Math.round(v));
     else if (k === 'age') { if (v > 0) a.age = Math.min(30, Math.round(v)); else delete a.age; }

@@ -1419,4 +1419,7 @@ export default {
   'Máster privado sin trabajar': "Private master's, not working",
   'Máster público trabajando': "Public master's, while working",
   'Máster privado trabajando': "Private master's, while working",
+  'Sigue a la inflación': "Follows inflation",
+  'Con la inflación': "With inflation",
+  'Y además, al año (±)': "And on top, a year (\u00b1)",
 };

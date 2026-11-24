@@ -34,12 +34,14 @@ export const curveKeep = (c, age, k) => { let v = 1; for (let j = 0; j < k; j++)
  *  'curve'  a typical curve (o.vc), from its age when bought (o.age)      'rate'   the same % every year (o.dep: −15 loses, +2 gains)
  *  'end'    you know what you'll get (o.ve €, at the end; in between it follows a steady %)
  *  'linear' it loses the same each year until it is worth nothing after o.life years      'none'  nothing back
+ *  'infl'   it follows inflation (`i`, a fraction), and o.dep % a year more or less: a home keeps its real value over time
  */
-export function valueAt(o, k, H) {
+export function valueAt(o, k, H, i = 0) {
   const P = pos(o.price);
   if (!P) return 0;
   switch (o.vm) {
     case 'none': return 0;
+    case 'infl': return P * ((1 + i) * (1 + Math.max(-50, Math.min(50, +o.dep || 0)) / 100)) ** k; // keeps its real value, ± a % a year
     case 'curve': return P * curveKeep(CURVES[o.vc] || CURVES.carNew, Math.max(0, Math.round(+o.age || 0)), k);
     case 'end': { const E = pos(o.ve); if (!k) return P; if (!E) return P * Math.max(0, 1 - k / H); return P * (E / P) ** (k / H); }
     case 'linear': { const L = Math.max(1, pos(o.life) || 1); return P * Math.max(0, 1 - k / L); }
@@ -66,7 +68,7 @@ export function tco(o, c, retOverride = null) {
   const n = o.fin ? Math.round(pos(o.term)) : 0, F = o.fin && n ? Math.min(P, pos(o.loan)) : 0, lr = (F ? pos(o.rate) : 0) / 1200;
   const pay = F ? (lr ? F * lr / (1 - (1 + lr) ** -n) : F / n) : 0;
   const owedAt = (m) => (!F || m >= n ? 0 : lr ? F * (1 + lr) ** m - pay * (((1 + lr) ** m - 1) / lr) : F - pay * m);
-  const worth = (k) => valueAt(o, k, H);
+  const worth = (k) => valueAt(o, k, H, i);
   const cf = new Array(M + 1).fill(0); // what you pay each month; month 0 is the day you buy it
   cf[0] = P - F;
   let running = 0, once = 0, income = 0;

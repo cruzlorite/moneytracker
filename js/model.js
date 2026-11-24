@@ -679,7 +679,7 @@ export function normCalcs(arr) {
     const dep = num(o?.dep) != null ? lim(o.dep, -100, 50, 0) : num(o?.residual) != null ? Math.round(((Math.min(100, n(o.residual)) / 100) ** (1 / years) - 1) * 1000) / 10 : 0;
     const fin = o?.fin === undefined ? true : !!o.fin; // the old shape had a switch; now a loan is simply an amount and a term
     return {
-      name: String(o?.name || '').slice(0, 60), price: n(o?.price), vm: ['curve', 'rate', 'end', 'linear', 'none'].includes(o?.vm) ? o.vm : 'rate', dep,
+      name: String(o?.name || '').slice(0, 60), price: n(o?.price), vm: ['curve', 'rate', 'end', 'linear', 'none', 'infl'].includes(o?.vm) ? o.vm : 'rate', dep,
       // the old "used car" curve is the average one, picked up at 3 years old
       ...(o?.vc ? { vc: o.vc === 'carUsed' ? 'carNew' : String(o.vc) } : {}), ...(o?.vc === 'carUsed' && num(o?.age) == null ? { age: 3 } : n(o?.age) ? { age: Math.min(30, Math.round(n(o.age))) } : {}), ...(n(o?.ve) ? { ve: n(o.ve) } : {}), ...(n(o?.life) ? { life: Math.min(50, n(o.life)) } : {}), ...(n(o?.sellc) ? { sellc: Math.min(100, n(o.sellc)) } : {}),
       loan: fin ? n(o?.loan) : 0, rate: fin ? Math.min(50, n(o?.rate)) : 0, term: fin ? Math.min(600, Math.round(n(o?.term))) : 0, v,
