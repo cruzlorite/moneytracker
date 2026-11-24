@@ -103,7 +103,7 @@ export function tco(o, c, retOverride = null) {
   const total = paid[M] + exitAt(H), pv = pvPaid[M] + exitAt(H) * disc(M);
   const month = rm ? pv * rm / (1 - (1 + rm) ** -M) : pv / M; // the fixed monthly payment worth the same as all of it
   return {
-    cf, exit: Array.from({ length: H + 1 }, (_, k) => exitAt(k)), // for compare(): what leaves your pocket each month, and what selling costs (−: gives) each year
+    cf, exit: Array.from({ length: H + 1 }, (_, k) => exitAt(k)), net: Array.from({ length: H + 1 }, (_, k) => worth(k) * (1 - sc)), // for compare(): what leaves your pocket each month, and what selling costs (−: gives) each year
     H, M, price: P, loan: F, sellCost: r2(worth(H) * sc), pay: r2(pay), interest: r2(pay * Math.min(n, M) + owedAt(M) - F), owed: r2(owedAt(M)), value: r2(worth(H)),
     running: r2(running), once: r2(once), income: r2(income), total: r2(total), pv: r2(pv), month: r2(month), sell,
     out: Array.from({ length: H + 1 }, (_, k) => r2(paid[12 * k])), // money paid by the end of each year (nothing sold)
@@ -120,45 +120,81 @@ export function optOf(a, rows = []) {
 }
 
 /**
- * What each alternative does to your net worth (patrimonio), the way an accountant sees it. You start with the money you have
- * for this (c.cap; by default what the dearest one needs on day one), invested at the scenario's return. Buying is a swap
- * (money → a thing) and paying off a loan's capital is saving: neither changes your net worth. Everything you pay comes out of
- * it — money you stop having and stop earning on — and depreciation takes it down; appreciation and the return of what is left
- * invested take it up. Nothing is added from your income: it would be the same whatever you chose. An alternative that needs
- * more than you have runs a negative balance (as if borrowing at the scenario's return) and is flagged in `short`.
- * c: { years, infl, rets: [%…], cap?, rows, alts }. For each return:
- *   pn[i][k]  net worth after k years if you stopped (and sold) then: starts at K, in euros of that year
- *   dpn[i]    the change over the whole period; cost[i][k] what it costs you against spending nothing
+ * Spain's tax on savings income (base del ahorro, 2025 on), paid on gains when you sell: 19 % up to 6.000 €, 21 % to 50.000,
+ * 23 % to 200.000, 27 % to 300.000, 30 % above. Agencia Tributaria; the top band went from 28 % to 30 % in 2025.
  */
-export function compare(c) {
+export const TAX_ES = [[6000, 19], [50000, 21], [200000, 23], [300000, 27], [Infinity, 30]];
+export function savingsTax(gain) { let t = 0, lo = 0; for (const [hi, p] of TAX_ES) { if (gain <= lo) break; t += (Math.min(gain, hi) - lo) * p / 100; lo = hi; } return t; }
+
+/** What doesn't depend on the return: each alternative's money flows and the money they all start with. */
+export function prepare(c) {
   const os = (c.alts || []).map((a) => optOf(a, c.rows));
   const base = os.map((o) => tco(o, c));
-  if (!base.length) return { H: 0, M: 0, os, base, K: 0, autoK: 0, put: 0, short: [], scen: [] };
+  if (!base.length) return { H: 0, M: 0, os, base, K: 0, autoK: 0, short: [] };
   const { H, M } = base[0];
   const autoK = Math.max(...base.map((b) => b.cf[0])); // what the dearest one needs the first day
   const K = +c.cap > 0 ? +c.cap : autoK;
-  // nothing is added each month: what you pay comes out of your net worth (money you stop having, and stop earning on).
-  // So each alternative depends only on itself and the initial money, and the differences are the same as in cost.
-  const B = new Array(M + 1).fill(0), putY = new Array(H + 1).fill(K), put = K;
   const short = base.map((b) => (b.cf[0] > K + 0.5 ? r2(b.cf[0] - K) : 0));
-  const scen = (c.rets || []).map((ret) => {
-    const rm = (1 + (+ret || 0) / 100) ** (1 / 12) - 1;
-    const runs = base.map((b) => {
-      let P = K - b.cf[0];
-      const w = [r2(P - b.exit[0])], cash = [r2(P)];
-      for (let m = 1; m <= M; m++) { P = P * (1 + rm) + (B[m] - b.cf[m]); if (m % 12 === 0) { w.push(r2(P - b.exit[m / 12])); cash.push(r2(P)); } }
-      return { w, cash, port: r2(P) };
-    });
-    // what you would have spending nothing at all: the same money, all of it invested. What an alternative costs is how much
-    // poorer it leaves you than that — what you pay, plus what that money would have earned, minus what you get back
-    let Q = K; const none = [r2(Q)];
-    for (let m = 1; m <= M; m++) { Q = Q * (1 + rm) + B[m]; if (m % 12 === 0) none.push(r2(Q)); }
-    const wealth = runs.map((x) => x.w), fin = wealth.map((w) => w[H]);
-    const cost = wealth.map((w) => w.map((v, k) => r2(none[k] - v)));
-    const pn = wealth.map((w) => w.map((v, k) => r2(v - (putY[k] - K)))); // the monthly money is income passing through, not a gain
-    return { ret: +ret || 0, none, wealth, cost, pn, pnFin: pn.map((p) => p[H]), dpn: pn.map((p) => r2(p[H] - K)), cash: runs.map((x) => x.cash), port: runs.map((x) => x.port), fin, costFin: cost.map((x) => x[H]), best: fin.reduce((b, v, i) => (v > fin[b] ? i : b), 0) };
+  return { H, M, os, base, K: r2(K), autoK: r2(autoK), short };
+}
+
+/**
+ * One return scenario. Nothing is added each month: what you pay comes out of your net worth (money you stop having, and stop
+ * earning on), so each alternative depends only on itself and the money they all start with. With `tax`, selling (at the end
+ * or the year you stop) pays Spain's savings tax on what the investments earned and on the gain of selling the thing (its
+ * price after selling costs, minus what it cost and its one-off purchase costs); a loss on a car is not deductible.
+ */
+export function scenario(p, ret, tax = true) {
+  const { H, M, K, base } = p;
+  const rm = (1 + (+ret || 0) / 100) ** (1 / 12) - 1;
+  const runs = base.map((b) => {
+    let P = K - b.cf[0], earned = 0;
+    const taxAt = (k) => (tax ? savingsTax(Math.max(0, earned) + Math.max(0, b.net[k] - b.price - b.once)) : 0);
+    const w = [r2(P - b.exit[0] - taxAt(0))], cash = [r2(P)], taxes = [r2(taxAt(0))];
+    for (let m = 1; m <= M; m++) {
+      const gain = P * rm; if (P > 0) earned += gain; // what positive money earns is taxed; a negative balance is money you didn't have
+      P = P + gain - b.cf[m];
+      if (m % 12 === 0) { const k = m / 12, tx = taxAt(k); w.push(r2(P - b.exit[k] - tx)); cash.push(r2(P)); taxes.push(r2(tx)); }
+    }
+    return { w, cash, port: r2(P), taxes };
   });
-  return { H, M, os, base, K: r2(K), autoK: r2(autoK), put: r2(put), short, scen };
+  // what you would have spending nothing at all: the same money, all of it invested (and taxed alike)
+  let Q = K, eq = 0; const none = [r2(Q)];
+  for (let m = 1; m <= M; m++) { const g = Q * rm; if (Q > 0) eq += g; Q += g; if (m % 12 === 0) none.push(r2(Q - (tax ? savingsTax(Math.max(0, eq)) : 0))); }
+  const wealth = runs.map((x) => x.w), fin = wealth.map((w) => w[H]);
+  const cost = wealth.map((w) => w.map((v, k) => r2(none[k] - v)));
+  const pn = wealth; // nothing is put in each month, so the net worth is the wealth itself
+  return { ret: +ret || 0, none, wealth, cost, pn, pnFin: pn.map((x) => x[H]), dpn: pn.map((x) => r2(x[H] - K)), cash: runs.map((x) => x.cash), port: runs.map((x) => x.port),
+    tax: runs.map((x) => x.taxes[H]), taxes: runs.map((x) => x.taxes), fin, costFin: cost.map((x) => x[H]), best: fin.reduce((bi, v, i) => (v > fin[bi] ? i : bi), 0) };
+}
+
+/**
+ * What each alternative does to your net worth, the way an accountant sees it. They all start with the same money (c.cap, or
+ * what the dearest one needs on day one), invested at each scenario's return. Buying is a swap (money → a thing) and paying
+ * off a loan's capital is saving: neither changes net worth. Everything paid comes out of it and stops earning; depreciation
+ * takes it down; appreciation, incomes and the return of what is left invested take it up; with `tax`, selling pays its tax.
+ * c: { years, infl, rets: [%…], cap?, rows, alts }. For each return: pn[i][k] net worth after k years if you stopped (and sold)
+ * then, from K, in euros of that year; dpn[i] the change over the whole period; cost[i][k] against spending nothing.
+ */
+export function compare(c, { tax = true } = {}) {
+  const p = prepare(c);
+  return { ...p, put: p.K, tax, scen: p.base.length ? (c.rets || []).map((ret) => scenario(p, ret, tax)) : [] };
+}
+
+/** The return (%, between −5 and 20) at which alternatives a and b leave the same net worth, or null if they don't cross there. */
+export function evenRet(p, a, b, tax = true) {
+  const f = (r) => { const s = scenario(p, r, tax); return s.pnFin[a] - s.pnFin[b]; };
+  let lo = -5, flo = f(lo);
+  for (let hi = -4.5; hi <= 20; hi += 0.5) {
+    const fhi = f(hi);
+    if (Math.sign(fhi) !== Math.sign(flo)) {
+      let x = hi - 0.5, y = hi;
+      for (let j = 0; j < 30; j++) { const mid = (x + y) / 2; if (Math.sign(f(mid)) === Math.sign(f(x))) x = mid; else y = mid; }
+      return Math.round((x + y) / 2 * 10) / 10;
+    }
+    lo = hi; flo = fhi;
+  }
+  return null;
 }
 
 /** The year from which wealth line `a` stays at or above `b` (0: always; null: not at the end). */

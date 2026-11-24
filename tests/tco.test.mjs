@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { tco, cheapestOf, evenYear, evenReturn, valueAt, CURVES, compare, optOf, aheadFrom } from '../js/tco.js';
+import { tco, cheapestOf, evenYear, evenReturn, valueAt, CURVES, compare, optOf, aheadFrom, savingsTax, prepare, evenRet } from '../js/tco.js';
 
 const near = (a, b, eps = 0.05) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const car = { price: 20000, dep: -10, fin: true, loan: 15000, rate: 6, term: 60, costs: [{ n: 'Seguro', a: 500, f: 'y' }, { n: 'Gasolina', a: 100, f: 'm' }, { n: 'Matrícula', a: 300, f: 'o' }] };
@@ -80,7 +80,7 @@ test('an alternative becomes an option with the decision\'s rows and its own amo
 });
 
 test('everyone starts with the same money; at 0 % the wealth gap is exactly the gap in what they cost', () => {
-  const c = dec([0]), k = compare(c), s = k.scen[0];
+  const c = dec([0]), k = compare(c, { tax: false }), s = k.scen[0];
   const tot = k.base.map((b) => b.total);
   near(s.fin[1] - s.fin[0], tot[0] - tot[1], 0.05);
   assert.equal(k.K, k.base[0].cf[0]); // the dearest first day: the car's down payment
@@ -91,7 +91,7 @@ test('everyone starts with the same money; at 0 % the wealth gap is exactly the 
 });
 
 test('with a return, ranking by wealth is ranking by cost in today\'s money, and the gap grows with it', () => {
-  const c = dec([3, 8]), k = compare(c);
+  const c = dec([3, 8]), k = compare(c, { tax: false });
   for (const s of k.scen) {
     const pv = k.os.map((o) => tco(o, c, s.ret).pv), g = (1 + s.ret / 100) ** k.H;
     near(s.fin[1] - s.fin[0], (pv[0] - pv[1]) * g, 1); // future value of the difference in present cost
@@ -102,7 +102,7 @@ test('with a return, ranking by wealth is ranking by cost in today\'s money, and
 
 test('identical alternatives leave identical wealth; aheadFrom finds when one line stays above', () => {
   const c = dec([5]); c.alts = [c.alts[0], { ...c.alts[0], name: 'Igual' }];
-  const s = compare(c).scen[0];
+  const s = compare(c, { tax: false }).scen[0];
   assert.deepEqual(s.wealth[0], s.wealth[1]);
   assert.equal(aheadFrom([0, 1, 3, 5], [0, 2, 2, 4]), 2);
   assert.equal(aheadFrom([0, 1, 1], [0, 0, 2]), null);
@@ -110,7 +110,7 @@ test('identical alternatives leave identical wealth; aheadFrom finds when one li
 });
 
 test('what an alternative costs is how much poorer it leaves you than spending nothing: its cost in today\'s money, carried to the end', () => {
-  const c = dec([0, 4]), k = compare(c);
+  const c = dec([0, 4]), k = compare(c, { tax: false });
   for (const s of k.scen) {
     const g = (1 + s.ret / 100) ** k.H;
     k.os.forEach((o, i) => near(s.costFin[i], tco(o, c, s.ret).pv * g, 1));
@@ -121,14 +121,14 @@ test('what an alternative costs is how much poorer it leaves you than spending n
 });
 
 test('net worth: everyone starts with the initial money; a car takes it down, a cheap alternative can take it up', () => {
-  const c = dec([5]), k = compare(c), s = k.scen[0];
+  const c = dec([5]), k = compare(c, { tax: false }), s = k.scen[0];
   assert.ok(s.pn.every((p) => Math.abs(p[0] - k.K) < 0.01)); // day one: buying is a swap (no one-off costs here)
   assert.ok(s.dpn[0] < 0); // the car: depreciation, costs and interest
   near(s.dpn[0] - s.dpn[1], s.fin[0] - s.fin[1], 0.05); // the same differences as wealth
-  const k2 = compare({ ...c, cap: 3000 }), s2 = k2.scen[0];
+  const k2 = compare({ ...c, cap: 3000 }, { tax: false }), s2 = k2.scen[0];
   assert.equal(k2.K, 3000); assert.ok(k2.short[0] > 0); assert.equal(k2.short[1], 0); // the car needs more than you have
   near(s2.dpn[0] - s2.dpn[1], s.dpn[0] - s.dpn[1], 0.05); // the initial money moves everyone alike
-  const one = compare({ ...c, alts: [c.alts[1]], cap: 20000 }).scen[0]; // a bus pass and 20.000 € at 5 %: the return beats the pass
+  const one = compare({ ...c, alts: [c.alts[1]], cap: 20000 }, { tax: false }).scen[0]; // a bus pass and 20.000 € at 5 %: the return beats the pass
   assert.ok(one.dpn[0] > 0);
 });
 
@@ -141,8 +141,8 @@ test('curves follow the thing\'s age: a used car picks the curve up where it is,
 });
 
 test('each alternative depends only on itself: adding a dearer one changes nobody else\'s net worth (with the same initial money)', () => {
-  const c = { ...dec([6]), cap: 30000 }, a = compare(c).scen[0];
-  const more = compare({ ...c, alts: [...c.alts, { name: 'Lujo', price: 90000, vm: 'rate', dep: -20, loan: 0, rate: 0, term: 0, v: { s: 2000, g: 300 } }] }).scen[0];
+  const c = { ...dec([6]), cap: 30000 }, a = compare(c, { tax: false }).scen[0];
+  const more = compare({ ...c, alts: [...c.alts, { name: 'Lujo', price: 90000, vm: 'rate', dep: -20, loan: 0, rate: 0, term: 0, v: { s: 2000, g: 300 } }] }, { tax: false }).scen[0];
   near(more.pn[0][8], a.pn[0][8], 0.01); near(more.pn[1][8], a.pn[1][8], 0.01);
   // a car with costs only goes down: depreciation and payments never turn into a gain
   assert.ok(a.pn[0].every((v, k) => k === 0 || v <= a.pn[0][k - 1] + 0.01));
@@ -159,8 +159,28 @@ test('a cost can be fixed, follow inflation, or also rise or fall with age', () 
 test('an income (a flat let out) comes into your pocket and raises net worth', () => {
   const c = { years: 5, infl: 0, rets: [0], rows: [{ id: 'r', n: 'Alquiler', f: 'm', inc: true }, { id: 'g', n: 'IBI', f: 'y' }],
     alts: [{ name: 'Piso', price: 100000, vm: 'rate', dep: 0, v: { r: 500, g: 400 } }, { name: 'Nada', price: 0, vm: 'none', v: {} }] };
-  const k = compare(c), s = k.scen[0];
+  const k = compare(c, { tax: false }), s = k.scen[0];
   near(k.base[0].income, 500 * 60, 0.01); near(k.base[0].running, 400 * 5, 0.01);
   near(s.dpn[0], 500 * 60 - 400 * 5, 0.05); // at 0 % and no change in value: rent minus costs
   near(s.dpn[1], 0, 0.01);
+});
+
+test('Spain\'s savings tax goes by bands: 19 % up to 6.000, 21 % to 50.000, 23 % to 200.000, 27 % to 300.000, 30 % above', () => {
+  near(savingsTax(0), 0, 0.001); near(savingsTax(-500), 0, 0.001);
+  near(savingsTax(6000), 1140, 0.01);
+  near(savingsTax(10000), 1140 + 4000 * 0.21, 0.01);
+  near(savingsTax(400000), 1140 + 44000 * 0.21 + 150000 * 0.23 + 100000 * 0.27 + 100000 * 0.3, 0.01);
+});
+
+test('with the tax, selling pays on what the investments earned and on the gain of the sale; a car sold at a loss pays nothing on it', () => {
+  const c = { years: 10, infl: 0, rets: [5], rows: [{ id: 'o', n: 'Compra', f: 'o' }],
+    alts: [{ name: 'Fondos', price: 0, vm: 'none', v: {} }, { name: 'Piso', price: 100000, vm: 'rate', dep: 4, sellc: 0, v: { o: 10000 } }, { name: 'Coche', price: 100000, vm: 'rate', dep: -10, v: { o: 10000 } }] };
+  const no = compare(c, { tax: false }).scen[0], yes = compare(c).scen[0], K = compare(c).K;
+  near(K, 110000, 0.01);
+  near(no.dpn[0] - yes.dpn[0], savingsTax(no.dpn[0]), 1); // the fund: all of its gain is taxed
+  const saleGain = 100000 * 1.04 ** 10 - 100000 - 10000; // the purchase costs count against the gain
+  near(yes.tax[1], savingsTax(saleGain), 1); // the flat: nothing left invested, the gain of the sale
+  near(yes.tax[2], 0, 0.01); // the car: a loss, and nothing invested
+  // the even return is worked out after tax too
+  const p = prepare(c), e = evenRet(p, 0, 1); if (e != null) { const s = compare({ ...c, rets: [e] }).scen[0]; near(s.pnFin[0], s.pnFin[1], 1500); } // e is rounded to 0,1 %
 });

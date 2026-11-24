@@ -7,7 +7,7 @@ import {
 } from './model.js';
 import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stagger } from './fx.js';
 import { sortable } from './sort.js';
-import { tco, evenReturn, valueAt, compare, optOf, aheadFrom, CURVES, curveKeep, AGE_UP, AGE_DOWN } from './tco.js';
+import { tco, valueAt, compare, evenRet, optOf, aheadFrom, CURVES, curveKeep, AGE_UP, AGE_DOWN } from './tco.js';
 import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, tipx, setChartWidth, withChartWidth } from './charts.js';
 import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
@@ -1580,6 +1580,8 @@ const rowName = (r) => (r.n || '').trim() || t('Sin nombre');
 const pctx = (v) => `${String(Math.round(v * 10) / 10).replace('.', lang === 'en' ? '.' : ',')} %`;
 const n2 = (v) => String(v ?? '').replace('.', lang === 'en' ? '.' : ',');
 const calcWide = () => matchMedia('(min-width: 960px)').matches;
+/** The comparison as the switches say: with Spain's tax on gains when selling (on unless switched off). */
+const cmpc = (c) => compare(c, { tax: UI.calcTax !== false });
 const calcSaved = (id) => (store.data.calcs || []).some((x) => x.id === id);
 /** Save the decision you are looking at. Only when you press «Guardar»: trying numbers out never saves anything. */
 function calcSave() {
@@ -1605,7 +1607,7 @@ function calcView() { return UI.calc ? calcEdit(UI.calc) : calcList(); }
 function calcList() {
   const list = normCalcs(store.data.calcs || []).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
   const item = (c) => {
-    const s = compare(c).scen[c.sel];
+    const s = cmpc(c).scen[c.sel];
     let line = esc(t('Sin alternativas'));
     if (s && c.alts.length) {
       const b = s.best;
@@ -1635,7 +1637,7 @@ function calcAss(c) {
   return `<section class="card calc-ass"><h2>${t('Supuestos')}</h2>
     <div class="calc-ass-g">${g('years', t('Años'), t('años'), 'numeric')}${g('infl', t('Inflación'), '%', 'decimal')}
       <div class="field calc-rets"><span class="label">${t('Escenarios: lo que rinde tu dinero al año')}</span><div class="calc-retl">${rets}${c.rets.length < CALC_MAX.rets ? `<button type="button" class="calc-ret-add" data-act="calcaddret">+ ${t('Escenario')}</button>` : ''}</div></div></div>
-    <p class="fine">${t('Todas parten del mismo dinero, invertido: lo que pide la más cara al empezar. Pon rentabilidades netas de comisiones e impuestos.')}</p></section>`;
+    <p class="fine">${t('Todas parten del mismo dinero, invertido: lo que pide la más cara al empezar. Pon rentabilidades netas de comisiones; los impuestos se calculan al vender.')}</p></section>`;
 }
 const payOf = (a) => { const o = optOf(a, []); return o.fin ? tco(o, { years: 1, infl: 0, ret: 0 }).pay : 0; };
 /** What the value cell says: how it changes and what it is worth at the end. */
@@ -1675,7 +1677,7 @@ function calcTable(c) {
 /** The amounts in euros of each year, or (UI.calcReal) in today's euros: divided by the inflation of the years in between. */
 const calcEur = (c) => { const i = (+c.infl || 0) / 100; return (v, y) => (UI.calcReal ? v / (1 + i) ** y : v); };
 /** Under the table, as you type: what each one costs you in the scenario you are looking at. */
-function calcFoot(c, k = compare(c)) {
+function calcFoot(c, k = cmpc(c)) {
   const s = k.scen[c.sel]; if (!s) return '';
   const N = c.alts.length, many = N > 1, g = calcGain(c, k, s);
   return `<tr><th scope="row"><span class="cg-l">${t('Ganancia o pérdida de patrimonio')}</span><span class="cg-s">${t('en {n} años', { n: k.H })} · ${UI.calcReal ? t('al {r} · en euros de hoy', { r: pctx(s.ret) }) : t('al {r} · en euros de cada año', { r: pctx(s.ret) })}</span></th>${g.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b class="${gainCls(v)}">${sgn0(v)}</b>${many && i === s.best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
@@ -1789,12 +1791,13 @@ function calcSpark(o, c) {
  * saving, so neither changes it; everything paid comes out of it and stops earning; depreciation takes it down, appreciation up.
  * In today's euros (UI.calcReal) an alternative can gain euros and still lose buying power.
  */
-function calcResult(c, k = compare(c)) {
+function calcResult(c, k = cmpc(c)) {
   if (!c.alts.length || !k.scen.length) return '';
   const names = c.alts.map(altName), H = k.H, sel = Math.min(c.sel, k.scen.length - 1), s = k.scen[sel], many = names.length > 1;
   const infl = (+c.infl || 0) / 100, real = !!UI.calcReal, K = k.K;
-  const unit = `<div class="calc-unit"><span class="label">${t('Importes en euros de')}</span><div class="seg" role="group" aria-label="${t('Importes en euros de')}"><button type="button" data-act="calcreal" data-v="0" aria-pressed="${!real}">${t('cada año')}</button><button type="button" data-act="calcreal" data-v="1" aria-pressed="${real}">${t('hoy')}</button></div>
-    <span class="fine">${real ? t('Descontada la inflación ({p} al año): lo que se podría comprar hoy con ese dinero.', { p: pctx(+c.infl || 0) }) : t('Los euros de cada momento, sin descontar la inflación.')}</span></div>`;
+  const sw = (act, on, label, hint) => `<button type="button" class="calc-sw" role="switch" data-act="${act}" aria-checked="${on}"><i aria-hidden="true"></i><span><b>${label}</b><span class="fine">${hint}</span></span></button>`;
+  const unit = `<div class="calc-unit">${sw('calcreal', real, t('Descontar la inflación'), real ? t('En euros de hoy: lo que se podría comprar hoy con ese dinero ({p} al año).', { p: pctx(+c.infl || 0) }) : t('En euros de cada año, sin descontar la inflación.'))}
+    ${sw('calctax', k.tax, t('Impuestos sobre las ganancias'), k.tax ? t('Al vender: por lo que ganaron tus inversiones y la ganancia de la venta (tramos del ahorro, 19–30 %).') : t('Sin impuestos sobre las ganancias.'))}</div>`;
   const gains = k.scen.map((x) => calcGain(c, k, x)), g = gains[sel];
   const matrix = `<div class="cm-wrap"><table class="cm" style="--n:${k.scen.length}"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
     <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = gains[j][i];
@@ -1809,9 +1812,9 @@ function calcResult(c, k = compare(c)) {
   const notes = [];
   if (many) {
     const byRet = k.scen.map((x, j) => j).sort((x, y) => k.scen[x].ret - k.scen[y].ret), lo = k.scen[byRet[0]].best, hi = k.scen[byRet[byRet.length - 1]].best;
-    if (lo !== hi) { const e = evenReturn(k.os[lo], k.os[hi], c); notes.push(e != null ? t('La rentabilidad decide: por debajo de un {e} gana {a}; por encima, {b}.', { e: pctx(e), a: names[lo], b: names[hi] }) : t('La mejor cambia según la rentabilidad.')); }
+    if (lo !== hi) { const e = evenRet(k, lo, hi, k.tax); notes.push(e != null ? t('La rentabilidad decide: por debajo de un {e} gana {a}; por encima, {b}.', { e: pctx(e), a: names[lo], b: names[hi] }) : t('La mejor cambia según la rentabilidad.')); }
     else if (k.scen.length > 1) notes.push(t('{a} es la mejor en todos los escenarios.', { a: names[lo] }));
-    if (lo === hi) { const e = evenReturn(k.os[b], k.os[sec], c); if (e != null) notes.push(e > s.ret ? t('Solo si tu dinero rindiera más de un {e} al año saldría mejor {b}.', { e: pctx(e), b: names[sec] }) : t('Si tu dinero rindiera menos de un {e} al año, saldría mejor {b}.', { e: pctx(e), b: names[sec] })); }
+    if (lo === hi) { const e = evenRet(k, b, sec, k.tax); if (e != null) notes.push(e > s.ret ? t('Solo si tu dinero rindiera más de un {e} al año saldría mejor {b}.', { e: pctx(e), b: names[sec] }) : t('Si tu dinero rindiera menos de un {e} al año, saldría mejor {b}.', { e: pctx(e), b: names[sec] })); }
     const y = aheadFrom(s.pn[b], s.pn[sec]);
     if (y > 1) notes.push(t('{a} solo sale mejor si lo mantienes al menos {k} años: si lo dejas antes, gana {b}.', { a: names[b], k: y, b: names[sec] }));
   }
@@ -1828,13 +1831,14 @@ function calcResult(c, k = compare(c)) {
   // the accounts of each alternative, in the chosen scenario: where the gain or loss comes from
   const rs = k.base, br = (label, f) => [label, ...rs.map((r, i) => f(r, i))];
   const brk = table([t('Concepto'), ...names], [
-    br(t('Lo que rinde o deja de rendir tu dinero'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost - r.income)),
+    br(t('Lo que rinde o deja de rendir tu dinero'), (r, i) => sgn0(s.dpn[i] - (r.value - r.price) + r.running + r.once + r.interest + r.sellCost - r.income + s.tax[i])),
     ...(rs.some((r) => r.income > 0.5) ? [br(t('Ingresos'), (r) => sgn0(r.income))] : []),
     br(t('Revalorización o depreciación'), (r) => sgn0(r.value - r.price)),
     br(t('Gastos de uso'), (r) => sgn0(-r.running)),
     br(t('Pagos únicos (impuestos, matrícula…)'), (r) => sgn0(-r.once)),
     br(t('Intereses del préstamo'), (r) => sgn0(-r.interest)),
     br(t('Gastos de venta'), (r) => sgn0(-r.sellCost)),
+    ...(k.tax ? [br(t('Impuestos sobre las ganancias'), (r, i) => sgn0(-s.tax[i]))] : []),
     br(t('Ganancia o pérdida'), (r, i) => `<b>${sgn0(s.dpn[i])}</b>`),
     br(t('En euros de hoy'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K)),
     br(t('Coste equivalente al mes'), (r, i) => fmt0(tco(k.os[i], c, s.ret).month))]).replace(t('Ver como tabla'), t('Cuentas de cada alternativa al {r}', { r: pctx(s.ret) }));
@@ -1857,15 +1861,16 @@ function calcHow() {
       <li>${t('Comprar algo no cambia tu patrimonio: cambias dinero por un bien. Pedir un préstamo tampoco (tienes más dinero y una deuda igual), ni pagar su capital (es ahorro: baja la deuda tanto como el dinero).')}</li>
       <li>${t('Lo bajan los gastos de uso, los intereses, los impuestos y gastos de compra y venta, y lo que pierde el bien con los años. Los gastos suben cada año con la inflación, salvo los de precio fijo; los que cambian con la edad suben (mantenimiento, reparaciones: un {u} % más al año) o bajan (seguro: un {d} % menos) además de la inflación. Lo suben su revalorización y lo que rinde el dinero que no gastas.', { u: AGE_UP, d: -AGE_DOWN })}</li>
       <li>${t('Todas parten del mismo dinero, invertido a la rentabilidad del escenario: lo que pide la más cara al empezar. Cada euro que pagas sale de ahí y deja de rendir: es el coste de oportunidad. Tus ingresos no se cuentan, porque serían los mismos eligieras lo que eligieras.')}</li>
+      <li>${t('Con impuestos, al vender se paga el impuesto del ahorro de España (19 % hasta 6.000 €, 21 % hasta 50.000 €, 23 % hasta 200.000 €, 27 % hasta 300.000 €, 30 % por encima) por lo que ganaron tus inversiones y por la ganancia de la venta: el precio de venta menos sus gastos, menos lo que costó y sus impuestos y gastos de compra. Vender un coche por menos de lo que costó no da derecho a restar esa pérdida. No incluye exenciones (vivienda habitual de mayores de 65 años, reinversión en otra vivienda habitual).')}</li>
       <li>${t('En euros de hoy, cada año se divide por la inflación acumulada: un patrimonio puede crecer en euros y perder poder de compra.')}</li>
       <li>${t('Una vivienda o un coche también te dan techo o transporte, que de otro modo pagarías: por eso se comparan alternativas que cubren lo mismo (comprar o alquilar, coche o transporte público).')}</li>
     </ol>
-    <p class="fine">${t('No incluye impuestos sobre la ganancia al vender ni deducciones, cambios de tipo en préstamos variables, averías imprevistas ni los altibajos de las inversiones. Tampoco lo que no es dinero: comodidad, tiempo o libertad. Es una estimación para decidir, no una oferta.')}</p></details>`;
+    <p class="fine">${t('No incluye deducciones, cambios de tipo en préstamos variables, averías imprevistas ni los altibajos de las inversiones. Tampoco lo que no es dinero: comodidad, tiempo o libertad. Es una estimación para decidir, no una oferta.')}</p></details>`;
 }
 /** After typing: redraw the answer and the figures beside the fields (the fields stay as they are, with the cursor in them). */
 function calcChanged() {
   const c = UI.calc; if (!c) return;
-  const k = compare(c);
+  const k = cmpc(c);
   const box = $('#calc-res'); if (box) box.innerHTML = calcResult(c, k);
   const ft = $('#cg-foot'); if (ft) ft.innerHTML = calcFoot(c, k);
   c.alts.forEach((a, i) => {
@@ -2655,7 +2660,9 @@ function onAct(b, sure = false) {
     case 'calcaddret': { const c = UI.calc; if (c.rets.length >= CALC_MAX.rets) break; c.rets.push(Math.min(30, Math.max(...c.rets) + 2)); calcRedraw(`[data-cr="${c.rets.length - 1}"]`); calcChanged(); break; }
     case 'calcrmret': { const c = UI.calc, i = +b.dataset.i; if (c.rets.length < 2) break; c.rets.splice(i, 1); if (c.sel >= i && c.sel > 0) c.sel--; calcRedraw(); calcChanged(); break; }
     case 'calcsel': UI.calc.sel = +b.dataset.i; calcChanged(); break;
-    case 'calcreal': { UI.calcReal = b.dataset.v === '1'; const k = compare(UI.calc), box = $('#calc-res'); if (box) box.innerHTML = calcResult(UI.calc, k); const ft = $('#cg-foot'); if (ft) ft.innerHTML = calcFoot(UI.calc, k); break; }
+    case 'calcreal': case 'calctax': {
+      if (act === 'calcreal') UI.calcReal = !UI.calcReal; else UI.calcTax = UI.calcTax === false;
+      const k = cmpc(UI.calc), box = $('#calc-res'); if (box) box.innerHTML = calcResult(UI.calc, k); const ft = $('#cg-foot'); if (ft) ft.innerHTML = calcFoot(UI.calc, k); break; }
     case 'calcval': openCalcVal(+b.dataset.i); break;
     case 'calcrows': openCalcRows(); break;
     case 'gopending': lsSet('hucha:nfold', ''); render(true); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
