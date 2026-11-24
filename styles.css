@@ -1624,7 +1624,12 @@ dialog .sheet { overscroll-behavior: contain; }
   .syncbar { padding: 10px 24px; }
 }
 /* dialogs once they are no longer a sheet at the bottom: rounded all round (the phone rule above squares the bottom) */
-@media (min-width: 600px) { .sheet, dialog.full .sheet { border-radius: 22px; } }
+@media (min-width: 600px) {
+  .sheet, dialog.full .sheet { border-radius: 22px; }
+  /* a long one scrolls inside the rounded shape: the dialog clips it, so the scrollbar doesn't square the right corners */
+  dialog { border-radius: 22px; overflow: hidden; }
+  .sheet { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 45%, transparent) transparent; }
+}
 /* on a computer they open over the column (not over the sidebar), with more air, and appear in place instead of sliding up;
    the tall ones only take the height they need */
 @media (min-width: 960px) {
