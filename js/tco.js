@@ -115,9 +115,13 @@ export function compare(c) {
       for (let m = 1; m <= M; m++) { P = P * (1 + rm) + (B[m] - b.cf[m]); if (m % 12 === 0) { w.push(r2(P - b.exit[m / 12])); cash.push(r2(P)); } }
       return { w, cash, port: r2(P) };
     });
+    // what you would have spending nothing at all: the same money, all of it invested. What an alternative costs is how much
+    // poorer it leaves you than that — what you pay, plus what that money would have earned, minus what you get back
+    let Q = K; const none = [r2(Q)];
+    for (let m = 1; m <= M; m++) { Q = Q * (1 + rm) + B[m]; if (m % 12 === 0) none.push(r2(Q)); }
     const wealth = runs.map((x) => x.w), fin = wealth.map((w) => w[H]);
-    // cash[i][k]: only the money invested, not counting what the thing is worth (buying takes it out on day one)
-    return { ret: +ret || 0, wealth, cash: runs.map((x) => x.cash), port: runs.map((x) => x.port), fin, best: fin.reduce((b, v, i) => (v > fin[b] ? i : b), 0) };
+    const cost = wealth.map((w) => w.map((v, k) => r2(none[k] - v)));
+    return { ret: +ret || 0, none, wealth, cost, cash: runs.map((x) => x.cash), port: runs.map((x) => x.port), fin, costFin: cost.map((c) => c[H]), best: fin.reduce((b, v, i) => (v > fin[b] ? i : b), 0) };
   });
   return { H, M, os, base, K: r2(K), put: r2(put), scen };
 }

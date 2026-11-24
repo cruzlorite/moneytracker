@@ -106,3 +106,14 @@ test('identical alternatives leave identical wealth; aheadFrom finds when one li
   assert.equal(aheadFrom([0, 1, 1], [0, 0, 2]), null);
   assert.equal(aheadFrom([5, 5], [1, 1]), 0);
 });
+
+test('what an alternative costs is how much poorer it leaves you than spending nothing: its cost in today\'s money, carried to the end', () => {
+  const c = dec([0, 4]), k = compare(c);
+  for (const s of k.scen) {
+    const g = (1 + s.ret / 100) ** k.H;
+    k.os.forEach((o, i) => near(s.costFin[i], tco(o, c, s.ret).pv * g, 1));
+    assert.ok(s.cost.every((line) => line[0] < 1)); // day one: nothing lost yet (the car is worth what it cost)
+    assert.equal(s.best, s.costFin.indexOf(Math.min(...s.costFin)));
+  }
+  near(k.scen[0].costFin[0], k.base[0].total, 0.05); // at 0 %: just what you paid minus what you got back
+});
