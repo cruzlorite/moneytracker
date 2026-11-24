@@ -1668,9 +1668,7 @@ dialog .sheet { overscroll-behavior: contain; }
 .calc-ret-x { border: 0; background: transparent; padding: 0; color: var(--muted); width: 28px; height: 28px; border-radius: 8px; }
 .calc-ret-x svg { width: 14px; height: 14px; }
 .calc-ret-add { border: 1px dashed var(--line); background: transparent; color: var(--link); font-size: 14px; padding: 9px 12px; border-radius: 10px; }
-@media (min-width: 960px) { .calc-ass-g { grid-template-columns: 130px 130px 180px minmax(0, 1fr); } .calc-rets { grid-column: auto; } }
-.calc-cap { grid-column: 1 / -1; } @media (min-width: 960px) { .calc-cap { grid-column: auto; } }
-.calc-cap input::placeholder { color: var(--muted); }
+@media (min-width: 960px) { .calc-ass-g { grid-template-columns: 150px 150px minmax(0, 1fr); } .calc-rets { grid-column: auto; } }
 .calc-start { margin: -6px 0 0; }
 
 .calc-alts-h { display: grid; gap: 2px; } .calc-alts-h p { margin: 0; }
@@ -1782,3 +1780,4 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 @media (max-width: 420px) { .cv-curve { grid-template-columns: minmax(0, 1fr); } }
 .lf-xe { text-anchor: end; }
 #cv-body { display: grid; gap: 12px; }
+.cm td b.c-ok, .cm td b.c-spend, .cg tfoot b.c-ok, .cg tfoot b.c-spend { color: inherit; } .cm td b.c-spend, .cg tfoot b.c-spend { color: var(--spend-ink); } .cm td b.c-ok, .cg tfoot b.c-ok { color: var(--ok-ink); }

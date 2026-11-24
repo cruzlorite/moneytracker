@@ -656,8 +656,7 @@ export function normSpend(e) {
 
 /**
  * Saved decisions (what to do about something: buy a car, rent or buy a home): { id, name, at, years, infl (% a year costs go up),
- * rets: [% a year the money would earn invested, net — one per scenario], sel (the scenario shown), cap (the money you have for
- * this at the start, your initial net worth; none: what the dearest alternative needs), rows, alts }.
+ * rets: [% a year the money would earn invested, net — one per scenario], sel (the scenario shown), rows, alts }.
  * rows: the concepts every alternative is compared on { id, n, f: 'm' a month | 'y' a year | 'o' once, at the start | '2'…'10'
  * every that many years, fix: true if it does not go up with inflation (a lease) }.
  * alts: the alternatives { name, price, how it keeps its value (vm, dep, vc, ve, life), sellc (% it costs to sell), a loan
@@ -711,7 +710,7 @@ export function normCalcs(arr) {
     const rets = [...new Set((Array.isArray(c.rets) && c.rets.length ? c.rets : [c.ret ?? 4]).map((r) => lim(r, -10, 30, 4)))].slice(0, CALC_MAX.rets);
     return {
       id: String(c.id), name: String(c.name || '').slice(0, 80), at: String(c.at || ''), years, infl: lim(c.infl, -5, 30, 2.5),
-      rets, sel: Math.min(rets.length - 1, Math.max(0, Math.round(num(c.sel) ?? 0))), ...(n(c.cap) ? { cap: Math.min(1e9, n(c.cap)) } : {}), rows, alts,
+      rets, sel: Math.min(rets.length - 1, Math.max(0, Math.round(num(c.sel) ?? 0))), rows, alts,
     };
   });
 }
