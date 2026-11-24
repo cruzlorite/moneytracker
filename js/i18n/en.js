@@ -1422,4 +1422,9 @@ export default {
   'Sigue a la inflación': "Follows inflation",
   'Con la inflación': "With inflation",
   'Y además, al año (±)': "And on top, a year (\u00b1)",
+  'Frente a no hacer nada': "Against doing nothing",
+  'Resta lo que rendiría ese dinero invertido: sirve para comparar decisiones distintas.': "Takes off what that money would earn invested: to compare different decisions.",
+  'frente a no hacer nada': "against doing nothing",
+  'Sin hacer nada, ese dinero rendiría': "Doing nothing, that money would earn",
+  'Resta lo que rendiría tu dinero invertido.': "Takes off what your money would earn invested.",
 };

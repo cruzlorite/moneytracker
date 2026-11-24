@@ -1610,6 +1610,8 @@ const rowName = (r) => (r.n || '').trim() || t('Sin nombre');
 const pctx = (v) => `${String(Math.round(v * 10) / 10).replace('.', lang === 'en' ? '.' : ',')} %`;
 const n2 = (v) => String(v ?? '').replace('.', lang === 'en' ? '.' : ',');
 const calcWide = () => matchMedia('(min-width: 960px)').matches;
+/** Measured against doing nothing (the same money left invested): the decision's own effect. On unless switched off. */
+const calcRelOn = () => UI.calcRel !== false;
 /** The comparison as the switches say: with Spain's tax on gains when selling (on unless switched off). */
 const cmpc = (c) => compare(c, { tax: UI.calcTax !== false });
 const calcSaved = (id) => (store.data.calcs || []).some((x) => x.id === id);
@@ -1641,7 +1643,8 @@ function calcList() {
     let line = esc(t('Sin alternativas'));
     if (s && c.alts.length) {
       const b = s.best;
-      line = `<i class="tcc-sw" style="background:${CALC_C[b]}"></i><span class="calc-it-n">${esc(altName(c.alts[b], b))}</span><span class="nw">${esc(t('{x} de patrimonio', { x: sgn0(s.dpn[b]) }))}</span>`;
+      const g = calcRelOn() ? s.pnFin[b] - s.none[s.none.length - 1] : s.dpn[b]; // as the switch says (against doing nothing by default)
+      line = `<i class="tcc-sw" style="background:${CALC_C[b]}"></i><span class="calc-it-n">${esc(altName(c.alts[b], b))}</span><span class="nw">${esc(t('{x} de patrimonio', { x: sgn0(g) }))}</span>`;
     }
     return `<button type="button" class="card calc-item" data-act="calcopen" data-id="${esc(c.id)}"><span class="calc-it-t"><b>${esc(c.name || t('Sin nombre'))}</b><span class="fine">${line}</span></span>${ic('right')}</button>`;
   };
@@ -1715,15 +1718,17 @@ const calcEur = (c) => { const i = (+c.infl || 0) / 100; return (v, y) => (UI.ca
 function calcFoot(c, k = cmpc(c)) {
   const s = k.scen[c.sel]; if (!s) return '';
   const N = c.alts.length, many = N > 1, g = calcGain(c, k, s);
-  return `<tr><th scope="row"><span class="cg-l">${t('Ganancia o pérdida de patrimonio')}</span><span class="cg-s">${t('en {n} años', { n: k.H })} · ${UI.calcReal ? t('al {r} · en euros de hoy', { r: pctx(s.ret) }) : t('al {r} · en euros de cada año', { r: pctx(s.ret) })}</span></th>${g.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b class="${gainCls(v)}">${sgn0(v)}</b>${many && i === s.best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
+  return `<tr><th scope="row"><span class="cg-l">${t('Ganancia o pérdida de patrimonio')}</span><span class="cg-s">${t('en {n} años', { n: k.H })} · ${UI.calcReal ? t('al {r} · en euros de hoy', { r: pctx(s.ret) }) : t('al {r} · en euros de cada año', { r: pctx(s.ret) })}${calcRelOn() ? ' · ' + t('frente a no hacer nada') : ''}</span></th>${g.map((v, i) => `<td class="num${many && i === s.best ? ' best' : ''}"><b class="${gainCls(v)}">${sgn0(v)}</b>${many && i === s.best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`).join('')}${N < CALC_MAX.alts ? '<td class="cg-pad"></td>' : ''}</tr>`;
 }
 /**
  * Gain or loss of net worth of each alternative after year y (default: the end), from 0. In today's euros the final net worth
  * is divided by the inflation since now and the starting money taken off: you can gain euros and still lose buying power.
  */
 function calcGain(c, k, s, y = k.H) {
-  const i = (+c.infl || 0) / 100, real = !!UI.calcReal;
-  return s.pn.map((p) => (real ? p[y] / (1 + i) ** y : p[y]) - k.K);
+  const i = (+c.infl || 0) / 100, d = UI.calcReal ? (1 + i) ** y : 1;
+  // against doing nothing: what the same money would have become left invested (and taxed alike) instead of the starting money
+  const ref = calcRelOn() ? s.none[y] / d : k.K;
+  return s.pn.map((p) => p[y] / d - ref);
 }
 const gainCls = (v) => (v > 0.5 ? 'c-ok' : v < -0.5 ? 'c-spend' : '');
 /** A change, with its sign: +10.054 € / −27.705 €. */
@@ -1839,14 +1844,15 @@ function calcResult(c, k = cmpc(c)) {
   const sw = (act, on, label, hint) => `<button type="button" class="calc-sw" role="switch" data-act="${act}" aria-checked="${on}"><i aria-hidden="true"></i><span><b>${label}</b><span class="fine">${hint}</span></span></button>`;
   // the line under each switch says what it does, the same on and off: the card never changes size
   const unit = `<div class="calc-unit">${sw('calcreal', real, t('Descontar la inflación'), t('Cifras en euros de hoy ({p} al año).', { p: pctx(+c.infl || 0) }))}
-    ${sw('calctax', k.tax, t('Impuestos sobre las ganancias'), t('Al vender, por tramos del ahorro (19–30 %).'))}</div>`;
+    ${sw('calctax', k.tax, t('Impuestos sobre las ganancias'), t('Al vender, por tramos del ahorro (19–30 %).'))}
+    ${sw('calcrel', calcRelOn(), t('Frente a no hacer nada'), t('Resta lo que rendiría tu dinero invertido.'))}</div>`;
   const gains = k.scen.map((x) => calcGain(c, k, x)), g = gains[sel];
   const matrix = `<div class="cm-wrap"><table class="cm" style="--n:${k.scen.length}"><thead><tr><th scope="col"><span class="sr">${t('Alternativa')}</span></th>${k.scen.map((x, j) => `<th scope="col"><button type="button" class="cm-s" data-act="calcsel" data-i="${j}" aria-pressed="${j === sel}">${t('al {r}', { r: pctx(x.ret) })}</button></th>`).join('')}</tr></thead>
     <tbody>${names.map((nm, i) => `<tr><th scope="row"><span class="cm-n"><i class="tcc-sw" style="background:${CALC_C[i]}"></i><span>${esc(nm)}</span></span></th>${k.scen.map((x, j) => { const best = many && x.best === i, v = gains[j][i];
       return `<td class="num${j === sel ? ' on' : ''}${best ? ' best' : ''}"><b class="${gainCls(v)}">${sgn0(v)}</b>${best ? `<span class="cm-b">${t('la mejor')}</span>` : ''}</td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`;
   // the verdict, in the scenario you chose, and what would change it
   const order = g.map((_, i) => i).sort((x, y) => g[y] - g[x]), b = order[0], sec = order[1];
-  const gl = (v) => (v >= 0 ? t('ganas {x} de patrimonio', { x: fmt0(v) }) : t('pierdes {x} de patrimonio', { x: fmt0(-v) }));
+  const gl = (v) => (v >= 0 ? t('ganas {x} de patrimonio', { x: fmt0(v) }) : t('pierdes {x} de patrimonio', { x: fmt0(-v) })) + (calcRelOn() ? ' ' + t('frente a no hacer nada') : '');
   let verdict;
   if (!many) verdict = t('Al {r}, en {n} años {g}.', { r: pctx(s.ret), n: H, g: gl(g[b]) });
   else if (g[b] - g[sec] < 1) verdict = t('Al {r}, {a} y {b} te dejan igual.', { r: pctx(s.ret), a: names[b], b: names[sec] });
@@ -1869,7 +1875,7 @@ function calcResult(c, k = cmpc(c)) {
   const how = `<p class="fine calc-base">${t('Todas parten de {k} invertidos (lo que pide la más cara al empezar). Comprar no cambia tu patrimonio (cambias dinero por un bien), ni pagar el capital del préstamo (es ahorro). Lo bajan los gastos, los intereses, los impuestos y lo que pierde el bien; lo suben su revalorización y lo que rinde el dinero que no gastas.', { k: fmt0(K) })}</p>`;
   // the years in between: the gain or loss if you stopped (and sold) that year
   const lab = (y) => (y === 0 ? t('Al empezar') : cap(t('año {n}', { n: y })));
-  const lines = s.pn.map((w) => w.map((v, y) => (real ? v / (1 + infl) ** y : v) - K)), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
+  const lines = s.pn.map((w) => w.map((v, y) => { const d = real ? (1 + infl) ** y : 1; return v / d - (calcRelOn() ? s.none[y] / d : K); })), series = lines.map((w, i) => ({ vals: w, c: CALC_C[i] }));
   const chart = withChartWidth(calcChartRoom(), () => multiLines({ series, labels: lines[0].map((_, y) => String(y)),
     tips: lines[0].map((_, y) => tipx(lab(y), names.map((_, i) => i).sort((x, z) => lines[z][y] - lines[x][y]).map((i) => ({ c: CALC_C[i], k: 'solid', l: names[i], v: sgn0(lines[i][y]) })), real ? t('ganancia o pérdida si lo dejaras entonces, en euros de hoy') : t('ganancia o pérdida si lo dejaras entonces'))),
     aria: t('Ganancia o pérdida de patrimonio de cada alternativa, año a año') }));
@@ -1886,6 +1892,7 @@ function calcResult(c, k = cmpc(c)) {
     br(t('Gastos de venta'), (r) => sgn0(-r.sellCost)),
     ...(k.tax ? [br(t('Impuestos sobre las ganancias'), (r, i) => sgn0(-s.tax[i]))] : []),
     br(t('Ganancia o pérdida'), (r, i) => `<b>${sgn0(s.dpn[i])}</b>`),
+    ...(calcRelOn() ? [br(t('Sin hacer nada, ese dinero rendiría'), () => sgn0(s.none[H] - K)), br(t('Frente a no hacer nada'), (r, i) => `<b>${sgn0(s.pnFin[i] - s.none[H])}</b>`)] : []),
     br(t('En euros de hoy'), (r, i) => sgn0(s.pnFin[i] / (1 + infl) ** H - K))]).replace(t('Ver como tabla'), t('Cuentas de cada alternativa al {r}', { r: pctx(s.ret) }));
   const brkC = swatchHeads(brk, names);
   return `${unit}<div class="calc-res-g"><section class="card calc-res"><h2>${t('Ganancia o pérdida de patrimonio en {n} años', { n: H })}</h2>${matrix}
@@ -2709,8 +2716,8 @@ function onAct(b, sure = false) {
     case 'calcrmret': { const c = UI.calc, i = +b.dataset.i; if (c.rets.length < 2) break; c.rets.splice(i, 1); if (c.sel >= i && c.sel > 0) c.sel--; calcRedraw(); calcChanged(); break; }
     case 'calcsel': UI.calc.sel = +b.dataset.i; calcChanged(); break;
     case 'calcbuy': UI.calcBuy = UI.calc.id; calcRedraw('[data-ca="0"][data-k="price"]'); break;
-    case 'calcreal': case 'calctax': {
-      if (act === 'calcreal') UI.calcReal = !UI.calcReal; else UI.calcTax = UI.calcTax === false;
+    case 'calcreal': case 'calctax': case 'calcrel': {
+      if (act === 'calcreal') UI.calcReal = !UI.calcReal; else if (act === 'calcrel') UI.calcRel = !calcRelOn(); else UI.calcTax = UI.calcTax === false;
       const k = cmpc(UI.calc), box = $('#calc-res'); if (box) box.innerHTML = calcResult(UI.calc, k); const ft = $('#cg-foot'); if (ft) ft.innerHTML = calcFoot(UI.calc, k); break; }
     case 'calcval': openCalcVal(+b.dataset.i); break;
     case 'calcrows': openCalcRows(); break;
