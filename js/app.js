@@ -2790,7 +2790,8 @@ document.addEventListener('input', (e) => {
   if (UI.calc && e.target.dataset?.rn != null) { const r = UI.calc.rows[+e.target.dataset.rn]; if (r) { r.n = e.target.value; calcChanged(); if (!calcWide()) calcRedrawKeepDialog(); } }
   if (UI.calc && e.target.dataset?.cv != null && e.target.tagName === 'INPUT') { const c = UI.calc, a = c.alts[UI.calcValI], k = e.target.dataset.cv; if (a) {
     const v = Math.max(0, num(e.target.value) ?? 0);
-    if (k === 'dep') a.dep = (vmode(a) === 'up' ? 1 : -1) * Math.min(vmode(a) === 'up' ? 50 : 100, v);
+    // up or down is what the mode says, not the sign of the figure (while you retype it, it is 0 for a moment)
+    if (k === 'dep') { const up = dlg.querySelector('[data-cv="mode"]')?.value === 'up'; a.dep = (up ? 1 : -1) * Math.min(up ? 50 : 100, v); }
     else if (k === 'sellc') a.sellc = Math.min(100, v);
     else if (k === 'life') a.life = Math.min(50, Math.round(v));
     else if (k === 'age') { if (v > 0) a.age = Math.min(30, Math.round(v)); else delete a.age; }
