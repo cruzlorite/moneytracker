@@ -504,9 +504,12 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
 }
 /** In the last days before payday: if the pay already came in, the new month starts today. */
 function payBanner(m) {
-  const nx = ymAdd(m.curYM, 1), p = m.anchorOf(nx), from = m.base(nx).from, today = m.todayISO;
-  if (!p || (m.mon(nx).dates || {})[p.id] || today >= from || today < isoAddDays(from, -4)) return '';
-  return `<div class="card banner"><span class="grow">${t('¿Ya te ha entrado «{n}»?', { n: esc(p.name) })}<span class="fine" style="display:block">${t('Si es así, {m} empieza hoy.', { m: monthName(nx) })}</span></span><button type="button" class="btn-dark" data-act="payin" data-id="${esc(p.id)}" data-ym="${nx}">${t('Sí, hoy')}</button></div>`;
+  const nx = ymAdd(m.curYM, 1), p = m.anchorOf(nx), from = m.base(nx).from, today = m.todayISO, mo = m.mon(nx);
+  if (!p || (mo.dates || {})[p.id] || (mo.real || {})[p.id] != null) return '';
+  const wait = m.waitingPay(nx);
+  if (!wait && (today >= from || today < isoAddDays(from, -4))) return '';
+  return `<div class="card banner"><span class="grow">${t('¿Ya te ha entrado «{n}»?', { n: esc(p.name) })}<span class="fine" style="display:block">${wait ? t('{m} empieza cuando la confirmes.', { m: cap(monthName(nx)) }) : t('Si es así, {m} empieza hoy.', { m: monthName(nx) })}</span></span>
+    <span class="row" style="gap:6px;flex:none"><button type="button" class="ghost" style="padding:8px 6px;font-size:14px" data-act="payother" data-id="${esc(p.id)}" data-ym="${nx}">${t('Otro día')}</button><button type="button" class="btn-dark" data-act="payin" data-id="${esc(p.id)}" data-ym="${nx}">${t('Sí, hoy')}</button></span></div>`;
 }
 const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
 /** The month's budget: the planned income minus the planned saving (planned amounts, so it holds steady all month). */
@@ -522,7 +525,7 @@ function home(m) {
   const due = closeDue(m), pending = m.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && !(openAt && p.date <= openAt));
   const planned = m.plannedIn(ym), toCome = planned.filter((p) => p.it.kind === 'in' && p.state === 'future');
   const came = planned.filter((p) => p.it.kind === 'in' && p.state !== 'future').sort((a, b) => b.amount - a.amount)[0];
-  const dp = m.cycleDay > 1 ? pc.dim - pc.day + 1 : daysTo(m.payday);
+  const dp = m.waitingPay(ymAdd(m.curYM, 1)) ? null : m.cycleDay > 1 ? pc.dim - pc.day + 1 : daysTo(m.payday);
   const dow = cap(new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric' }));
   // the month's spending as planned (what comes in minus the savings target): spent, still to pay, free
   // still to pay: the plan's expected expenses that haven't come yet. What's left of a limit isn't a bill: it's unspent.
@@ -2278,7 +2281,7 @@ const logEntry = (action, it, before, F, T) => ({ at: new Date().toISOString(), 
 
 
 // ---------- one occurrence: the exact amount for a month ----------
-function openOcc(id, ym) {
+function openOcc(id, ym, onDay) {
   const m = compute(store.data), it = m.itemAt(id, ym) || m.segmentsOf(id)[0];
   if (!it) return;
   const r = m.realOf(it, ym);
@@ -2288,7 +2291,7 @@ function openOcc(id, ym) {
     <p class="fine num">${cap(ymLabel(ym))}${day} · ${t('planificado')} ${fmt(it.amount)}</p>
     <div class="fields2"><label class="field"><span class="label">${t('Importe de este mes')} ${curSym}</span>
       <input type="text" inputmode="decimal" id="o-real" value="${esc(r ?? it.amount)}" autocomplete="off"></label>
-      <label class="field"><span class="label">${t('Fecha')}</span><input type="date" id="o-date" value="${m.dateOf(it, ym)}" min="${m.range(ymAdd(ym, -1)).from}" max="${m.range(ymAdd(ym, 1)).to}"></label></div>
+      <label class="field"><span class="label">${t('Fecha')}</span><input type="date" id="o-date" value="${onDay || m.dateOf(it, ym)}" min="${m.range(ymAdd(ym, -1)).from}" max="${m.range(ymAdd(ym, 1)).to}"></label></div>
     <p class="fine">${it.vary ? t('Este importe varía: hasta que lo confirmes, cuenta el importe planificado.') : t('Si no lo tocas, cuenta el importe planificado.')} ${t('Pon 0 si este mes no ha habido.')}</p>
     <p class="fine">${t('Si se adelantó o se retrasó al mes de al lado, pon el día en que pasó: tu saldo lo verá ese día y seguirá contando en {m}.', { m: monthName(ym) })}</p>
     <div class="formbtns">
@@ -2691,6 +2694,7 @@ function onAct(b, sure = false) {
 
     case 'openclose': openClose(ym); break;
     case 'cycleby': store.update('settings', (d) => { if (b.dataset.v === 'day') d.settings.cycleBy = 'day'; else delete d.settings.cycleBy; }); render(true); break;
+    case 'payother': openOcc(b.dataset.id, ym, toISO(new Date())); break;
     case 'payin': {
       const id = b.dataset.id, today = toISO(new Date());
       store.update('months', (d) => { const mo = d.months[ym] = { ...(d.months[ym] || {}) }; mo.dates = { ...(mo.dates || {}), [id]: today }; });

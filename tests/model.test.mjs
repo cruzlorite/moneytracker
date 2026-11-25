@@ -264,7 +264,7 @@ test('months from payday to payday', () => {
     { id: 'a', date: '2026-10-30', amount: 40, note: '' }, // inside "noviembre"
     { id: 'b', date: '2026-11-27', amount: 25, note: '' }, // already "diciembre"
   ] };
-  const m = compute(d, new Date(2026, 10, 3)); // 3 Nov 2026
+  const m = compute(d, new Date(2026, 10, 6)); // 6 Nov 2026 (the pay was due on 26 Oct)
   assert.equal(m.curYM, '2026-11');
   assert.equal(m.cycleDay, 26);
   assert.equal(m.dateOf(m.items[0], '2026-11'), '2026-10-26'); // the pay opens the month
@@ -553,4 +553,25 @@ test('the month starts the day the pay comes in: early, the new month starts tha
   const off = compute({ ...d, settings: { ...d.settings, cycleBy: 'day' } }, new Date(2027, 3, 10));
   assert.equal(off.range('2027-02').to, '2027-02-27');
   assert.equal(off.monthOf('2027-02-26'), '2027-02');
+});
+
+test('the month waits for its pay: due and not confirmed, the month before goes on', () => {
+  const d = plan([
+    { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
+    { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
+  ], { settings: { goal: 0, start: '2026-01', cycleDay: 28 }, months: { '2026-11': { open: 1000 } } });
+  const m = compute(d, new Date(2026, 10, 29)); // 29 Nov: the pay was due yesterday
+  assert.equal(m.waitingPay('2026-12'), true);
+  assert.equal(m.curYM, '2026-11'); // still November
+  assert.equal(m.range('2026-11').to, '2026-11-29');
+  assert.equal(m.incomeTo('2026-12', '2026-11-29'), 0); // not taken as come in
+  assert.equal(m.stateOf(m.items[0], '2026-12'), 'future');
+  // you say it came in yesterday: December started then
+  const y = compute({ ...d, months: { ...d.months, '2026-12': { dates: { pay: '2026-11-28' } } } }, new Date(2026, 10, 29));
+  assert.equal(y.curYM, '2026-12');
+  assert.equal(y.range('2026-11').to, '2026-11-27');
+  // after 10 days without a word, the month changes on its day anyway
+  assert.equal(compute(d, new Date(2026, 11, 9)).curYM, '2026-12');
+  // on fixed days, it doesn't wait
+  assert.equal(compute({ ...d, settings: { ...d.settings, cycleBy: 'day' } }, new Date(2026, 10, 29)).curYM, '2026-12');
 });

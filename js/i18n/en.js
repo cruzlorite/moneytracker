@@ -1590,4 +1590,6 @@ export default {
   'El mes va siempre del mismo día al mismo día. Si la nómina entra antes, márcalo al cerrar.': 'The month always runs between the same days. If your pay comes in early, tick it when you close.',
   'Si tu nómina entra antes (un viernes, antes de un festivo), el mes nuevo empieza ese día y lo que gastes desde entonces cuenta en él.': 'If your pay comes in early (on a Friday, before a holiday), the new month starts that day and what you spend from then on counts in it.',
   'Marca lo que aún no había salido el {d}: se cargó después, pero sigue contando en {m}.': 'Tick what had not gone out yet on {d}: it was charged later, but it still counts in {m}.',
+  '{m} empieza cuando la confirmes.': '{m} starts when you confirm it.',
+  'Otro día': 'Another day',
 };

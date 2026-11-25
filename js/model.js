@@ -237,18 +237,27 @@ export function compute(data, today = new Date()) {
     }
     return null;
   };
-  /** The pay that starts month ym: the main monthly income, when it's planned on the month's first days. */
+  /** The pay that starts month ym (months from payday to payday): the main monthly income, when it's planned on the month's first days. */
   const anchorOf = (ym) => {
-    if (!byPay) return null;
+    if (!byPay || D <= 1) return null; // calendar months: the pay doesn't start them
     const p = payers.find((i) => activeIn(i, ym)), d = p && dateIn(p, ym), f = base(ym).from;
     return d && d >= f && isoDays(d) - isoDays(f) <= 3 ? p : null;
   };
-  const starts = new Map();
-  /** The first day of month ym: the day its pay came in, if you said it came on another day (up to 10 days off). */
+  const starts = new Map(), todayStr = toISO(today);
+  /** Month ym's pay is due but you haven't said it came in: the month before goes on until you do (up to 10 days). */
+  const waitingPay = (ym) => {
+    const p = anchorOf(ym), mo = (data.months || {})[ym] || {};
+    // you said it came in, or you already gave the month a balance of its own: it has started
+    if (!p || (mo.dates || {})[p.id] || (mo.real || {})[p.id] != null || mo.open != null || mo.check || mo.bal != null) return false;
+    const d = dateIn(p, ym);
+    return d <= todayStr && todayStr < isoAdd(d, 10);
+  };
+  /** The first day of month ym: the day its pay came in, if you said it came on another day (up to 10 days off);
+   *  while it's due and not confirmed, tomorrow (today still belongs to the month before). */
   const startIn = (ym) => {
     if (!starts.has(ym)) {
       const f = base(ym).from, p = anchorOf(ym), moved = p && ((data.months || {})[ym]?.dates || {})[p.id];
-      starts.set(ym, moved && Math.abs(isoDays(moved) - isoDays(f)) <= 10 ? moved : f);
+      starts.set(ym, moved && Math.abs(isoDays(moved) - isoDays(f)) <= 10 ? moved : waitingPay(ym) ? isoAdd(todayStr, 1) : f);
     }
     return starts.get(ym);
   };
@@ -312,7 +321,7 @@ export function compute(data, today = new Date()) {
     return v == null ? null : +v;
   };
   /** The date an item falls on in a month; without a day, the first day of the month. */
-  const dateOf = (it, ym) => (mon(ym).dates || {})[it.id] || dateIn(it, ym) || range(ym).from;
+  const dateOf = (it, ym) => (mon(ym).dates || {})[it.id] || (waitingPay(ym) && anchorOf(ym).id === it.id ? range(ym).from : null) || dateIn(it, ym) || range(ym).from;
   /** future: not due yet · auto: due, taken as planned · pending: due, variable, not confirmed · real: exact amount entered */
   const stateOf = (it, ym) => realOf(it, ym) != null ? 'real' : dateOf(it, ym) > todayISO ? 'future' : it.vary ? 'pending' : 'auto';
   /** Best figure for one occurrence: the exact amount if entered, otherwise the planned one. */
@@ -582,7 +591,7 @@ export function compute(data, today = new Date()) {
     items, goal, start, season, ins, outs, direct, target, targetOf, incomeOf, outOf, restOf, restAvg, savedOf,
     incomeY, outY, possible, payday, idx, pre, over, curIdx, cur, curYM, mon, status, spentOf, saved, streak, cleared,
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
-    cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: dayOfM, byPay, anchorOf, base,
+    cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: dayOfM, byPay, anchorOf, base, waitingPay,
     balStart, openAfter, onceDate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
     budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, budFor, byCat,
     /** One version per item, as it stands in month ym (default: this one). */
