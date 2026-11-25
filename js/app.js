@@ -2278,8 +2278,9 @@ function openOcc(id, ym) {
     <p class="fine num">${cap(ymLabel(ym))}${day} · ${t('planificado')} ${fmt(it.amount)}</p>
     <div class="fields2"><label class="field"><span class="label">${t('Importe de este mes')} ${curSym}</span>
       <input type="text" inputmode="decimal" id="o-real" value="${esc(r ?? it.amount)}" autocomplete="off"></label>
-      <label class="field"><span class="label">${t('Fecha')}</span><input type="date" id="o-date" value="${m.dateOf(it, ym)}" min="${m.range(ym).from}" max="${m.range(ym).to}"></label></div>
+      <label class="field"><span class="label">${t('Fecha')}</span><input type="date" id="o-date" value="${m.dateOf(it, ym)}" min="${m.range(ymAdd(ym, -1)).from}" max="${m.range(ymAdd(ym, 1)).to}"></label></div>
     <p class="fine">${it.vary ? t('Este importe varía: hasta que lo confirmes, cuenta el importe planificado.') : t('Si no lo tocas, cuenta el importe planificado.')} ${t('Pon 0 si este mes no ha habido.')}</p>
+    <p class="fine">${t('Si se adelantó o se retrasó al mes de al lado, pon el día en que pasó: tu saldo lo verá ese día y seguirá contando en {m}.', { m: monthName(ym) })}</p>
     <div class="formbtns">
       <button type="button" class="primary" data-act="oconfirm" data-id="${esc(id)}" data-ym="${ym}">Confirmar</button>
       ${r != null ? `<button type="button" data-act="oclear" data-id="${esc(id)}" data-ym="${ym}">${t('Desconfirmar')}</button>` : ''}
@@ -2308,7 +2309,11 @@ function setReal(id, ym, v, date) {
 
 // ---------- the balance: the figure everything else comes from ----------
 /** compute() as if the month had these figures (for previews while you type). */
-const withMonth = (ym, patch) => mFor(ym, { ...store.data, months: { ...store.data.months, [ym]: { ...(store.data.months[ym] || {}), ...patch } } });
+const withMonth = (ym, patch, more = {}) => {
+  const months = { ...store.data.months };
+  for (const [k, p] of Object.entries({ ...more, [ym]: patch })) months[k] = { ...(months[k] || {}), ...p };
+  return mFor(ym, { ...store.data, months });
+};
 // the month's start balance: asked when there is none, and editable while it was typed by hand (the balance just before payday)
 const openField = (m, ym, id) => m.balStart(ym) != null && m.mon(ym).open == null ? '' : `<div class="fields2"><label class="field"><span class="label">${t('Saldo de tu cuenta')} · ${t('inicio')}</span>
   <input type="text" inputmode="decimal" id="${id}" value="${esc(m.mon(ym).open ?? '')}" placeholder="${t('Solo esta vez')}" autocomplete="off"></label>
@@ -2334,13 +2339,36 @@ function openClose(ym) {
       return `<div data-step class="stack-sm clpend"><span class="label">${t('Sin confirmar')}</span><p class="fine">${t('Se cierran como hechos, con su importe. Desmarca lo que no ocurrió o corrige el importe.')}</p>
         ${pend.map((p) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="clp-on" data-id="${esc(p.it.id)}" checked><span><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)} · ${p.it.kind === 'in' ? t('ingreso') : t('gasto')}</span></span></label><label class="clp-a"><input type="text" inputmode="decimal" class="clp-amt" data-id="${esc(p.it.id)}" value="${esc(String(p.amount).replace('.', ','))}" aria-label="${esc(t('Importe de {n}', { n: p.it.name }))}"><span>${curSym}</span></label></div>`).join('')}</div>`;
     })()}
-    ${toISO(new Date()) > m.range(ym).to ? `<p class="fine">${t('Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco. Si ya ha entrado algo del mes siguiente, no lo cuentes.')}</p>` : ''}
+    ${closeEdge(m, ym)}
+    ${toISO(new Date()) > m.range(ym).to ? `<p class="fine">${t('Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco.')}</p>` : ''}
     <div id="cl-calc" aria-live="polite"></div>
   </div>`;
   openDialog();
   dlg.classList.add('full');
   stagger(dlg.querySelector('.closer'));
   closeCalc();
+}
+/** Near the month's edge, what may have crossed it: the next month's first days, early (a pay before a weekend), and this
+ *  month's last days, late (a bill charged after). Ticked, it moves through the account in the other month but still counts in its own. */
+const EDGE_DAYS = 6;
+function edgeRows(m, ym) {
+  const r = m.range(ym), nx = ymAdd(ym, 1), rn = m.range(nx), dates = (k) => m.mon(k).dates || {};
+  const near = (o, k, a, b) => o.date >= a && o.date <= b || (dates(k)[o.it.id] && m.monthOf(o.date) !== k);
+  const early = m.plannedIn(nx).filter((o) => near(o, nx, rn.from, isoAddDays(rn.from, EDGE_DAYS)) && o.date <= rn.to)
+    .map((o) => ({ ...o, ym: nx, on: o.date < rn.from }));
+  const late = m.plannedIn(ym).filter((o) => near(o, ym, isoAddDays(r.to, -EDGE_DAYS), r.to) && o.date >= r.from)
+    .map((o) => ({ ...o, ym, on: o.date > r.to }));
+  return { early, late };
+}
+const isoAddDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return toISO(d); };
+function closeEdge(m, ym) {
+  const { early, late } = edgeRows(m, ym);
+  if (!early.length && !late.length) return '';
+  const row = (o, txt) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="cle-on" data-id="${esc(o.it.id)}" data-ym="${o.ym}" ${o.on ? 'checked' : ''}><span><b>${esc(o.it.name)}</b><span class="fine">${txt}</span></span></label><span class="num ${o.it.kind === 'in' ? 'c-ok' : ''}">${o.it.kind === 'in' ? '+' : '−'}${fmt(o.amount)}</span></div>`;
+  return `<div data-step class="stack-sm clpend"><span class="label">${t('Entre un mes y otro')}</span>
+    <p class="fine">${t('Marca lo que entró antes de tiempo o aún no había salido el {d}: tu saldo lo ve así, pero cada mes cuenta lo suyo.', { d: shortDate(m.range(ym).to) })}</p>
+    ${early.map((o) => row(o, `${t('De {m}', { m: monthName(o.ym) })} · ${o.it.kind === 'in' ? t('ya había entrado') : t('ya había salido')}`)).join('')}
+    ${late.map((o) => row(o, `${shortDate(o.date > m.range(ym).to ? plannedDate(o.it, ym) : o.date)} · ${o.it.kind === 'in' ? t('aún no había entrado') : t('aún no había salido')}`)).join('')}</div>`;
 }
 function closePatch() {
   const bal = num(dlg.querySelector('#cl-bal')?.value), op = dlg.querySelector('#cl-open');
@@ -2352,16 +2380,28 @@ function closePatch() {
     for (const c of rows) { const amt = num(dlg.querySelector(`.clp-amt[data-id="${CSS.escape(c.dataset.id)}"]`)?.value); real[c.dataset.id] = c.checked ? (amt ?? 0) : 0; }
     patch.real = real;
   }
-  return { bal, patch };
+  // what crossed the month's edge: ticked, it gets the day it moved through the account; unticked, back to its planned day
+  const more = {}, ym = dlg.querySelector('#close-sheet')?.dataset.ym;
+  for (const c of dlg.querySelectorAll('.cle-on')) {
+    const k = c.dataset.ym, id = c.dataset.id, own = k === ym, p = own ? patch : (more[k] ||= {}), mo = store.data.months[k] || {};
+    const real = p.real || { ...(mo.real || {}) }, dates = p.dates || { ...(mo.dates || {}) };
+    const it = store.data.items.find((i) => i.id === id);
+    if (c.checked) {
+      if (real[id] == null) real[id] = it?.amount ?? 0;
+      dates[id] = own ? compute(store.data).range(ymAdd(ym, 1)).from : compute(store.data).range(ym).to;
+    } else if (dates[id] && (own ? dates[id] > compute(store.data).range(ym).to : dates[id] < compute(store.data).range(k).from)) delete dates[id];
+    p.real = real; p.dates = dates;
+  }
+  return { bal, patch, more };
 }
 function closeCalc() {
   const box = dlg.querySelector('#cl-calc'), ym = dlg.querySelector('#close-sheet')?.dataset.ym;
   if (!box || !ym) return;
-  const { bal, patch } = closePatch(), m = withMonth(ym, patch), r = bal == null ? null : m.fromBalance(ym, bal);
+  const { bal, patch, more } = closePatch(), m = withMonth(ym, patch, more), r = bal == null ? null : m.fromBalance(ym, bal);
   const vdBox = dlg.querySelector('#cl-vd');
   if (!r) { box.innerHTML = bal == null ? '' : '<p class="fine">' + t('Falta el saldo al empezar el mes.') + '</p>'; if (vdBox) vdBox.innerHTML = ''; return; }
   const tgt = m.targetOf(ym), savedM = round2(r.saved + r.left), spentAll = round2(r.out + r.cash), vd = verdict(savedM, tgt, m.target);
-  const sc = savedScale(withMonth(ym, { ...patch, close: { amount: r.left } }), ym);
+  const sc = savedScale(withMonth(ym, { ...patch, close: { amount: r.left } }, more), ym);
   if (vdBox) vdBox.innerHTML = `<span class="pill ${vd.cls}">${vd.word}</span>`;
   box.innerHTML = `
     <div class="tiles cl-tiles">
@@ -2634,15 +2674,20 @@ function onAct(b, sure = false) {
       break;
     }
     case 'closeset': {
-      const { bal, patch } = closePatch();
+      const { bal, patch, more } = closePatch();
       if (bal == null) { invalid('#cl-bal', t('Escribe tu saldo')); return; }
-      const r = withMonth(ym, patch).fromBalance(ym, bal);
+      const r = withMonth(ym, patch, more).fromBalance(ym, bal);
       if (!r) return invalid('#cl-open', t('Falta el saldo al empezar el mes'));
       const amount = round2(r.left), close = { amount };
       dlg.close();
       const done = celebrate(() => store.update('months', (d) => {
         const mo = d.months[ym] = { ...(d.months[ym] || {}), bal, close };
         if (patch.real) mo.real = patch.real; // the unconfirmed ones, now confirmed (or 0: it didn't happen)
+        if (patch.dates) { if (Object.keys(patch.dates).length) mo.dates = patch.dates; else delete mo.dates; }
+        for (const [k, p] of Object.entries(more)) { // the next month's early ones
+          const o = d.months[k] = { ...(d.months[k] || {}) };
+          for (const f of ['real', 'dates']) if (p[f]) { if (Object.keys(p[f]).length) o[f] = p[f]; else delete o[f]; }
+        }
         if (patch.open != null) mo.open = patch.open;
         if (patch.openDate) mo.openDate = patch.openDate;
         // the balance a month closes with is where the next one starts: a start typed by hand before gives way
@@ -2868,7 +2913,7 @@ function onAct(b, sure = false) {
       const v = num(val('o-real'));
       if (v == null || v < 0) return invalid('#o-real', t('Escribe un importe'));
       const od = val('o-date'), mm = compute(store.data), it = mm.itemAt(b.dataset.id, ym);
-      if (od && (od < mm.range(ym).from || od > mm.range(ym).to)) return invalid('#o-date', t('Una fecha de este mes'));
+      if (od && (od < mm.range(ymAdd(ym, -1)).from || od > mm.range(ymAdd(ym, 1)).to)) return invalid('#o-date', t('Una fecha de este mes o del de al lado'));
       dlg.close();
       if (!celebrate(() => setReal(b.dataset.id, ym, v, od && od !== plannedDate(it, ym) ? od : ''), null)) toast(`Confirmado: ${fmt(v)}`);
       break;
@@ -2928,6 +2973,7 @@ document.addEventListener('change', (e) => {
     }
     const sp = $('#cv-spark'); if (sp && a.vm !== 'none') sp.innerHTML = a.vm === 'curve' ? calcLife(a, c) : calcSpark(a, c);
     calcChanged(); } }
+  if (e.target?.classList?.contains('cle-on')) closeCalc();
   if (e.target?.classList?.contains('clp-on')) { const amt = dlg.querySelector(`.clp-amt[data-id="${CSS.escape(e.target.dataset.id)}"]`); if (amt) amt.disabled = !e.target.checked; closeCalc(); }
   if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
   const el = e.target;

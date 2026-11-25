@@ -495,3 +495,36 @@ test('the chosen language and currency are kept with the settings, and only when
   const bad = normSettings({ goal: 0, start: '2026-01', lang: 'english', cur: 'dollars' });
   assert.equal(bad.lang, undefined); assert.equal(bad.cur, undefined);
 });
+
+test('a pay that came in early and a bill charged late: each month counts what belongs to it', () => {
+  // the month runs from the 28th: «febrero» is 28 Jan – 27 Feb
+  const d = plan([
+    { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
+    { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
+  ], {
+    settings: { goal: 3600, start: '2027-01', cycleDay: 28 },
+    months: {
+      // February's rent was charged on 1 March; March's pay came in on 27 February, February's last day
+      '2027-02': { open: 1000, bal: 4500, real: { rent: 800 }, dates: { rent: '2027-03-01' } },
+      '2027-03': { bal: 2400, real: { pay: 2000 }, dates: { pay: '2027-02-27' } },
+    },
+  });
+  const m = compute(d, new Date(2027, 3, 10));
+  const f = m.fromBalance('2027-02', 4500);
+  assert.equal(f.cash, 500); // 1000 + 2000 + 2000 (March's pay, in the account) − 4500
+  assert.equal(f.shift, 2000 + 800); // in the balance but not February's: the early pay, the rent still to come
+  assert.equal(f.left, 700); // February's own: 2000 − 800 − 500
+  assert.equal(f.out, 800); // the rent is still February's expense
+  assert.equal(m.spentAll('2027-02'), 800 + 500);
+  const g = m.fromBalance('2027-03', 2400);
+  assert.equal(g.start, 4500);
+  assert.equal(g.cash, 500); // 4500 − 800 (February's rent) − 800 − 2400; March's pay is already in the start
+  assert.equal(g.left, 700);
+  assert.equal(g.inc, 2000); // March's pay is March's income
+  assert.equal(round(f.left + g.left), 2400 - 1000);
+  // the day-by-day line follows the account: the early pay on February's last day, the late rent in March
+  const cf = m.curveOf('2027-02', 4500), cm = m.curveOf('2027-03', 2400);
+  assert.ok(cf.pts.at(-1).events.some((e) => e.other === '2027-03' && e.amount === 2000));
+  assert.ok(cm.pts[m.dayOf('2027-03-01', '2027-03')].events.some((e) => e.other === '2027-02' && e.amount === -800));
+  assert.equal(cf.pts.at(-1).y, 3500);
+});

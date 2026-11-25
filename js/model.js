@@ -346,19 +346,35 @@ export function compute(data, today = new Date()) {
     const p = mon(ymAdd(ym, -1));
     return p.bal == null ? null : +p.bal;
   };
-  /** The plan's money in and out of the account in a month, up to a date (ISO): what came in, fixed expenses
-   *  (paid from the month or from a fund), and what you logged against budgets. */
-  const flowTo = (ym, upto) => {
-    let inc = 0, out = 0, bud = 0, save = 0;
-    const after = openAfter(ym); // the balance is the one at the start of its day: what came before is already in it
+  /** A month's planned occurrences (no budgets): the item, the day it happened (or is due) and its amount. `any`: confirmed
+   *  without a date of its own, so it counts whatever the date you ask up to. */
+  const occsOf = (ym) => {
+    const out = [];
     for (const it of items) {
       if (it.budget) continue;
       const r = realOf(it, ym);
       if (r == null && !occ(it, ym)) continue;
-      if (after && dateOf(it, ym) <= after) continue;
-      const moved = (mon(ym).dates || {})[it.id]; // a confirmed amount counts from the day you said it happened
-      const v = r != null ? (moved && moved > upto ? 0 : r) : dateOf(it, ym) <= upto ? it.amount : 0;
-      if (it.kind === 'in') inc += v; else if (isSave(it)) save += v; else out += v;
+      out.push({ it, ym, date: dateOf(it, ym), v: r ?? it.amount, any: r != null && !(mon(ym).dates || {})[it.id] });
+    }
+    return out;
+  };
+  /** What moved through the account during month ym, by the day it really happened: its own occurrences that fell in it, and
+   *  those of the month before or after that came early or late (a pay that came in on the last day, a bill charged after). */
+  const cashOccs = (ym) => {
+    const r = range(ym);
+    return [ymAdd(ym, -1), ym, ymAdd(ym, 1)].flatMap(occsOf).filter((o) => o.date >= r.from && o.date <= r.to);
+  };
+  /** The plan's money in and out in a month, up to a date (ISO): what came in, fixed expenses, what you logged against budgets
+   *  and what you put aside. By default what belongs to the month, even if it was paid in the one before or after (it counts on
+   *  its month's last day at the latest); `cash`: what moved through the account in it instead, whichever month it belongs to. */
+  const flowTo = (ym, upto, cash = false) => {
+    let inc = 0, out = 0, bud = 0, save = 0;
+    const after = openAfter(ym), r = range(ym); // the balance is the one at the start of its day: what came before is already in it
+    for (const o of cash ? cashOccs(ym) : occsOf(ym)) {
+      if (after && o.date <= after) continue;
+      const due = o.ym === ym && o.any ? '' : cash ? o.date : o.date > r.to ? r.to : o.date;
+      const v = due <= upto ? o.v : 0;
+      if (o.it.kind === 'in') inc += v; else if (isSave(o.it)) save += v; else out += v;
     }
     for (const e of allSpends) {
       if (monthOf(e.date) !== ym || e.date > upto || e.date <= after) continue;
@@ -372,16 +388,22 @@ export function compute(data, today = new Date()) {
   /**
    * The month read from a balance: given the account's balance on a date of the month, everything that follows.
    * cash: spent outside the plan (budgets included) · rest: of that, what went to Resto de vida (cash − logged budget spends)
-   * left: what's left over (how much the account grew, or shrank if negative): at the close it counts as saved.
+   * left: what's left over (how much the account grew, or shrank if negative, leaving out what came in or went out early
+   * or late for another month): at the close it counts as saved · shift: that, as it stands in the balance.
    * Null when the balance at the start of the month isn't known.
    */
   const fromBalance = (ym, bal, upto = endISO(ym)) => {
     const start = balStart(ym);
     if (start == null || bal == null) return null;
-    const f = flowTo(ym, upto), saved = f.save;
-    const cash = round2(start + f.inc - f.out - saved - bal);
-    return { start, bal, ...f, saved, cash, rest: round2(cash - f.bud), left: round2(bal - start) };
+    // what left outside the plan comes from what really moved through the account; what's left over, from what belongs to the
+    // month: a pay that came in early belongs to the next one, a bill charged late is still this one's
+    const f = flowTo(ym, upto), c = flowTo(ym, upto, true), saved = f.save;
+    const cash = round2(start + c.inc - c.out - c.save - bal);
+    const shift = round2(c.inc - c.out - c.save - (f.inc - f.out - f.save)); // in the balance, but from another month (+ in, − out)
+    return { start, bal, ...f, saved, cash, rest: round2(cash - f.bud), left: round2(bal - start - shift), shift };
   };
+  /** A planned occurrence as a movement of the account in month ym (one of another month says which). */
+  const occEvent = (o, ym) => ({ label: o.ym === ym ? o.it.name : `${o.it.name} (${t('de {m}', { m: monthName(o.ym) })})`, amount: o.it.kind === 'in' ? o.v : -o.v, kind: isSave(o.it) ? 'save' : o.it.kind, other: o.ym === ym ? '' : o.ym });
   /**
    * The account through a month, day by day, counted from the day it began (0): incomes and expected expenses on
    * their days (no day: the last one), what you put aside on payday, logged spends on their dates, and the rest
@@ -392,13 +414,7 @@ export function compute(data, today = new Date()) {
     const r = fromBalance(ym, bal);
     if (!r) return null;
     const dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), ev = Array.from({ length: dim + 1 }, () => []);
-    for (const it of items) {
-      if (it.budget) continue;
-      const real = realOf(it, ym);
-      if (real == null && !occ(it, ym)) continue;
-      const v = real ?? it.amount;
-      if (v) ev[at(dateOf(it, ym))].push({ label: it.name, amount: it.kind === 'in' ? v : -v, kind: isSave(it) ? 'save' : it.kind });
-    }
+    for (const o of cashOccs(ym)) if (o.v) ev[at(o.date)].push(occEvent(o, ym));
     const legacy = +mon(ym).saved || 0;
     if (legacy) ev[payItem && occ(payItem, ym) ? at(dateOf(payItem, ym)) : 1].push({ label: legacy > 0 ? 'Al ahorro' : 'Del ahorro', amount: -legacy, kind: 'save' });
     let logged = 0;
@@ -427,14 +443,7 @@ export function compute(data, today = new Date()) {
     const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), after = openAfter(ym);
     // the last day already inside the start balance, as a day of the month (0 = the balance is from before the month's first day)
     const d0 = after && after >= range(ym).from ? clamp(at(after), 0, dim) : 0, ev = Array.from({ length: dim + 1 }, () => []);
-    for (const it of items) {
-      if (it.budget) continue;
-      const real = realOf(it, ym);
-      if (real == null && !occ(it, ym)) continue;
-      if (after && dateOf(it, ym) <= after) continue;
-      const v = real ?? it.amount;
-      if (v) ev[at(dateOf(it, ym))].push({ label: it.name, amount: it.kind === 'in' ? v : -v, kind: isSave(it) ? 'save' : it.kind });
-    }
+    for (const o of cashOccs(ym)) if (o.v && !(after && o.date <= after)) ev[at(o.date)].push(occEvent(o, ym));
     for (const e of allSpends) {
       if (monthOf(e.date) !== ym || (after && e.date <= after)) continue;
       ev[at(e.date)].push({ label: e.note || CAT[e.cat]?.name || t('Gasto'), amount: -e.amount, kind: e.cat === SAVE_CAT ? 'save' : 'spend' });
