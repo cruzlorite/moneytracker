@@ -157,7 +157,7 @@ export function parseSheet(valueRanges) {
     .map((r) => normSpend({ ...r, date: cellDate(r.date) })).filter(Boolean);
   const json = (v) => { try { return v ? JSON.parse(v) : undefined; } catch { return undefined; } };
   return {
-    settings: normSettings({ goal: settings.goal, start: cellYM(settings.start), years: json(settings.years), cats: json(settings.cats), cycleDay: settings.cycle_day, lang: settings.lang, cur: settings.currency, theme: settings.theme }),
+    settings: normSettings({ goal: settings.goal, start: cellYM(settings.start), years: json(settings.years), cats: json(settings.cats), cycleDay: settings.cycle_day, cycleBy: settings.cycle_by, lang: settings.lang, cur: settings.currency, theme: settings.theme }),
     items, months, spends,
     calcs: normCalcs(rowsToObjects(get('calcs'), TABS.calcs.head).map((r) => ({ ...r, opts: (() => { try { return JSON.parse(r.opts || '[]'); } catch { return []; } })() }))),
     log: normLog(rowsToObjects(get('log'), TABS.log.head).map((r) => ({ ...r, from: cellYM(r.from), to: cellYM(r.to), before: parseJ(r.before), after: parseJ(r.after) }))),
@@ -168,7 +168,7 @@ export function toRows(data) {
   const b = (v) => (v ? true : '');
   return {
     settings: [TABS.settings.head, ['schema', SCHEMA], ['goal', data.settings.goal], ['start', data.settings.start],
-      ['cycle_day', data.settings.cycleDay ?? ''], ['lang', data.settings.lang ?? ''], ['currency', data.settings.cur ?? ''], ['theme', data.settings.theme ?? ''], ['cats', data.settings.cats?.length ? JSON.stringify(data.settings.cats) : ''], ['years', data.settings.years?.length ? JSON.stringify(data.settings.years) : '']],
+      ['cycle_day', data.settings.cycleDay ?? ''], ['cycle_by', data.settings.cycleBy ?? ''], ['lang', data.settings.lang ?? ''], ['currency', data.settings.cur ?? ''], ['theme', data.settings.theme ?? ''], ['cats', data.settings.cats?.length ? JSON.stringify(data.settings.cats) : ''], ['years', data.settings.years?.length ? JSON.stringify(data.settings.years) : '']],
     items: [TABS.items.head, ...data.items.map((i) => [i.id, i.kind, i.name, i.amount, i.freq, i.month ?? '', i.year ?? '', i.day ?? '', b(i.pot), b(i.vary), i.note || '', i.real ?? '', b(i.budget), i.cat || '', i.from || '', i.to || '', i.at || ''])],
     months: [TABS.months.head, ...Object.keys(data.months).sort().map((ym) => {
       const m = data.months[ym];

@@ -502,6 +502,12 @@ function gauge({ v, marks = [], proj = null, tone, ptone = tone, key, thin = fal
       : `<b class="g-mark" style="left:${w(k.at)}%" ${notip ? '' : `data-tip="${esc(tipx('', [{ k: 'line', l: k.name || nm.plan, v: fmt(k.at) }]))}"`}></b>`).join('')}</div>
     ${thin || !lab ? '' : `<div class="g-labels">${lab}</div>`}</div>`;
 }
+/** In the last days before payday: if the pay already came in, the new month starts today. */
+function payBanner(m) {
+  const nx = ymAdd(m.curYM, 1), p = m.anchorOf(nx), from = m.base(nx).from, today = m.todayISO;
+  if (!p || (m.mon(nx).dates || {})[p.id] || today >= from || today < isoAddDays(from, -4)) return '';
+  return `<div class="card banner"><span class="grow">${t('¿Ya te ha entrado «{n}»?', { n: esc(p.name) })}<span class="fine" style="display:block">${t('Si es así, {m} empieza hoy.', { m: monthName(nx) })}</span></span><button type="button" class="btn-dark" data-act="payin" data-id="${esc(p.id)}" data-ym="${nx}">${t('Sí, hoy')}</button></div>`;
+}
 const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
 /** The month's budget: the planned income minus the planned saving (planned amounts, so it holds steady all month). */
 const planSpend = (m, ym) => Math.max(0, round2(m.ins.reduce((a, it) => a + (m.occurs(it, ym) ? it.amount : 0), 0) - m.targetOf(ym)));
@@ -545,6 +551,7 @@ function home(m) {
   ${tasks.length ? `<section class="card list notify${notifyOn('fold') ? ' fold' : ''}${notifyOn('all') ? ' all' : ''}" aria-label="${t('Pendiente')}" role="region"><div class="row between taskhead"><button type="button" class="notify-t notify-tog" data-act="notifyfold" aria-expanded="${notifyOn('fold') ? 'false' : 'true'}" aria-label="${t('Mostrar u ocultar')}"><span class="bellwrap">${ic('checksq')}<b class="badge">${tasks.length}</b></span><span class="label">${t('Por confirmar')}</span><span class="chev" aria-hidden="true">${ic('right')}</span></button></div>${tasks.map((h, k) => (k >= 3 ? h.replace('class="trow', 'class="trow x') : h)).join('')}${tasks.length > 3 ? `<button type="button" class="btn-ghost small center-self" data-act="notifymore" data-more="${t('Ver {n} más', { n: tasks.length - 3 })}" data-less="${t('Ver menos')}">${notifyOn('all') ? t('Ver menos') : t('Ver {n} más', { n: tasks.length - 3 })}</button>` : ''}</section>` : ''}
   ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), `${dow}${dp != null ? ` · ${dp === 0 ? t('hoy cobras') : t('cobras en {n} {d}', { n: dp, d: tn(dp, 'día', 'días') })}` : ''}`, 'homemonth')}
   ${closeBanner(due)}
+  ${payBanner(m)}
   ${setupCard(m, ym)}
   ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
     <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
@@ -2125,6 +2132,9 @@ function settings() {
     <label class="field inline-field"><span class="label">${t('El año empieza en')}</span><span class="startsel"><select id="p-start-m" aria-label="${t('Mes')}">${MES.map((n, i) => `<option value="${String(i + 1).padStart(2, '0')}" ${+st.slice(5) === i + 1 ? 'selected' : ''}>${cap(n)}</option>`).join('')}</select>
       <select id="p-start-y" aria-label="${t('Año')}">${Array.from({ length: 9 }, (_, k) => +st.slice(0, 4) - 4 + k).map((y) => `<option value="${y}" ${y === +st.slice(0, 4) ? 'selected' : ''}>${y}</option>`).join('')}</select></span></label>
     <label class="field inline-field"><span class="label">${t('Tu mes empieza el día')}</span><input type="text" inputmode="numeric" id="p-cycle" value="${cd}" style="max-width: 80px"></label>
+    <div class="field"><span class="label">${t('El mes cambia')}</span>
+      <div class="seg" role="group" aria-label="${t('El mes cambia')}"><button data-act="cycleby" data-v="pay" aria-pressed="${store.data.settings.cycleBy !== 'day'}">${t('El día que cobras')}</button><button data-act="cycleby" data-v="day" aria-pressed="${store.data.settings.cycleBy === 'day'}">${t('Día fijo')}</button></div>
+      <p class="fine">${store.data.settings.cycleBy === 'day' ? t('El mes va siempre del mismo día al mismo día. Si la nómina entra antes, márcalo al cerrar.') : t('Si tu nómina entra antes (un viernes, antes de un festivo), el mes nuevo empieza ese día y lo que gastes desde entonces cuenta en él.')}</p></div>
   </section>`;
   return `${startCard}${calendar}${remindersCard()}<section class="card"><h2>${t('Dónde se guarda')}</h2>
     <p class="savestate ok" id="savestate" aria-live="polite"></p>
@@ -2328,7 +2338,8 @@ function openClose(ym) {
     <div class="row between"><span class="label">${t('Cierre de mes')} ${info('cierre')}</span><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
     <div data-step class="cl-title row between"><h1>${cap(monthName(ym))}</h1><span id="cl-vd"></span></div>
     <div data-step class="stack-sm">
-      <label class="field"><span class="label">${t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) })}</span>
+      ${closePayField(m, ym)}
+      <label class="field"><span class="label" id="cl-bal-l">${t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) })}</span>
         <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="${curSym}" autocomplete="off">
 </label>
     </div>
@@ -2355,19 +2366,27 @@ function edgeRows(m, ym) {
   const r = m.range(ym), nx = ymAdd(ym, 1), rn = m.range(nx), dates = (k) => m.mon(k).dates || {};
   const near = (o, k, a, b) => o.date >= a && o.date <= b || (dates(k)[o.it.id] && m.monthOf(o.date) !== k);
   // early: only what comes in (a pay before a weekend or a holiday); a bill charged early is rare, set its day in its month
-  const early = m.plannedIn(nx).filter((o) => (o.it.kind === 'in' && !o.save || o.date < rn.from) && near(o, nx, rn.from, isoAddDays(rn.from, EARLY_DAYS)) && o.date <= rn.to)
+  const early = m.anchorOf(nx) ? [] : m.plannedIn(nx).filter((o) => (o.it.kind === 'in' && !o.save || o.date < rn.from) && near(o, nx, rn.from, isoAddDays(rn.from, EARLY_DAYS)) && o.date <= rn.to)
     .map((o) => ({ ...o, ym: nx, on: o.date < rn.from }));
   const late = m.plannedIn(ym).filter((o) => near(o, ym, isoAddDays(r.to, -EDGE_DAYS), r.to) && o.date >= r.from)
     .map((o) => ({ ...o, ym, on: o.date > r.to }));
   return { early, late };
 }
 const isoAddDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return toISO(d); };
+/** When the pay starts the month: the day it came in, which is where the month you close ends. */
+function closePayField(m, ym) {
+  const nx = ymAdd(ym, 1), p = m.anchorOf(nx);
+  if (!p) return '';
+  const from = m.base(nx).from;
+  return `<label class="field"><span class="label">${t('{n} de {m} entró el', { n: esc(p.name), m: monthName(nx) })}</span>
+    <input type="date" id="cl-pay" data-id="${esc(p.id)}" data-planned="${plannedDate(p, nx)}" value="${m.dateOf(p, nx)}" min="${isoAddDays(from, -10)}" max="${isoAddDays(from, 10)}"></label>`;
+}
 function closeEdge(m, ym) {
   const { early, late } = edgeRows(m, ym);
-  if (!early.length && !late.length) return '';
+  if (!early.length && !late.length) return '<div id="close-edge"></div>';
   const row = (o, txt) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="cle-on" data-id="${esc(o.it.id)}" data-ym="${o.ym}" ${o.on ? 'checked' : ''}><span><b>${esc(o.it.name)}</b><span class="fine">${txt}</span></span></label><span class="num ${o.it.kind === 'in' ? 'c-ok' : ''}">${o.it.kind === 'in' ? '+' : '−'}${fmt(o.amount)}</span></div>`;
-  return `<div data-step class="stack-sm clpend"><span class="label">${t('Entre un mes y otro')}</span>
-    <p class="fine">${t('Marca lo que entró antes de tiempo o aún no había salido el {d}: tu saldo lo ve así, pero cada mes cuenta lo suyo.', { d: shortDate(m.range(ym).to) })}</p>
+  return `<div class="stack-sm clpend" id="close-edge"><span class="label">${t('Entre un mes y otro')}</span>
+    <p class="fine">${early.length ? t('Marca lo que entró antes de tiempo o aún no había salido el {d}: tu saldo lo ve así, pero cada mes cuenta lo suyo.', { d: shortDate(m.range(ym).to) }) : t('Marca lo que aún no había salido el {d}: se cargó después, pero sigue contando en {m}.', { d: shortDate(m.range(ym).to), m: monthName(ym) })}</p>
     ${early.map((o) => row(o, `${t('De {m}', { m: monthName(o.ym) })} · ${o.it.kind === 'in' ? t('ya había entrado') : t('ya había salido')}`)).join('')}
     ${late.map((o) => row(o, `${shortDate(o.date > m.range(ym).to ? plannedDate(o.it, ym) : o.date)} · ${o.it.kind === 'in' ? t('aún no había entrado') : t('aún no había salido')}`)).join('')}</div>`;
 }
@@ -2382,14 +2401,20 @@ function closePatch() {
     patch.real = real;
   }
   // what crossed the month's edge: ticked, it gets the day it moved through the account; unticked, back to its planned day
-  const more = {}, ym = dlg.querySelector('#close-sheet')?.dataset.ym;
+  const more = {}, ym = dlg.querySelector('#close-sheet')?.dataset.ym, payIn = dlg.querySelector('#cl-pay');
+  if (payIn) {
+    const k = ymAdd(ym, 1), id = payIn.dataset.id, dates = { ...(store.data.months[k]?.dates || {}) };
+    if (payIn.value && payIn.value !== payIn.dataset.planned) dates[id] = payIn.value; else delete dates[id];
+    more[k] = { dates };
+  }
+  const nxFrom = withMonth(ym, patch, more).range(ymAdd(ym, 1)).from;
   for (const c of dlg.querySelectorAll('.cle-on')) {
     const k = c.dataset.ym, id = c.dataset.id, own = k === ym, p = own ? patch : (more[k] ||= {}), mo = store.data.months[k] || {};
     const real = p.real || { ...(mo.real || {}) }, dates = p.dates || { ...(mo.dates || {}) };
     const it = store.data.items.find((i) => i.id === id);
     if (c.checked) {
       if (real[id] == null) real[id] = it?.amount ?? 0;
-      dates[id] = own ? compute(store.data).range(ymAdd(ym, 1)).from : compute(store.data).range(ym).to;
+      dates[id] = own ? nxFrom : compute(store.data).range(ym).to;
     } else if (dates[id] && (own ? dates[id] > compute(store.data).range(ym).to : dates[id] < compute(store.data).range(k).from)) delete dates[id];
     p.real = real; p.dates = dates;
   }
@@ -2399,7 +2424,8 @@ function closeCalc() {
   const box = dlg.querySelector('#cl-calc'), ym = dlg.querySelector('#close-sheet')?.dataset.ym;
   if (!box || !ym) return;
   const { bal, patch, more } = closePatch(), m = withMonth(ym, patch, more), r = bal == null ? null : m.fromBalance(ym, bal);
-  const vdBox = dlg.querySelector('#cl-vd');
+  const vdBox = dlg.querySelector('#cl-vd'), balL = dlg.querySelector('#cl-bal-l');
+  if (balL) balL.textContent = t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) });
   if (!r) { box.innerHTML = bal == null ? '' : '<p class="fine">' + t('Falta el saldo al empezar el mes.') + '</p>'; if (vdBox) vdBox.innerHTML = ''; return; }
   const tgt = m.targetOf(ym), savedM = round2(r.saved + r.left), spentAll = round2(r.out + r.cash), vd = verdict(savedM, tgt, m.target);
   const sc = savedScale(withMonth(ym, { ...patch, close: { amount: r.left } }, more), ym);
@@ -2664,6 +2690,13 @@ function onAct(b, sure = false) {
     case 'theme': lsSet('hucha:theme', b.dataset.v === 'auto' ? null : b.dataset.v); writeLook({ theme: b.dataset.v === 'auto' ? '' : b.dataset.v }); applyTheme(b.dataset.v); rememberLook({ theme: b.dataset.v }); render(true); break;
 
     case 'openclose': openClose(ym); break;
+    case 'cycleby': store.update('settings', (d) => { if (b.dataset.v === 'day') d.settings.cycleBy = 'day'; else delete d.settings.cycleBy; }); render(true); break;
+    case 'payin': {
+      const id = b.dataset.id, today = toISO(new Date());
+      store.update('months', (d) => { const mo = d.months[ym] = { ...(d.months[ym] || {}) }; mo.dates = { ...(mo.dates || {}), [id]: today }; });
+      toast(t('Empieza {m}', { m: monthName(ym) })); render(true);
+      break;
+    }
     case 'startbal': {
       // the balance on the day you start: this month counts from today, what came before is already in it
       const v = num(val('h-start'));
@@ -2974,7 +3007,7 @@ document.addEventListener('change', (e) => {
     }
     const sp = $('#cv-spark'); if (sp && a.vm !== 'none') sp.innerHTML = a.vm === 'curve' ? calcLife(a, c) : calcSpark(a, c);
     calcChanged(); } }
-  if (e.target?.classList?.contains('cle-on')) closeCalc();
+  if (e.target?.classList?.contains('cle-on') || e.target?.id === 'cl-pay') { if (e.target.id === 'cl-pay') { const box = dlg.querySelector('#close-edge'); const m2 = withMonth(dlg.querySelector('#close-sheet').dataset.ym, {}, closePatch().more); if (box) box.outerHTML = closeEdge(m2, dlg.querySelector('#close-sheet').dataset.ym) || '<div id="close-edge"></div>'; } closeCalc(); }
   if (e.target?.classList?.contains('clp-on')) { const amt = dlg.querySelector(`.clp-amt[data-id="${CSS.escape(e.target.dataset.id)}"]`); if (amt) amt.disabled = !e.target.checked; closeCalc(); }
   if (e.target?.id === 'k-date') { const r = $('#k-updrow'); if (r) r.hidden = e.target.value !== toISO(new Date()); }
   const el = e.target;

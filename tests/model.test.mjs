@@ -496,13 +496,13 @@ test('the chosen language and currency are kept with the settings, and only when
   assert.equal(bad.lang, undefined); assert.equal(bad.cur, undefined);
 });
 
-test('a pay that came in early and a bill charged late: each month counts what belongs to it', () => {
+test('fixed days: a pay that came in early and a bill charged late, each month counts what belongs to it', () => {
   // the month runs from the 28th: «febrero» is 28 Jan – 27 Feb
   const d = plan([
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
   ], {
-    settings: { goal: 3600, start: '2027-01', cycleDay: 28 },
+    settings: { goal: 3600, start: '2027-01', cycleDay: 28, cycleBy: 'day' },
     months: {
       // February's rent was charged on 1 March; March's pay came in on 27 February, February's last day
       '2027-02': { open: 1000, bal: 4500, real: { rent: 800 }, dates: { rent: '2027-03-01' } },
@@ -527,4 +527,30 @@ test('a pay that came in early and a bill charged late: each month counts what b
   assert.ok(cf.pts.at(-1).events.some((e) => e.other === '2027-03' && e.amount === 2000));
   assert.ok(cm.pts[m.dayOf('2027-03-01', '2027-03')].events.some((e) => e.other === '2027-02' && e.amount === -800));
   assert.equal(cf.pts.at(-1).y, 3500);
+});
+
+test('the month starts the day the pay comes in: early, the new month starts that day', () => {
+  const d = plan([
+    { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
+    { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
+  ], {
+    settings: { goal: 3600, start: '2027-01', cycleDay: 28 },
+    months: { '2027-02': { open: 1000, bal: 1700 }, '2027-03': { dates: { pay: '2027-02-26' } } },
+    spends: [{ id: 'x', date: '2027-02-26', amount: 30, cat: 'restaurante' }],
+  });
+  const m = compute(d, new Date(2027, 3, 10));
+  assert.equal(m.byPay, true);
+  assert.equal(m.range('2027-02').to, '2027-02-25'); // February ends the day before March's pay
+  assert.equal(m.range('2027-03').from, '2027-02-26');
+  assert.equal(m.monthOf('2027-02-26'), '2027-03');
+  assert.equal(m.loggedRest('2027-03'), 30); // spent after the pay: March
+  assert.equal(m.dateOf(m.items[1], '2027-02'), '2027-02-26'); // February's rent, on the same day as the pay
+  const f = m.fromBalance('2027-02', 1700); // the balance on the 25th: the rent hadn't gone out yet
+  assert.equal(f.out, 800); // still February's
+  assert.equal(f.cash, 1000 + 2000 - 1700); // 1300: what left beyond the plan, without the rent
+  assert.equal(f.left, 1700 - 1000 - 800);
+  assert.equal(m.fromBalance('2027-03', 1700 + 2000 - 800 - 800 - 30).cash, 30); // March pays both rents
+  const off = compute({ ...d, settings: { ...d.settings, cycleBy: 'day' } }, new Date(2027, 3, 10));
+  assert.equal(off.range('2027-02').to, '2027-02-27');
+  assert.equal(off.monthOf('2027-02-26'), '2027-02');
 });

@@ -220,18 +220,16 @@ export function timesIn(it, season) {
 export function compute(data, today = new Date()) {
   const items = data.items || [];
   const D = cycleDayOf(data.settings, items);
-  const monthOf = (iso) => cycleOf(iso, D);
-  const range = (ym) => cycleRange(ym, D);
-  const curYM = monthOf(toISO(today));
-  const goal = Math.max(0, num(data.settings?.goal) ?? 0);
-  const start = isYM(data.settings?.start) ? data.settings.start : curYM;
-  const season = Array.from({ length: 12 }, (_, i) => ymAdd(start, i));
-
+  const base = (ym) => cycleRange(ym, D); // the month by the calendar: what each planned item belongs to
+  // By default the month starts the day your pay comes in: if it comes early (on a Friday, before a holiday), the new month
+  // starts that day and the old one ends the day before. `cycleBy: 'day'` keeps the month on its fixed days.
+  const byPay = data.settings?.cycleBy !== 'day';
+  const payers = items.filter((i) => i.kind === 'in' && i.freq === 'monthly' && i.day && !i.budget).sort((a, b) => b.amount - a.amount);
   /** The date (ISO) an item falls on in month `ym`, or null if it doesn't. No day: the month's first day. */
   const dateIn = (it, ym) => {
     if (!activeIn(it, ym)) return null; // this version isn't in force in that month
-    if (!it.day || D <= 1) return recurs(it, ym) ? (it.day ? `${ym}-${pad(dayIn(it.day, ym))}` : range(ym).from) : null; // no day: from the month's first day
-    const r = range(ym);
+    if (!it.day || D <= 1) return recurs(it, ym) ? (it.day ? `${ym}-${pad(dayIn(it.day, ym))}` : base(ym).from) : null; // no day: from the month's first day
+    const r = base(ym);
     for (const c of [ymAdd(ym, -1), ym]) {
       if (!recurs(it, c)) continue;
       const d = `${c}-${pad(dayIn(it.day, c))}`;
@@ -239,6 +237,37 @@ export function compute(data, today = new Date()) {
     }
     return null;
   };
+  /** The pay that starts month ym: the main monthly income, when it's planned on the month's first days. */
+  const anchorOf = (ym) => {
+    if (!byPay) return null;
+    const p = payers.find((i) => activeIn(i, ym)), d = p && dateIn(p, ym), f = base(ym).from;
+    return d && d >= f && isoDays(d) - isoDays(f) <= 3 ? p : null;
+  };
+  const starts = new Map();
+  /** The first day of month ym: the day its pay came in, if you said it came on another day (up to 10 days off). */
+  const startIn = (ym) => {
+    if (!starts.has(ym)) {
+      const f = base(ym).from, p = anchorOf(ym), moved = p && ((data.months || {})[ym]?.dates || {})[p.id];
+      starts.set(ym, moved && Math.abs(isoDays(moved) - isoDays(f)) <= 10 ? moved : f);
+    }
+    return starts.get(ym);
+  };
+  const range = (ym) => {
+    const from = startIn(ym), to = isoAdd(startIn(ymAdd(ym, 1)), -1);
+    return { from, to, days: isoDays(to) - isoDays(from) + 1 };
+  };
+  const monthOf = (iso) => {
+    const b = cycleOf(iso, D);
+    return iso >= startIn(ymAdd(b, 1)) ? ymAdd(b, 1) : iso < startIn(b) ? ymAdd(b, -1) : b;
+  };
+  /** Day number (1…) of a date inside month ym, and the date of day n. */
+  const dayOfM = (iso, ym) => isoDays(iso) - isoDays(range(ym).from) + 1;
+  const dateOfDay = (ym, n) => isoAdd(range(ym).from, n - 1);
+  const curYM = monthOf(toISO(today));
+  const goal = Math.max(0, num(data.settings?.goal) ?? 0);
+  const start = isYM(data.settings?.start) ? data.settings.start : curYM;
+  const season = Array.from({ length: 12 }, (_, i) => ymAdd(start, i));
+
   const occ = (it, ym) => dateIn(it, ym) != null;
   const ins = items.filter((i) => i.kind === 'in');
   const outs = items.filter((i) => i.kind === 'out');
@@ -320,7 +349,6 @@ export function compute(data, today = new Date()) {
   const restOf = (ym) => round2(incomeOf(ym) - outOf(ym) - budOf(ym) - targetOf(ym));
   const restAvg = (possible - goal) / 12;
 
-  const payers = ins.filter((i) => i.freq === 'monthly' && i.day).sort((a, b) => b.amount - a.amount);
   const payItem = payers.find((i) => activeIn(i, curYM)) || payers[0];
   const payday = payItem ? payItem.day : null;
 
@@ -413,7 +441,7 @@ export function compute(data, today = new Date()) {
   const curveOf = (ym, bal) => {
     const r = fromBalance(ym, bal);
     if (!r) return null;
-    const dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), ev = Array.from({ length: dim + 1 }, () => []);
+    const dim = range(ym).days, at = (iso) => clamp(dayOfM(iso, ym), 1, dim), ev = Array.from({ length: dim + 1 }, () => []);
     for (const o of cashOccs(ym)) if (o.v) ev[at(o.date)].push(occEvent(o, ym));
     const legacy = +mon(ym).saved || 0;
     if (legacy) ev[payItem && occ(payItem, ym) ? at(dateOf(payItem, ym)) : 1].push({ label: legacy > 0 ? 'Al ahorro' : 'Del ahorro', amount: -legacy, kind: 'save' });
@@ -424,9 +452,9 @@ export function compute(data, today = new Date()) {
       ev[at(e.date)].push({ label: e.note || CAT[e.cat]?.name || t('Gasto'), amount: -e.amount, kind: e.cat === SAVE_CAT ? 'save' : 'spend' });
     }
     const daily = -(r.cash - logged) / dim;
-    const pts = [{ day: 0, date: isoAdd(cycleDate(ym, 1, D), -1), y: 0, events: [] }]; // the balance at the start of the month's first day
+    const pts = [{ day: 0, date: isoAdd(dateOfDay(ym, 1), -1), y: 0, events: [] }]; // the balance at the start of the month's first day
     let y = 0;
-    for (let d = 1; d <= dim; d++) { y += ev[d].reduce((s, e) => s + e.amount, 0) + daily; pts.push({ day: d, date: cycleDate(ym, d, D), y: round2(y), events: ev[d] }); }
+    for (let d = 1; d <= dim; d++) { y += ev[d].reduce((s, e) => s + e.amount, 0) + daily; pts.push({ day: d, date: dateOfDay(ym, d), y: round2(y), events: ev[d] }); }
     pts[dim].y = round2(bal - r.start); // no rounding drift: the month ends where the balance says
     return { pts, daily: round2(daily) };
   };
@@ -440,7 +468,7 @@ export function compute(data, today = new Date()) {
   const curveNow = (ym) => {
     const s = balStart(ym);
     if (s == null) return null;
-    const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfCycle(iso, ym, D), 1, dim), after = openAfter(ym);
+    const m = mon(ym), dim = range(ym).days, at = (iso) => clamp(dayOfM(iso, ym), 1, dim), after = openAfter(ym);
     // the last day already inside the start balance, as a day of the month (0 = the balance is from before the month's first day)
     const d0 = after && after >= range(ym).from ? clamp(at(after), 0, dim) : 0, ev = Array.from({ length: dim + 1 }, () => []);
     for (const o of cashOccs(ym)) if (o.v && !(after && o.date <= after)) ev[at(o.date)].push(occEvent(o, ym));
@@ -467,7 +495,7 @@ export function compute(data, today = new Date()) {
     }
     const yy = (d) => (V == null || d <= tDay ? y(d) : y(tDay) + (E[d] - E[tDay]) - V * (d - tDay));
     const pts = [];
-    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? cycleDate(ym, d, D) : isoAdd(cycleDate(ym, 1, D), -1), y: round2(d <= d0 ? 0 : yy(d)), events: d > d0 ? ev[d] : [] });
+    for (let d = Math.max(0, d0); d <= dim; d++) pts.push({ day: d, date: d ? dateOfDay(ym, d) : isoAdd(dateOfDay(ym, 1), -1), y: round2(d <= d0 ? 0 : yy(d)), events: d > d0 ? ev[d] : [] });
     // what leaves the account for savings and investment in the month, done and planned: it is saved, though the balance drops by it
     const saveMoved = round2(-ev.reduce((a, day) => a + day.filter((e) => e.kind === 'save').reduce((b, e) => b + e.amount, 0), 0));
     const saveDone = round2(-ev.slice(0, tDay + 1).reduce((a, day) => a + day.filter((e) => e.kind === 'save').reduce((b, e) => b + e.amount, 0), 0));
@@ -554,7 +582,7 @@ export function compute(data, today = new Date()) {
     items, goal, start, season, ins, outs, direct, target, targetOf, incomeOf, outOf, restOf, restAvg, savedOf,
     incomeY, outY, possible, payday, idx, pre, over, curIdx, cur, curYM, mon, status, spentOf, saved, streak, cleared,
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
-    cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: (iso, ym) => dayOfCycle(iso, ym, D),
+    cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: dayOfM, byPay, anchorOf, base,
     balStart, openAfter, onceDate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
     budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, budFor, byCat,
     /** One version per item, as it stands in month ym (default: this one). */
@@ -611,6 +639,7 @@ export function normSettings(o = {}) {
   const st = { goal: Math.max(0, num(o.goal) ?? 0), start: isYM(o.start) ? o.start : toYM(new Date()) };
   const cd = Math.round(num(o.cycleDay) ?? 0);
   if (cd >= 1 && cd <= 28) st.cycleDay = cd;
+  if (o.cycleBy === 'day') st.cycleBy = 'day'; // the month on fixed days, not from the day your pay comes in
   // the look you chose (language, currency), kept with the data so it comes back when the browser forgets this device
   if (/^[a-z]{2}$/.test(String(o.lang || ''))) st.lang = o.lang;
   if (/^[A-Z]{3}$/.test(String(o.cur || ''))) st.cur = o.cur;
