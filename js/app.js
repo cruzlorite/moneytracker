@@ -2348,13 +2348,14 @@ function openClose(ym) {
   stagger(dlg.querySelector('.closer'));
   closeCalc();
 }
-/** Near the month's edge, what may have crossed it: the next month's first days, early (a pay before a weekend), and this
+/** Near the month's edge, what may have crossed it: the next month's incomes in its first days, early (a pay before a weekend), and this
  *  month's last days, late (a bill charged after). Ticked, it moves through the account in the other month but still counts in its own. */
-const EDGE_DAYS = 6;
+const EDGE_DAYS = 6, EARLY_DAYS = 4;
 function edgeRows(m, ym) {
   const r = m.range(ym), nx = ymAdd(ym, 1), rn = m.range(nx), dates = (k) => m.mon(k).dates || {};
   const near = (o, k, a, b) => o.date >= a && o.date <= b || (dates(k)[o.it.id] && m.monthOf(o.date) !== k);
-  const early = m.plannedIn(nx).filter((o) => near(o, nx, rn.from, isoAddDays(rn.from, EDGE_DAYS)) && o.date <= rn.to)
+  // early: only what comes in (a pay before a weekend or a holiday); a bill charged early is rare, set its day in its month
+  const early = m.plannedIn(nx).filter((o) => (o.it.kind === 'in' && !o.save || o.date < rn.from) && near(o, nx, rn.from, isoAddDays(rn.from, EARLY_DAYS)) && o.date <= rn.to)
     .map((o) => ({ ...o, ym: nx, on: o.date < rn.from }));
   const late = m.plannedIn(ym).filter((o) => near(o, ym, isoAddDays(r.to, -EDGE_DAYS), r.to) && o.date >= r.from)
     .map((o) => ({ ...o, ym, on: o.date > r.to }));
