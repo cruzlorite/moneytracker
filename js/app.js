@@ -539,8 +539,8 @@ function home(m) {
   const end = proj ?? spent, gapMoney = Math.round(Math.abs(plan - end));
   // a full sentence under the bar: where this month stands against the planned spending
   const hpNote = gapMoney < 1 ? null : end <= plan
-    ? { a: end, b: plan, text: proj != null ? t('A este ritmo, el gasto quedará ≈\u00a0{x} por debajo de lo planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }) : t('Te quedan {x} de gasto planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'gap' }
-    : { a: plan, b: end, text: spent > plan + 0.5 ? t('Gasto planificado superado en {x}', { x: fmt((spent - plan)).replace(/\s/g, '\u00a0') }) : t('A este ritmo, superarás el gasto planificado en ≈\u00a0{x}', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'over', over: true };
+    ? { a: end, b: plan, text: proj != null ? t('Con tu ritmo habitual, el gasto quedará ≈\u00a0{x} por debajo de lo planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }) : t('Te quedan {x} de gasto planificado', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'gap' }
+    : { a: plan, b: end, text: spent > plan + 0.5 ? t('Gasto planificado superado en {x}', { x: fmt((spent - plan)).replace(/\s/g, '\u00a0') }) : t('Con tu ritmo habitual, superarás el gasto planificado en ≈\u00a0{x}', { x: fmt(gapMoney).replace(/\s/g, '\u00a0') }), cls: 'over', over: true };
   const w = (v) => (plan > 0 ? clamp(v / plan * 100, 0, 100) : 0).toFixed(1);
   const tasks = [
     ...pending.map((p) => {
