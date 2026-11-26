@@ -1596,4 +1596,8 @@ export default {
   '{m} empezará con el saldo con que cierres {p}.': '{m} will start from the balance you close {p} with.',
   'Terminado': 'Finished',
   'Tu saldo de hoy ya incluye {x} de {m}: no cuenta en {p}.': "Today's balance already holds {x} from {m}: it doesn't count in {p}.",
+  'No ha entrado este mes': "It didn't come in this month",
+  'No ha habido este mes': "There wasn't one this month",
+  'Quitado de {m}: cuenta 0': 'Taken off {m}: it counts 0',
+  'no ha entrado': "didn't come in",
 };

@@ -1022,7 +1022,7 @@ function openLineDetail(kind) {
   if (kind === 'in') {
     listHead = t('Ingresos');
     const rows = [];
-    for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.it.kind === 'in' && p.state !== 'future' && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl('', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: 'in', vary: p.it.vary && p.state !== 'real' }) });
+    for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.it.kind === 'in' && p.state !== 'future' && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl('', 'sm'), title: p.it.name, sub: `${p.state === 'real' && !p.amount ? t('no ha entrado') : ST[p.state][0]} · ${t('de {m}', { m: monthName(ym) })}`, date: p.date, amount: p.amount, kind: 'in', vary: p.it.vary && p.state !== 'real' }) });
     rows.sort((a, b) => b.date.localeCompare(a.date));
     body = `<div class="moves">${rows.map((r) => r.html).join('') || `<p class="fine">${t('Aún no hay ingresos.')}</p>`}</div>`;
   } else if (kind === 'out') {
@@ -2300,6 +2300,7 @@ function openOcc(id, ym, onDay) {
     <div class="formbtns">
       <button type="button" class="primary" data-act="oconfirm" data-id="${esc(id)}" data-ym="${ym}">Confirmar</button>
       ${r != null ? `<button type="button" data-act="oclear" data-id="${esc(id)}" data-ym="${ym}">${t('Desconfirmar')}</button>` : ''}
+      ${r !== 0 ? `<button type="button" class="ghost" style="color: var(--spend)" data-act="onone" data-id="${esc(id)}" data-ym="${ym}">${it.kind === 'in' ? t('No ha entrado este mes') : t('No ha habido este mes')}</button>` : ''}
       <button type="button" class="ghost" data-act="edit" data-id="${esc(id)}">${t('Editar en el plan')}</button>
     </div></div>`;
   openDialog();
@@ -2971,6 +2972,7 @@ function onAct(b, sure = false) {
       break;
     }
     case 'oclear': setReal(b.dataset.id, ym, null); dlg.close(); toast(t('Cuenta el importe planificado')); break;
+    case 'onone': setReal(b.dataset.id, ym, 0); dlg.close(); toast(t('Quitado de {m}: cuenta 0', { m: monthName(ym) })); render(true); break;
     case 'edit': { const it = compute(store.data).shown().find((i) => i.id === b.dataset.id); if (it) openItem(it); break; }
     case 'additem': openItem(null, JSON.parse(b.dataset.preset || '{}')); break;
     case 'addonce': { const d = b.dataset.date; openItem(null, { kind: 'in', _sec: 'in', freq: 'once', month: +d.slice(5, 7), year: +d.slice(0, 4), day: +d.slice(8) }); break; }
