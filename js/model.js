@@ -287,7 +287,9 @@ export function compute(data, today = new Date()) {
   const isSave = (it) => it.kind === 'out' && !it.budget && it.cat === SAVE_CAT;
   const direct = outs.filter((i) => !i.budget && !isSave(i)); // expected expenses, each in its month
   const saveItems = outs.filter(isSave); // planned moves to savings (a standing order, say)
-  const mon = (ym) => (data.months || {})[ym] || {};
+  // a closing balance stands with its close: one left behind by a close you undid isn't where the next month starts
+  const months = Object.fromEntries(Object.entries(data.months || {}).map(([k, v]) => [k, v && v.bal != null && !v.close ? (({ bal, ...r }) => r)(v) : v]));
+  const mon = (ym) => months[ym] || {};
   const todayISO = toISO(today);
 
   // budgets by type (one budget per type: the first one wins)

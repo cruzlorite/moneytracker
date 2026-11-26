@@ -204,7 +204,7 @@ test('the month read from the account balance: spent, and what is left over coun
     settings: { goal: 3600, start: '2027-01', cycleDay: 1 },
     months: {
       '2027-01': { open: 1000, saved: 300, bal: 1250, close: { amount: 250 } },
-      '2027-02': { saved: 300, bal: 600 },
+      '2027-02': { saved: 300, bal: 600, close: { amount: -650 } },
       '2027-03': { saved: 300, check: { date: '2027-03-15', bal: 1100 } },
     },
     spends: [
@@ -228,7 +228,7 @@ test('the month read from the account balance: spent, and what is left over coun
   assert.equal(f.rest, 750 - 400);
   assert.equal(f.left, 600 - 1250); // an expensive month: −650, it would come off savings
   assert.equal(m.restOf('2027-02'), 2000 - 1600 - 400 + 250);
-  assert.equal(m.savedOf('2027-02'), 300); // not closed yet
+  assert.equal(m.savedOf('2027-02'), 300 - 650); // 300 put aside, 650 missing at the close
   // the money through February: 0 on day 0, pay and rent early on, ends where the balance says
   const cv = m.curveOf('2027-02', 600);
   assert.equal(cv.pts.length, 29);
@@ -505,7 +505,7 @@ test('fixed days: a pay that came in early and a bill charged late, each month c
     settings: { goal: 3600, start: '2027-01', cycleDay: 28, cycleBy: 'day' },
     months: {
       // February's rent was charged on 1 March; March's pay came in on 27 February, February's last day
-      '2027-02': { open: 1000, bal: 4500, real: { rent: 800 }, dates: { rent: '2027-03-01' } },
+      '2027-02': { open: 1000, bal: 4500, close: { amount: 700 }, real: { rent: 800 }, dates: { rent: '2027-03-01' } },
       '2027-03': { bal: 2400, real: { pay: 2000 }, dates: { pay: '2027-02-27' } },
     },
   });
@@ -535,7 +535,7 @@ test('the month starts the day the pay comes in: early, the new month starts tha
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
   ], {
     settings: { goal: 3600, start: '2027-01', cycleDay: 28 },
-    months: { '2027-02': { open: 1000, bal: 1700 }, '2027-03': { dates: { pay: '2027-02-26' } } },
+    months: { '2027-02': { open: 1000, bal: 1700, close: { amount: -100 } }, '2027-03': { dates: { pay: '2027-02-26' } } },
     spends: [{ id: 'x', date: '2027-02-26', amount: 30, cat: 'restaurante' }],
   });
   const m = compute(d, new Date(2027, 3, 10));
@@ -594,4 +594,14 @@ test('a finished month looked at later: what the next one moved since is left ou
   assert.equal(r.shift, 2000 - 30);
   assert.equal(m.spentSrc('2026-11'), 'check');
   assert.equal(m.spentAll('2026-11'), 800 + 500);
+});
+
+test('a close you undid leaves no balance behind: the next month does not start from it', () => {
+  const d = plan([{ id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 1 }], {
+    settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, bal: 900 } },
+  });
+  const m = compute(d, new Date(2027, 1, 10));
+  assert.equal(m.balStart('2027-02'), null);
+  assert.equal(m.mon('2027-01').bal, undefined);
+  assert.equal(m.spentSrc('2027-01'), 'log');
 });

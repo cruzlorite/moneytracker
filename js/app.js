@@ -2299,7 +2299,7 @@ function openOcc(id, ym, onDay) {
     <p class="fine">${t('Si se adelantó o se retrasó al mes de al lado, pon el día en que pasó: tu saldo lo verá ese día y seguirá contando en {m}.', { m: monthName(ym) })}</p>
     <div class="formbtns">
       <button type="button" class="primary" data-act="oconfirm" data-id="${esc(id)}" data-ym="${ym}">Confirmar</button>
-      ${r != null ? `<button type="button" data-act="oclear" data-id="${esc(id)}" data-ym="${ym}">${t('Desconfirmar')}</button>` : ''}
+      ${r != null ? `<button type="button" data-act="oclear" data-id="${esc(id)}" data-ym="${ym}">${it.kind === 'in' ? t('Aún no ha entrado') : t('Desconfirmar')}</button>` : ''}
       ${r !== 0 ? `<button type="button" class="ghost" style="color: var(--spend)" data-act="onone" data-id="${esc(id)}" data-ym="${ym}">${it.kind === 'in' ? t('No ha entrado este mes') : t('No ha habido este mes')}</button>` : ''}
       <button type="button" class="ghost" data-act="edit" data-id="${esc(id)}">${t('Editar en el plan')}</button>
     </div></div>`;
@@ -2561,7 +2561,7 @@ function checkCalc() {
 function setClose(ym, close) {
   store.update('months', (d) => {
     const mo = d.months[ym] = { ...(d.months[ym] || {}) };
-    if (close) mo.close = close; else delete mo.close;
+    if (close) mo.close = close; else { delete mo.close; delete mo.bal; } // undone: its balance goes with it
   });
 }
 

@@ -1600,4 +1600,5 @@ export default {
   'No ha habido este mes': "There wasn't one this month",
   'Quitado de {m}: cuenta 0': 'Taken off {m}: it counts 0',
   'no ha entrado': "didn't come in",
+  'Aún no ha entrado': "It hasn't come in yet",
 };
