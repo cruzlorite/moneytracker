@@ -2347,7 +2347,8 @@ function openClose(ym) {
     </div>
     ${(() => {
       // what the plan expected this month and you haven't confirmed: left unticked, it closes as not happened (0)
-      const pend = m.pendingIn(ym);
+      // (the pay the month started with came in: that's how it started)
+      const after = m.openAfter(ym), pay = m.anchorOf(ym)?.id, pend = m.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && p.it.id !== pay && !(after && p.date <= after));
       if (!pend.length) return '';
       return `<div data-step class="stack-sm clpend"><span class="label">${t('Sin confirmar')}</span><p class="fine">${t('Marca lo que sí ocurrió, con su importe. Lo que dejes sin marcar se cierra como no ocurrido.')}</p>
         ${pend.map((p) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="clp-on" data-id="${esc(p.it.id)}"><span><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)} · ${p.it.kind === 'in' ? t('ingreso') : t('gasto')}</span></span></label><label class="clp-a"><input type="text" inputmode="decimal" class="clp-amt" data-id="${esc(p.it.id)}" value="${esc(String(p.amount).replace('.', ','))}" disabled aria-label="${esc(t('Importe de {n}', { n: p.it.name }))}"><span>${curSym}</span></label></div>`).join('')}</div>`;
@@ -2436,7 +2437,7 @@ function closeCalc() {
       <span>${t('Ingresado')}</span><b class="num">${fmt(r.inc)}</b>
       <span>${t('Gastado')}</span><span class="num"><b class="${spentAll > plan + 0.5 ? 'c-spend' : ''}">${fmt(spentAll)}</b> <span class="muted">${t('de')} ${fmt(plan)}</span></span>
       <span>${t('Ahorrado')}</span><span class="num"><b class="c-save">${fmt(savedM)}</b> <span class="muted">${t('de')} ${fmt(tgt)}</span></span>
-      <span>${t('Diferencia en tu cuenta')}</span><span class="num">${fmtSigned(r.left)}</span>
+      <span>${t('Diferencia en tu cuenta')}</span><span class="num">${fmtSigned(round2(r.bal - r.start))}</span>
     </div>
     ${(() => {
       const after = m.openAfter(ym), logged = m.allSpends.filter((e) => m.monthOf(e.date) === ym && e.cat !== SAVE_CAT && !(after && e.date <= after)).reduce((s, e) => s + e.amount, 0), x = round2(logged - r.cash);

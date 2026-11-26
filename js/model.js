@@ -323,7 +323,14 @@ export function compute(data, today = new Date()) {
     return v == null ? null : +v;
   };
   /** The date an item falls on in a month; without a day, the first day of the month. */
-  const dateOf = (it, ym) => (mon(ym).dates || {})[it.id] || (waitingPay(ym) && anchorOf(ym).id === it.id ? range(ym).from : null) || dateIn(it, ym) || range(ym).from;
+  // what you haven't moved to another day can't come before its month starts: while the month waits for its pay, what it
+  // plans for its first days (or has no day) waits too, instead of landing in the month before
+  const dateOf = (it, ym) => {
+    const set = (mon(ym).dates || {})[it.id];
+    if (set) return set;
+    const d = dateIn(it, ym), f = range(ym).from;
+    return d && d > f ? d : f;
+  };
   /** future: not due yet · auto: due, taken as planned · pending: due, variable, not confirmed · real: exact amount entered */
   const stateOf = (it, ym) => realOf(it, ym) != null ? 'real' : dateOf(it, ym) > todayISO ? 'future' : it.vary ? 'pending' : 'auto';
   /** Best figure for one occurrence: the exact amount if entered, otherwise the planned one. */

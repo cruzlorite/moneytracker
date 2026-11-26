@@ -605,3 +605,17 @@ test('a close you undid leaves no balance behind: the next month does not start 
   assert.equal(m.mon('2027-01').bal, undefined);
   assert.equal(m.spentSrc('2027-01'), 'log');
 });
+
+test('while the month waits for its pay, the next month\'s plans wait too: they do not land in it', () => {
+  const d = plan([
+    { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 26 },
+    { id: 'gym', kind: 'out', name: 'Gimnasio', amount: 40, freq: 'monthly' }, // no day: the month's first
+    { id: 'tel', kind: 'out', name: 'Teléfono', amount: 30, freq: 'monthly', day: 26 },
+  ], { settings: { goal: 0, start: '2026-01', cycleDay: 26 }, months: { '2026-11': { open: 1000 } } });
+  const m = compute(d, new Date(2026, 10, 26, 9)); // payday, the pay not in yet
+  assert.equal(m.curYM, '2026-11');
+  assert.equal(m.dateOf(m.items[1], '2026-12'), '2026-11-27'); // December's, from December's first day on
+  const r = m.fromBalance('2026-11', 900, '2026-11-26');
+  assert.equal(r.shift, 0);
+  assert.equal(r.left, 900 - 1000);
+});
