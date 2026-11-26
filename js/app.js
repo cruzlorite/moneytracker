@@ -511,7 +511,7 @@ function payBanner(m) {
   return `<div class="card banner"><span class="grow">${t('¿Ya te ha entrado «{n}»?', { n: esc(p.name) })}<span class="fine" style="display:block">${wait ? t('{m} empieza cuando la confirmes.', { m: cap(monthName(nx)) }) : t('Si es así, {m} empieza hoy.', { m: monthName(nx) })}</span></span>
     <span class="row" style="gap:6px;flex:none"><button type="button" class="ghost" style="padding:8px 6px;font-size:14px" data-act="payother" data-id="${esc(p.id)}" data-ym="${nx}">${t('Otro día')}</button><button type="button" class="btn-dark" data-act="payin" data-id="${esc(p.id)}" data-ym="${nx}">${t('Sí, hoy')}</button></span></div>`;
 }
-const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${t('{m} sin cerrar', { m: cap(monthName(due)) })}</span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
+const closeBanner = (due) => (due ? `<div class="card banner"><button type="button" class="bannerlink" data-act="msel" data-ym="${due}"><i class="bdot"></i><span class="grow">${cap(monthName(due))}<span class="fine" style="display:block">${t('Actualiza su saldo o ciérralo cuando quieras')}</span></span>${ic('right')}</button><button type="button" class="btn-dark" data-act="openclose" data-ym="${due}">${t('Cerrar')}</button></div>` : '');
 /** The month's budget: the planned income minus the planned saving (planned amounts, so it holds steady all month). */
 const planSpend = (m, ym) => Math.max(0, round2(m.ins.reduce((a, it) => a + (m.occurs(it, ym) ? it.amount : 0), 0) - m.targetOf(ym)));
 
@@ -556,7 +556,8 @@ function home(m) {
   ${closeBanner(due)}
   ${payBanner(m)}
   ${setupCard(m, ym)}
-  ${m.balStart(ym) == null ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
+  ${m.balStart(ym) == null && due === ymAdd(ym, -1) ? `<section class="card"><p class="fine">${t('{m} empezará con el saldo con que cierres {p}.', { m: cap(monthName(ym)), p: monthName(due) })}</p></section>` : ''}
+  ${m.balStart(ym) == null && due !== ymAdd(ym, -1) ? `<section class="card startcard" aria-label="${t('Para empezar')}"><h2>${t('Saldo de tu cuenta')}</h2>
     <p class="fine">${t('La cuenta que usas a diario. Es el punto de partida; después solo lo escribes al cerrar cada mes.')}</p>
     <label class="field"><span class="label">${t('Saldo')}</span><input type="text" inputmode="decimal" id="h-start" class="bigin" placeholder="${curSym}" autocomplete="off"></label>
     <label class="field"><span class="label">${t('Al empezar el día')}</span><input type="date" id="h-start-date" value="${toISO(new Date())}" min="${dayBefore(m.range(ym).from)}" max="${toISO(new Date())}"></label>
@@ -730,16 +731,18 @@ function mes(m) {
   const tgt = m.targetOf(ym), pc = cur ? pace(m, ym) : null, ps = pc ? projSaved(m, pc, ym) : null;
   const inc = past ? m.incomeTo(ym) : cur ? m.incomeTo(ym, m.todayISO) : m.incomeOf(ym);
   const spent = past ? m.spentAll(ym) : cur ? m.spentAll(ym, m.todayISO) : planSpend(m, ym);
-  const saved = past ? (d.close ? m.savedOf(ym) : null) : cur ? ps : tgt;
+  const open = past && !d.close, look = open && d.check ? m.fromBalance(ym, +d.check.bal, d.check.date) : null;
+  const saved = past ? (d.close ? m.savedOf(ym) : look ? round2(look.saved + look.left) : null) : cur ? ps : tgt;
   const vd = saved == null || (!past && !cur) ? null : verdict(saved, tgt, m.target);
   return `
-  ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), cur ? t('Este mes') : past ? (d.close ? t('Cerrado') : t('Sin cerrar')) : t('Planificado'), 'calmove')}
+  ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), cur ? t('Este mes') : past ? (d.close ? t('Cerrado') : t('Terminado')) : t('Planificado'), 'calmove')}
   <div class="tiles3">
     <div class="card stat"><span class="label"><i class="sdot in"></i>${past || cur ? t('Ingresado') : t('Ingresos planificados')}</span><b class="num">${fmt(inc)}</b></div>
     <div class="card stat"><span class="label"><i class="sdot out"></i>${past || cur ? t('Gastado') : t('Gasto planificado')}</span>${past || cur ? ofPlan(spent, planSpend(m, ym), t('gastado / planificado'), { tone: spent > planSpend(m, ym) + 0.5 ? 'var(--spend)' : null }) : `<b class="num">${fmt(spent)}</b>`}</div>
-    <div class="card stat ${saved == null ? '' : 'svtile'}" ${saved == null ? '' : `style="${scaleOf(saved, tgt, m.target).style}"`}><span class="label">${past || cur ? t('Ahorrado') : t('Objetivo de ahorro')}</span>${saved == null ? '<b class="num">—</b>' : !past && !cur ? `<b class="num">${fmt(tgt)}</b>` : ofPlan(saved, tgt, cur ? t('proyección / planificado') : t('ahorrado / planificado'), { approx: cur, signed: past })}${vd ? vPill(vd) : ''}</div>
+    <div class="card stat ${saved == null ? '' : 'svtile'}" ${saved == null ? '' : `style="${scaleOf(saved, tgt, m.target).style}"`}><span class="label">${past || cur ? t('Ahorrado') : t('Objetivo de ahorro')}</span>${saved == null ? '<b class="num">—</b>' : !past && !cur ? `<b class="num">${fmt(tgt)}</b>` : ofPlan(saved, tgt, cur || look ? t('proyección / planificado') : t('ahorrado / planificado'), { approx: cur || !!look, signed: past })}${vd ? vPill(vd) : ''}</div>
   </div>
-  ${past && !d.close ? `<button class="primary" data-act="openclose" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>` : ''}
+  ${open && m.balStart(ym) != null ? `<section class="card">${balanceBox(m, ym, d)}</section>` : ''}
+  ${open ? `<button class="primary" data-act="openclose" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>` : ''}
   ${m.balStart(ym) != null && (d.bal != null || ym === m.curYM) ? `<section class="card">${moneyChart(m, ym, d.bal != null ? +d.bal : null)}</section>` : ''}
   ${expectedCard(m, ym)}
   ${spentCard(m, ym)}
@@ -2532,6 +2535,17 @@ function checkCalc() {
   if (bal == null) { box.innerHTML = ''; return; }
   const m = withMonth(ym, patch);
   if (m.spentSrc(ym) !== 'check') { box.innerHTML = '<p class="fine">' + t('Falta el saldo al empezar el mes.') + '</p>'; return; }
+  if (ym < m.curYM) {
+    const r = m.fromBalance(ym, bal, toISO(new Date())), sv = round2(r.saved + r.left), tgt = m.targetOf(ym), vd = verdict(sv, tgt, m.target);
+    box.innerHTML = `<div class="sum">
+      <span>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym))}</b>
+      <span>${t('Gastado')} <span class="muted">${t('/ planificado')}</span></span><span class="num"><b>${fmtN(m.spentAll(ym))}</b> / ${fmt(planSpend(m, ym))}</span>
+      <span>${t('Ahorrado')} <span class="muted">${t('proyección / planificado')}</span></span><span class="num"><b>≈ ${fmtN(sv)}</b> / ${fmt(tgt)}</span>
+    </div>
+    ${r.shift ? `<p class="fine">${t('Tu saldo de hoy ya incluye {x} de {m}: no cuenta en {p}.', { x: fmtSigned(r.shift), m: monthName(m.curYM), p: monthName(ym) })}</p>` : ''}
+    <div class="cl-verdict"><span class="pill ${vd.cls}">${vd.word}</span></div>`;
+    return;
+  }
   const pc = pace(m, ym, new Date());
   const tgt = m.targetOf(ym), ps = projSaved(m, pc, ym), vd = ps == null ? null : verdict(ps, tgt, m.target), iso = toISO(new Date());
   box.innerHTML = `<div class="sum">

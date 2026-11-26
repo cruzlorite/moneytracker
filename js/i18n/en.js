@@ -1592,4 +1592,8 @@ export default {
   'Marca lo que aún no había salido el {d}: se cargó después, pero sigue contando en {m}.': 'Tick what had not gone out yet on {d}: it was charged later, but it still counts in {m}.',
   '{m} empieza cuando la confirmes.': '{m} starts when you confirm it.',
   'Otro día': 'Another day',
+  'Actualiza su saldo o ciérralo cuando quieras': 'Update its balance or close it whenever you like',
+  '{m} empezará con el saldo con que cierres {p}.': '{m} will start from the balance you close {p} with.',
+  'Terminado': 'Finished',
+  'Tu saldo de hoy ya incluye {x} de {m}: no cuenta en {p}.': "Today's balance already holds {x} from {m}: it doesn't count in {p}.",
 };

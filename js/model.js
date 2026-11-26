@@ -435,8 +435,15 @@ export function compute(data, today = new Date()) {
     // what left outside the plan comes from what really moved through the account; what's left over, from what belongs to the
     // month: a pay that came in early belongs to the next one, a bill charged late is still this one's
     const f = flowTo(ym, upto), c = flowTo(ym, upto, true), saved = f.save;
-    const cash = round2(start + c.inc - c.out - c.save - bal);
-    const shift = round2(c.inc - c.out - c.save - (f.inc - f.out - f.save)); // in the balance, but from another month (+ in, − out)
+    // a balance looked at after the month ended also holds what the next one has moved so far: its pay, what you logged
+    let nxt = 0;
+    if (upto > range(ym).to) {
+      const nx = ymAdd(ym, 1), x = flowTo(nx, upto, true), after = openAfter(nx);
+      const logged = allSpends.reduce((a, e) => a + (monthOf(e.date) === nx && e.date <= upto && !(after && e.date <= after) && e.cat !== SAVE_CAT ? e.amount : 0), 0);
+      nxt = round2(x.inc - x.out - (x.save - (+mon(nx).saved || 0)) - logged);
+    }
+    const cash = round2(start + c.inc - c.out - c.save + nxt - bal);
+    const shift = round2(c.inc - c.out - c.save + nxt - (f.inc - f.out - f.save)); // in the balance, but from another month (+ in, − out)
     return { start, bal, ...f, saved, cash, rest: round2(cash - f.bud), left: round2(bal - start - shift), shift };
   };
   /** A planned occurrence as a movement of the account in month ym (one of another month says which). */

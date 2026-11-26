@@ -575,3 +575,23 @@ test('the month waits for its pay: due and not confirmed, the month before goes 
   // on fixed days, it doesn't wait
   assert.equal(compute({ ...d, settings: { ...d.settings, cycleBy: 'day' } }, new Date(2026, 10, 29)).curYM, '2026-12');
 });
+
+test('a finished month looked at later: what the next one moved since is left out', () => {
+  const d = plan([
+    { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
+    { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
+  ], {
+    settings: { goal: 0, start: '2026-01', cycleDay: 28 },
+    // November ended with 1700 (500 spent outside the plan); December's pay came in on the 28th and 30 were spent since
+    months: { '2026-11': { open: 1000, check: { date: '2026-11-30', bal: 3670 } }, '2026-12': { real: { pay: 2000 } } },
+    spends: [{ id: 's', date: '2026-11-29', amount: 30, cat: 'restaurante' }],
+  });
+  const m = compute(d, new Date(2026, 10, 30));
+  assert.equal(m.curYM, '2026-12');
+  const r = m.fromBalance('2026-11', 3670, '2026-11-30');
+  assert.equal(r.cash, 500);
+  assert.equal(r.left, 2000 - 800 - 500);
+  assert.equal(r.shift, 2000 - 30);
+  assert.equal(m.spentSrc('2026-11'), 'check');
+  assert.equal(m.spentAll('2026-11'), 800 + 500);
+});
