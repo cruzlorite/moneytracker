@@ -2437,6 +2437,7 @@ function closeCalc() {
       <span>${t('Ingresado')}</span><b class="num">${fmt(r.inc)}</b>
       <span>${t('Gastado')}</span><span class="num"><b class="${spentAll > plan + 0.5 ? 'c-spend' : ''}">${fmt(spentAll)}</b> <span class="muted">${t('de')} ${fmt(plan)}</span></span>
       <span>${t('Ahorrado')}</span><span class="num"><b class="c-save">${fmt(savedM)}</b> <span class="muted">${t('de')} ${fmt(tgt)}</span></span>
+      <span>${t('Saldo de tu cuenta')}</span><span class="num"><span class="muted">${fmt(r.start)} →</span> <b>${fmt(r.bal)}</b></span>
       <span>${t('Diferencia en tu cuenta')}</span><span class="num">${fmtSigned(round2(r.bal - r.start))}</span>
     </div>
     ${(() => {
