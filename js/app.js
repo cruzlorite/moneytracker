@@ -566,8 +566,8 @@ function home(m) {
   <section class="card hero" id="hp" aria-label="${t('Gastado este mes')}">
     <div class="row between"><h2>${t('Gastos este mes')} ${info('mes')}</h2>${vd ? `<span class="pill ${vd.cls}">${vd.word}</span>` : ''}</div>
     <div class="heroval big-ofp hero-ofp">${ofPlan(spent, plan, t('gastado / planificado'), { tone: spent > plan + 0.5 ? 'var(--spend)' : null })}</div>
-    ${gauge({ v: spent, proj, tone, ptone, cap: plan, names: { fill: t('Gastado'), proj: t('Gasto de aquí a fin de mes'), projTotal: t('Total a fin de mes') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) + (proj != null ? '; ' + t('proyección a fin de mes {x}', { x: fmt(proj) }) : '') })}
-    <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt((proj))}</span>` : '<span></span>'}</div>
+    ${gauge({ v: spent, tone, cap: plan, names: { fill: t('Gastado') }, tall: true, key: 'hp-' + ym, marks: [{ at: plan }], label: t('Gastado {a} de {b}', { a: fmt(spent), b: fmt(plan) }) })}
+    <div class="barleg small num">${proj != null ? `<span class="muted">${t('Proyección a fin de mes')} ≈ ${fmt((proj))}</span>` : '<span></span>'}</div>
     ${hpNote ? `<p class="hpsent" style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}${hpNote.over ? '' : ' <span aria-hidden="true">🎉</span>'}</p>` : ''}
     ${trail ? '' : balanceBox(m, ym, cm)}
     ${unloggedNote(m, ym)}
@@ -594,7 +594,9 @@ function unloggedNote(m, ym) {
 const typeRow = (r, scale, key) => `<div class="vrow${r.cat ? ' hasdetail' : ''}" tabindex="0" data-tip="${esc(tipx(r.label, [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(r.value) }, ...(r.pct != null ? [{ c: 'var(--muted)', k: 'solid', l: t('Del gasto total'), v: `${r.pct} %` }] : [])], r.cat ? t('Toca otra vez para ver el detalle') : ''))}" ${r.cat ? `data-act="catdetail" data-cat="${esc(r.cat)}" role="button" tabindex="0" aria-label="${esc(t('Ver detalle de {n}', { n: r.label }))}"` : ''}><span class="row between"><span class="vname">${r.icon}<span class="vn">${esc(r.label)}${r.cat ? `<span class="dchev" aria-hidden="true">${ic('right')}</span>` : ''}</span>${r.pct != null ? `<span class="rk-pct">(${r.pct} %)</span>` : ''}${r.extra ? `<span class="vx">${r.extra}</span>` : ''}</span><span class="num small"><b>${fmtN(r.value)}</b> <span class="muted">${curSym}</span></span></span>${gauge({ names: { fill: t('Gastado') }, v: r.value, scale, tone: 'var(--out)', thin: true, key, notip: true, label: `${r.label}: ${fmt(r.value)}` })}</div>`;
 /** This month by type, budgets and the rest in one card: each budget against its limit, then what you spent on the other types. */
 function monthTypes(m, ym) {
-  const buds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(buds.map((b) => b.cat));
+  // a yearly budget in a month's card: only when you spent on it that month, with that month's figure (the year's, under it)
+  const allBuds = m.shown().filter((b) => b.budget && activeIn(b, m.curYM)), budCats = new Set(allBuds.map((b) => b.cat));
+  const buds = allBuds.filter((b) => b.freq === 'monthly' || m.budSpent(b, ym) >= 0.5);
   const { rows, tot } = spendByType(m, [ym]);
   const plain = rows.filter(([c]) => !budCats.has(c)), top = plain.slice(0, 5), rest = plain.slice(5).reduce((a, [, v]) => a + v, 0);
   if (!buds.length && tot < 0.5) return '';
@@ -604,7 +606,16 @@ function monthTypes(m, ym) {
   // the types with no budget look just like the ones that have one: name and amount, then a bar (against the biggest, since there is no limit)
   const top1 = Math.max(1, ...list.map((r) => r.value));
   const plainRows = list.map((r, i) => typeRow(r, top1, `pt-${ym}-${i}`)).join('');
+  const yearRow = (b) => {
+    const x = budInfo(m, b, ym), mo = m.budSpent(b, ym);
+    const rowsTip = [{ c: 'var(--out)', k: 'solid', l: t('Este mes'), v: fmt(mo) }, { c: 'var(--out)', k: 'solid', l: t('En el año'), v: fmt(x.spent) }, { k: 'line', l: t('Presupuesto'), v: `${fmt(b.amount)} ${t('al año')}` }];
+    return `<div class="vrow" tabindex="0" data-tip="${esc(tipx(b.name, rowsTip))}">
+      <span class="row between"><span class="vname">${catEl(b.cat, 'sm')}${esc(b.name)}</span><span class="num small"><b>${fmtN(mo)}</b> <span class="muted">${t('este mes')}</span></span></span>
+      ${budBar(x, 'v-' + b.id)}
+      <span class="fine num">${t('En el año: {a} de {b}', { a: fmt(x.spent), b: fmt(b.amount) })}</span></div>`;
+  };
   const budRows = buds.map((b) => {
+    if (b.freq !== 'monthly') return yearRow(b);
     const x = budInfo(m, b, ym), pt = x.proj == null ? null : spendTone(x.proj, x.of);
     const tip = `${b.name}: ${fmt(x.spent)} ${t('de')} ${fmt(b.amount)} ${b.freq === 'monthly' ? t('al mes') : t('al año')} · ${x.left < -0.5 ? t('superado en {x}', { x: fmt(-x.left) }) : t('quedan {x}', { x: fmt(x.left) })}`;
     const rowsTip = [{ c: 'var(--out)', k: 'solid', l: t('Gastado'), v: fmt(x.spent) },
