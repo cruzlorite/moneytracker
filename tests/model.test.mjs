@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { compute, normMonth, normSettings, normItem, occurs, num, daysTo, monthGrid, parsePlanFile, ymAdd, ymDiff, timesIn, cycleRange, cycleOf, cycleDayOf } from '../js/model.js';
 import { parseSheet, toRows, TABS } from '../js/google.js';
 
-const plan = (items, extra = {}) => ({ settings: { goal: 1200, start: '2027-01', cycleDay: 1 }, items: items.map(normItem), months: {}, spends: [], ...extra });
+const plan = (items, extra = {}) => ({ settings: { assume: true, goal: 1200, start: '2027-01', cycleDay: 1 }, items: items.map(normItem), months: {}, spends: [], ...extra });
 
 test('num reads Spanish and plain numbers', () => {
   assert.equal(num('1.234,5'), 1234.5);
@@ -201,7 +201,7 @@ test('the month read from the account balance: spent; saved is only what you put
   // planned per month 2000 − 1000 − 100 (trips / 12) = 900, February 300; unplanned (10200 − 3600) / 12 = 550
   // → target 350 a month, −250 in February
   const d = plan(items, {
-    settings: { goal: 3600, start: '2027-01', cycleDay: 1 },
+    settings: { assume: true, goal: 3600, start: '2027-01', cycleDay: 1 },
     months: {
       '2027-01': { open: 1000, saved: 300, bal: 1250, close: { amount: 250 } },
       '2027-02': { saved: 300, bal: 600, close: { amount: -650 } },
@@ -260,7 +260,7 @@ test('months from payday to payday', () => {
   assert.equal(cycleDayOf({}, items), 26);
   assert.equal(cycleDayOf({ cycleDay: 1 }, items), 1);
   assert.equal(cycleDayOf({}, [normItem({ kind: 'in', amount: 1, freq: 'monthly', day: 5 })]), 1);
-  const d = { settings: { goal: 1200, start: '2026-11' }, items, months: {}, spends: [
+  const d = { settings: { assume: true, goal: 1200, start: '2026-11' }, items, months: {}, spends: [
     { id: 'a', date: '2026-10-30', amount: 40, note: '' }, // inside "noviembre"
     { id: 'b', date: '2026-11-27', amount: 25, note: '' }, // already "diciembre"
   ] };
@@ -286,7 +286,7 @@ test('money moved to savings leaves the account but is not spending', () => {
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 1000, freq: 'monthly', day: 2 },
     { id: 'sv', kind: 'out', name: 'Traspaso al ahorro', amount: 300, freq: 'monthly', day: 3 }, // a standing order
   ], {
-    settings: { goal: 3600, start: '2027-01', cycleDay: 1 },
+    settings: { assume: true, goal: 3600, start: '2027-01', cycleDay: 1 },
     months: { '2027-01': { open: 1000, bal: 1300, close: { amount: 300 } } },
     spends: [
       { id: 'a', date: '2027-01-20', amount: 100, cat: 'ahorro', note: 'extra' }, // logged with the +
@@ -324,7 +324,7 @@ test('the current month before closing: a line from the start balance, estimated
 
 test('a start balance counts as the balance at the start of its day: that day\'s pay is added on top', () => {
   const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 26 };
-  const mk = (openDate) => plan([salary], { settings: { goal: 0, start: '2027-01', cycleDay: 26 }, months: { '2027-02': { open: 900, openDate } } });
+  const mk = (openDate) => plan([salary], { settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 26 }, months: { '2027-02': { open: 900, openDate } } });
   // the month called February runs from 26 Jan to 25 Feb
   assert.equal(compute(mk('2027-01-26'), new Date(2027, 0, 28)).incomeTo('2027-02', '2027-01-28'), 2000, 'the pay on the start day is counted');
   assert.equal(compute(mk('2027-01-27'), new Date(2027, 0, 28)).incomeTo('2027-02', '2027-01-28'), 0, 'a start the day after has the pay already in it');
@@ -332,10 +332,10 @@ test('a start balance counts as the balance at the start of its day: that day\'s
 
 test('a planned item can be confirmed on another day: it moves, and survives the sheet', () => {
   const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 26 };
-  const base = plan([salary], { settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, openDate: '2026-12-31', bal: 100 } } });
+  const base = plan([salary], { settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, openDate: '2026-12-31', bal: 100 } } });
   const m0 = compute(base, new Date(2027, 0, 30));
   assert.equal(m0.dateOf(m0.items[0], '2027-01'), '2027-01-26');
-  const moved = plan([salary], { settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, openDate: '2026-12-31', real: { s: 2000 }, dates: { s: '2027-01-28' } } } });
+  const moved = plan([salary], { settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, openDate: '2026-12-31', real: { s: 2000 }, dates: { s: '2027-01-28' } } } });
   const m1 = compute(moved, new Date(2027, 0, 30));
   assert.equal(m1.dateOf(m1.items[0], '2027-01'), '2027-01-28', 'the day it really arrived');
   assert.equal(m1.incomeTo('2027-01', '2027-01-27'), 0, 'not before that day');
@@ -350,13 +350,13 @@ test('only real dates are kept for a moved item', () => {
 });
 
 test('a one-off item is placed in its payday-to-payday month, whatever its calendar month says', () => {
-  const m = compute(plan([{ id: 'b', kind: 'in', name: 'Venta', amount: 150, freq: 'once', month: 11, year: 2026, day: 28 }, { id: 'c', kind: 'in', name: 'Otra', amount: 80, freq: 'once', month: 11, year: 2026 }], { settings: { goal: 0, start: '2026-07', cycleDay: 26 } }), new Date(2026, 10, 30));
+  const m = compute(plan([{ id: 'b', kind: 'in', name: 'Venta', amount: 150, freq: 'once', month: 11, year: 2026, day: 28 }, { id: 'c', kind: 'in', name: 'Otra', amount: 80, freq: 'once', month: 11, year: 2026 }], { settings: { assume: true, goal: 0, start: '2026-07', cycleDay: 26 } }), new Date(2026, 10, 30));
   assert.equal(m.onceDate(m.items.find((i) => i.id === 'b')), '2026-11-28', 'the 28th is in the month that starts on the 26th');
   assert.equal(m.onceDate(m.items.find((i) => i.id === 'c')), '2026-10-26', 'no day: the first day of its month');
 });
 
 test('a balance higher than the plan explains is an unlogged income, not money coming in every day', () => {
-  const d = plan([], { settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: -2000, openDate: '2026-12-31', check: { date: '2027-01-15', bal: 500 } } } });
+  const d = plan([], { settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: -2000, openDate: '2026-12-31', check: { date: '2027-01-15', bal: 500 } } } });
   const cv = compute(d, new Date(2027, 0, 20)).curveNow('2027-01');
   assert.equal(cv.extra, 2500, 'the surplus is reported');
   assert.equal(cv.daily, 0, 'and is not spread as a daily gain');
@@ -369,7 +369,7 @@ test('a balance higher than the plan explains is an unlogged income, not money c
 test('the month chart counts the pay on the first day when the start balance is from the day before (or that very day)', () => {
   const salary = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 26 };
   for (const openDate of ['2026-10-25', '2026-10-26']) {
-    const d = plan([salary], { settings: { goal: 0, start: '2026-07', cycleDay: 26 }, months: { '2026-11': { open: -100, openDate, check: { date: '2026-11-10', bal: 1500 } } } });
+    const d = plan([salary], { settings: { assume: true, goal: 0, start: '2026-07', cycleDay: 26 }, months: { '2026-11': { open: -100, openDate, check: { date: '2026-11-10', bal: 1500 } } } });
     const m = compute(d, new Date(2026, 10, 12)), cv = m.curveNow('2026-11');
     assert.equal(cv.extra, 0, `${openDate}: nothing unexplained once the pay is counted`);
     const y1 = cv.pts.find((p) => p.day === 1).y;
@@ -385,13 +385,13 @@ test('the plan over time: a change cuts the old version and adds the new one; an
   // a raise from March 2027 on
   items = planEdit(items, 's', { ...sal, amount: 2300 }, '2027-03', '', '2027-02-10T10:00:00Z');
   assert.equal(items.length, 2);
-  const m = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends: [] }, new Date(2027, 0, 20));
+  const m = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends: [] }, new Date(2027, 0, 20));
   assert.equal(m.incomeOf('2027-02'), 2000, 'before the change: the old amount');
   assert.equal(m.incomeOf('2027-03'), 2300, 'from the change on: the new one');
   assert.equal(m.incomeOf('2027-12'), 2300);
   // a change for a few months only, then it goes back
   items = planEdit(items, 's', { ...sal, amount: 1000 }, '2027-05', '2027-06');
-  const m2 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends: [] }, new Date(2027, 0, 20));
+  const m2 = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends: [] }, new Date(2027, 0, 20));
   assert.deepEqual(['2027-04', '2027-05', '2027-06', '2027-07'].map((ym) => m2.incomeOf(ym)), [2300, 1000, 1000, 2300], 'it comes back after the end month');
   assert.equal(m2.incomeY, 2000 * 2 + 2300 * 2 + 1000 * 2 + 2300 * 6, 'the year adds up version by version');
   // the plan as it stood in a given month
@@ -400,7 +400,7 @@ test('the plan over time: a change cuts the old version and adds the new one; an
   assert.equal(planNext(items, 's', '2027-04').amount, 1000, 'the next change already planned');
   // ending an item keeps its past
   const ended = planDelete(items, 's', '2027-08');
-  const m3 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: ended, months: {}, spends: [] }, new Date(2027, 0, 20));
+  const m3 = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items: ended, months: {}, spends: [] }, new Date(2027, 0, 20));
   assert.equal(m3.incomeOf('2027-07'), 2300, 'what it was before the end is untouched');
   assert.equal(m3.incomeOf('2027-08'), 0, 'and from the end month it no longer counts');
   assert.equal(planShown(ended, '2027-09').length, 0, 'an ended item is no longer shown');
@@ -409,7 +409,7 @@ test('the plan over time: a change cuts the old version and adds the new one; an
   assert.deepEqual(again.map((i) => [i.from || '', i.to || '', i.amount]), [['', '2027-02', 2000], ['2027-03', '', 2100]], 'a later edit from an earlier month supersedes the later version');
   // adding applies from the month you say
   const added = planAdd([], { id: 'r', kind: 'out', name: 'Alquiler', amount: 600, freq: 'monthly', day: 1 }, '2027-04');
-  const m4 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: added, months: {}, spends: [] }, new Date(2027, 0, 20));
+  const m4 = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items: added, months: {}, spends: [] }, new Date(2027, 0, 20));
   assert.deepEqual(['2027-03', '2027-04'].map((ym) => m4.outOf(ym)), [0, 600]);
 });
 
@@ -417,7 +417,7 @@ test('versions and the change log survive the sheet', () => {
   const sal = { id: 's', kind: 'in', name: 'Sueldo', amount: 2000, freq: 'monthly', day: 28 };
   const items = planEdit([normItem(sal)], 's', { ...sal, amount: 2300 }, '2027-03', '2027-09', '2027-02-10T10:00:00.000Z');
   const log = [{ at: '2027-02-10T10:00:00.000Z', id: 's', name: 'Sueldo', action: 'edit', from: '2027-03', to: '2027-09', before: { amount: 2000 }, after: { amount: 2300 } }];
-  const d = { settings: { goal: 100, start: '2027-01' }, items, months: {}, spends: [], log };
+  const d = { settings: { assume: true, goal: 100, start: '2027-01' }, items, months: {}, spends: [], log };
   const rows = toRows(d);
   const back = parseSheet(Object.entries(rows).map(([k, values]) => ({ range: `'${TABS[k].title}'!A1:Z`, values })));
   assert.deepEqual(back.items.map((i) => [i.amount, i.from || '', i.to || '', i.at ? 'at' : '']), items.map((i) => [i.amount, i.from || '', i.to || '', i.at ? 'at' : '']));
@@ -442,7 +442,7 @@ test('budgets over time: each month uses the budget in force, its spends count a
   items = planEdit(items, 'b', { ...tab, amount: 80 }, '2027-07');             // a raise from July
   items = planEdit(items, 'b', { ...tab, amount: 20 }, '2027-10', '2027-11');  // a temporary cut, then back to 80
   const spends = [{ id: 'g1', date: '2027-03-10', amount: 30, note: '', cat: 'tabaco' }, { id: 'g2', date: '2027-08-10', amount: 90, note: '', cat: 'tabaco' }];
-  const m = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends }, new Date(2027, 11, 20));
+  const m = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items, months: {}, spends }, new Date(2027, 11, 20));
   const inForce = (ym) => items.find((i) => i.cat === 'tabaco' && (!i.from || ym >= i.from) && (!i.to || ym <= i.to)).amount;
   assert.deepEqual(['2027-02', '2027-07', '2027-10', '2027-12'].map(inForce), [50, 80, 20, 80]);
   // the months already over use what was spent; the current one (December) uses the budget in force
@@ -461,7 +461,7 @@ test('budgets over time: each month uses the budget in force, its spends count a
   assert.equal(m.shown('2027-10')[0].amount, 20);
   // ended: spends of that type no longer count against a budget (they go to the day to day)
   const ended = planDelete(items, 'b', '2027-09');
-  const m2 = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: ended, months: {}, spends }, new Date(2027, 11, 20));
+  const m2 = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items: ended, months: {}, spends }, new Date(2027, 11, 20));
   assert.equal(m2.budFor('tabaco', '2027-08').amount, 80);
   assert.equal(m2.budFor('tabaco', '2027-09'), undefined);
   assert.equal(m2.shown('2027-12').length, 0, 'an ended budget is not shown any more');
@@ -470,7 +470,7 @@ test('budgets over time: each month uses the budget in force, its spends count a
 test('an item with no day counts from the first day of the month; with a day, from that day', () => {
   const rent = { id: 'r', kind: 'out', name: 'Alquiler', amount: 600, freq: 'monthly' };
   const gym = { id: 'g', kind: 'out', name: 'Gimnasio', amount: 30, freq: 'monthly', day: 20 };
-  const m = compute({ settings: { goal: 0, start: '2027-01', cycleDay: 1 }, items: [rent, gym].map(normItem), months: {}, spends: [] }, new Date(2027, 0, 5));
+  const m = compute({ settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, items: [rent, gym].map(normItem), months: {}, spends: [] }, new Date(2027, 0, 5));
   assert.deepEqual(m.plannedIn('2027-01').map((p) => [p.it.id, p.date, p.state]), [['r', '2027-01-01', 'auto'], ['g', '2027-01-20', 'future']], 'the rent is due from day 1, the gym from day 20');
   assert.equal(m.outOf('2027-01'), 630);
   assert.equal(m.flowTo('2027-01', '2027-01-05').out, 600, 'so far this month: the one with no day');
@@ -502,7 +502,7 @@ test('fixed days: a pay that came in early and a bill charged late, each month c
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
   ], {
-    settings: { goal: 3600, start: '2027-01', cycleDay: 28, cycleBy: 'day' },
+    settings: { assume: true, goal: 3600, start: '2027-01', cycleDay: 28, cycleBy: 'day' },
     months: {
       // February's rent was charged on 1 March; March's pay came in on 27 February, February's last day
       '2027-02': { open: 1000, bal: 4500, close: { amount: 700 }, real: { rent: 800 }, dates: { rent: '2027-03-01' } },
@@ -534,7 +534,7 @@ test('the month starts the day the pay comes in: early, the new month starts tha
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
   ], {
-    settings: { goal: 3600, start: '2027-01', cycleDay: 28 },
+    settings: { assume: true, goal: 3600, start: '2027-01', cycleDay: 28 },
     months: { '2027-02': { open: 1000, bal: 1700, close: { amount: -100 } }, '2027-03': { dates: { pay: '2027-02-26' } } },
     spends: [{ id: 'x', date: '2027-02-26', amount: 30, cat: 'restaurante' }],
   });
@@ -559,7 +559,7 @@ test('the month waits for its pay: due and not confirmed, the month before goes 
   const d = plan([
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
-  ], { settings: { goal: 0, start: '2026-01', cycleDay: 28 }, months: { '2026-11': { open: 1000 } } });
+  ], { settings: { assume: true, goal: 0, start: '2026-01', cycleDay: 28 }, months: { '2026-11': { open: 1000 } } });
   const m = compute(d, new Date(2026, 10, 29)); // 29 Nov: the pay was due yesterday
   assert.equal(m.waitingPay('2026-12'), true);
   assert.equal(m.curYM, '2026-11'); // still November
@@ -581,7 +581,7 @@ test('a finished month looked at later: what the next one moved since is left ou
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 28 },
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 26 },
   ], {
-    settings: { goal: 0, start: '2026-01', cycleDay: 28 },
+    settings: { assume: true, goal: 0, start: '2026-01', cycleDay: 28 },
     // November ended with 1700 (500 spent outside the plan); December's pay came in on the 28th and 30 were spent since
     months: { '2026-11': { open: 1000, check: { date: '2026-11-30', bal: 3670 } }, '2026-12': { real: { pay: 2000 } } },
     spends: [{ id: 's', date: '2026-11-29', amount: 30, cat: 'restaurante' }],
@@ -598,7 +598,7 @@ test('a finished month looked at later: what the next one moved since is left ou
 
 test('a close you undid leaves no balance behind: the next month does not start from it', () => {
   const d = plan([{ id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 1 }], {
-    settings: { goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, bal: 900 } },
+    settings: { assume: true, goal: 0, start: '2027-01', cycleDay: 1 }, months: { '2027-01': { open: 100, bal: 900 } },
   });
   const m = compute(d, new Date(2027, 1, 10));
   assert.equal(m.balStart('2027-02'), null);
@@ -611,11 +611,29 @@ test('while the month waits for its pay, the next month\'s plans wait too: they 
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 26 },
     { id: 'gym', kind: 'out', name: 'Gimnasio', amount: 40, freq: 'monthly' }, // no day: the month's first
     { id: 'tel', kind: 'out', name: 'Teléfono', amount: 30, freq: 'monthly', day: 26 },
-  ], { settings: { goal: 0, start: '2026-01', cycleDay: 26 }, months: { '2026-11': { open: 1000 } } });
+  ], { settings: { assume: true, goal: 0, start: '2026-01', cycleDay: 26 }, months: { '2026-11': { open: 1000 } } });
   const m = compute(d, new Date(2026, 10, 26, 9)); // payday, the pay not in yet
   assert.equal(m.curYM, '2026-11');
   assert.equal(m.dateOf(m.items[1], '2026-12'), '2026-11-27'); // December's, from December's first day on
   const r = m.fromBalance('2026-11', 900, '2026-11-26');
   assert.equal(r.shift, 0);
   assert.equal(r.left, 900 - 1000);
+});
+
+test('a planned item counts once you confirm it; the pay the month started with counts on its own', () => {
+  const d = plan([
+    { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 26 },
+    { id: 'gym', kind: 'out', name: 'Gimnasio', amount: 40, freq: 'monthly' },
+    { id: 'tel', kind: 'out', name: 'Teléfono', amount: 30, freq: 'monthly', day: 26 },
+    { id: 'rent', kind: 'out', name: 'Alquiler', amount: 800, freq: 'monthly', day: 5 },
+  ], { settings: { goal: 0, start: '2026-01', cycleDay: 26 }, months: { '2026-12': { dates: { pay: '2026-11-26' } } } });
+  const m = compute(d, new Date(2026, 10, 26, 9)); // December started today, nothing confirmed
+  assert.equal(m.curYM, '2026-12');
+  assert.equal(m.stateOf(m.items[0], '2026-12'), 'auto');
+  assert.equal(m.stateOf(m.items[1], '2026-12'), 'pending');
+  assert.equal(m.stateOf(m.items[3], '2026-12'), 'future');
+  assert.equal(m.incomeTo('2026-12', m.todayISO), 2000);
+  assert.equal(m.spentAll('2026-12', m.todayISO), 0); // nothing spent yet
+  const c = compute({ ...d, months: { '2026-12': { dates: { pay: '2026-11-26' }, real: { gym: 40 } } } }, new Date(2026, 10, 26, 9));
+  assert.equal(c.spentAll('2026-12', c.todayISO), 40);
 });

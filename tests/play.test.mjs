@@ -6,7 +6,7 @@ import { parseSheet, toRows, TABS } from '../js/google.js';
 
 // 1000 in, 600 fixed, goal 1200 → 100 a month to save, 300 left for life
 const base = (extra = {}) => ({
-  settings: { goal: 1200, start: '2027-01' },
+  settings: { assume: true, goal: 1200, start: '2027-01' },
   items: [
     { id: 'n', kind: 'in', name: 'Nómina', amount: 1000, freq: 'monthly', day: 1 },
     { id: 'c', kind: 'out', name: 'Casa', amount: 600, freq: 'monthly', day: 1 },
@@ -51,7 +51,7 @@ test('closeDue: last month of the plan, until it is closed', () => {
 
 
 test('the sheet keeps the language and currency of the device', () => {
-  const d = base({ settings: { goal: 0, start: '2027-01', lang: 'en', cur: 'GBP' } });
+  const d = base({ settings: { assume: true, goal: 0, start: '2027-01', lang: 'en', cur: 'GBP' } });
   const rows = toRows(d);
   const back = parseSheet(Object.entries(TABS).map(([k, tab]) => ({ range: `'${tab.title}'!A1:Z100`, values: rows[k] })));
   assert.equal(back.settings.lang, 'en');

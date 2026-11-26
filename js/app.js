@@ -525,13 +525,13 @@ function home(m) {
   const openAt = m.openAfter(ym);
   const due = closeDue(m), pending = m.plannedIn(ym).filter((p) => (p.state === 'pending' || p.state === 'auto') && !(openAt && p.date <= openAt));
   const planned = m.plannedIn(ym), toCome = planned.filter((p) => p.it.kind === 'in' && p.state === 'future');
-  const came = planned.filter((p) => p.it.kind === 'in' && p.state !== 'future').sort((a, b) => b.amount - a.amount)[0];
+  const came = planned.filter((p) => p.it.kind === 'in' && isDone(p)).sort((a, b) => b.amount - a.amount)[0];
   const dp = m.waitingPay(ymAdd(m.curYM, 1)) ? null : m.cycleDay > 1 ? pc.dim - pc.day + 1 : daysTo(m.payday);
   const dow = cap(new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric' }));
   // the month's spending as planned (what comes in minus the savings target): spent, still to pay, free
   // still to pay: the plan's expected expenses that haven't come yet. What's left of a limit isn't a bill: it's unspent.
   const plan = planSpend(m, ym), spent = m.spentAll(ym, iso);
-  const toPay = round2(planned.filter((p) => p.it.kind === 'out' && !p.save && p.state === 'future').reduce((a, p) => a + p.amount, 0));
+  const toPay = round2(planned.filter((p) => p.it.kind === 'out' && !p.save && !isDone(p)).reduce((a, p) => a + p.amount, 0));
   const free = round2(plan - spent - toPay), over = free < -0.5;
   const proj = projSpent(m, ym);
   const tone = spendTone(spent, plan), ptone = proj == null ? tone : spendTone(proj, plan);
@@ -620,7 +620,7 @@ function monthMoves(m, ym) {
   for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) {
     rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: Math.abs(e.amount), kind: e.amount < 0 ? 'in' : 'out', save: e.cat === SAVE_CAT }) });
   }
-  for (const p of m.plannedIn(ym)) if (p.state !== 'future' && !(after && p.date <= after)) {
+  for (const p of m.plannedIn(ym)) if (isDone(p) && !(after && p.date <= after)) {
     rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save, pend: p.state === 'pending' }) });
   }
   if (!rows.length) return '';
@@ -650,7 +650,8 @@ function trailCard(m) {
   </section>`;
 }
 /** What a month still to come is expected to save: what comes in, less what the spending projection says goes out (the plan's target when there is no projection). */
-const futureSaved = (m, ym, i, sp, ip) => (sp ? round2((ip ? ip.months[i] : m.incomeOf(ym)) - sp.months[i]) : m.targetOf(ym));
+// a month to come saves what you plan to put aside (what's left in the account isn't saving)
+const futureSaved = (m, ym) => m.targetOf(ym);
 /** Savings running total over the year, as Año draws it: what each month saved, this one at its pace, the rest as planned.
  * The one source for the Año chart and the detail of "Ahorrado" in Análisis, so they are always the same line. */
 function savedSeries(m) {
@@ -952,6 +953,8 @@ function openBudget(id) {
 }
 
 
+/** A planned item that counts as happened: confirmed, or the pay the month started with. */
+const isDone = (p) => p.state === 'real' || p.state === 'auto';
 const ST = { future: [t('planificado'), ''], auto: [t('dado por bueno'), 'st-auto'], pending: [t('por confirmar'), 'st-pend'], real: [t('confirmado'), 'st-real'] };
 const flowRow = (ym, after = '') => ({ it, date, day, amount, state }) => {
   const inBal = !!after && date <= after; // before the day your start balance refers to: already in it, not added again
@@ -1023,7 +1026,7 @@ function openLineDetail(kind) {
   if (kind === 'in') {
     listHead = t('Ingresos');
     const rows = [];
-    for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.it.kind === 'in' && p.state !== 'future' && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl('', 'sm'), title: p.it.name, sub: `${p.state === 'real' && !p.amount ? t('no ha entrado') : ST[p.state][0]} · ${t('de {m}', { m: monthName(ym) })}`, date: p.date, amount: p.amount, kind: 'in', vary: p.it.vary && p.state !== 'real' }) });
+    for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.it.kind === 'in' && isDone(p) && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl('', 'sm'), title: p.it.name, sub: `${p.state === 'real' && !p.amount ? t('no ha entrado') : ST[p.state][0]} · ${t('de {m}', { m: monthName(ym) })}`, date: p.date, amount: p.amount, kind: 'in', vary: p.it.vary && p.state !== 'real' }) });
     rows.sort((a, b) => b.date.localeCompare(a.date));
     body = `<div class="moves">${rows.map((r) => r.html).join('') || `<p class="fine">${t('Aún no hay ingresos.')}</p>`}</div>`;
   } else if (kind === 'out') {
@@ -1079,7 +1082,7 @@ function openCatDetail(c) {
   // every movement in the type: what you logged and what the plan expected that already came, by month
   const rows = [];
   for (const e of m.allSpends) if (e.cat === c && m.season.includes(m.monthOf(e.date))) rows.push({ date: e.date, ym: m.monthOf(e.date), signed: -e.amount, html: spendRow(e) });
-  for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.state !== 'future' && p.it.kind === 'out' && !p.it.budget && itemCat(p.it) === c && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, signed: -p.amount, html: doneRow(p.it, ym, p.date, p.amount) });
+  for (const ym of m.season) for (const p of m.plannedIn(ym)) if (isDone(p) && p.it.kind === 'out' && !p.it.budget && itemCat(p.it) === c && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, signed: -p.amount, html: doneRow(p.it, ym, p.date, p.amount) });
   rows.sort((a, b) => b.date.localeCompare(a.date));
   let cur = '', body = '';
   for (const r of rows) {
@@ -1123,7 +1126,7 @@ const stPill = (st) => `<span class="pill ${st === 'clear' ? 'c-ok' : st === 'pa
 /** What the plan expects this month: still to come first, then what already happened. */
 function expectedCard(m, ym) {
   const planned = m.plannedIn(ym);
-  const next = planned.filter((p) => p.state === 'future'), past = planned.filter((p) => p.state !== 'future');
+  const next = planned.filter((p) => !isDone(p)), past = planned.filter(isDone);
   const after = m.openAfter(ym), counted = (p) => !(after && p.date <= after);
   const pend = m.pendingIn(ym).filter(counted).length;
   const sum = (arr, k) => arr.filter((p) => p.it.kind === k && counted(p)).reduce((s, p) => s + p.amount, 0);
@@ -1203,7 +1206,7 @@ function projSpent(m, ym) {
   if (days < 3) return null;
   const planned = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && p.date > after);
   const outPlan = planned.reduce((a, p) => a + p.amount, 0);
-  const outPaid = planned.filter((p) => p.state !== 'future').reduce((a, p) => a + p.amount, 0);
+  const outPaid = planned.filter(isDone).reduce((a, p) => a + p.amount, 0);
   return round2(outPlan + Math.max(0, m.spentAll(ym, m.todayISO) - outPaid) / days * total);
 }
 /**
@@ -1241,7 +1244,7 @@ function spendProjection(m) {
     if (ym > cur) break;
     const pc = pace(m, ym), after = m.openAfter(ym), from = after ? m.dayOf(after, ym) : 0, d = (ym === cur ? pc.day : pc.dim) - from;
     if (d <= 0) continue;
-    const paid = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && p.date > after && p.state !== 'future').reduce((a, p) => a + p.amount, 0);
+    const paid = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && p.date > after && isDone(p)).reduce((a, p) => a + p.amount, 0);
     varSpent += Math.max(0, (ym === cur ? m.spentAll(ym, m.todayISO) : m.spentAll(ym)) - paid); days += d;
   }
   const rate = days >= 7 ? varSpent / days : null; // too little to go on: the plan's own figure
@@ -1333,7 +1336,7 @@ const diffCell = (real, plan, more = 'good') => {
   return { v: fmtSigned((d)), tone: (d > 0) === (more === 'good') ? 'ok' : 'bad' };
 };
 function planVsReal(m) {
-  const today = new Date(), todayISO = toISO(today), done = (it, ym) => m.stateOf(it, ym) !== 'future';
+  const today = new Date(), todayISO = toISO(today), done = (it, ym) => ['real', 'auto'].includes(m.stateOf(it, ym));
   const sumItems = (list, fn) => round2(m.season.reduce((s, ym) => s + list.reduce((a, it) => a + (occurs(it, ym) ? fn(it, ym) : 0), 0), 0));
   const line = (label, plan, real, proj, more, icon = '', word = 'planificado', isSav = false) => ({ label, plan: round2(plan), real: round2(real), proj: round2(proj), more, icon, word, isSav });
   const past = m.season.filter((ym) => ym < m.curYM), fut = m.season.filter((ym) => ym > m.curYM), inSeason = m.season.includes(m.curYM);
@@ -1437,7 +1440,7 @@ function spendByType(m, yms) {
   for (const e of sp) by[e.cat || ''] = (by[e.cat || ''] || 0) + e.amount;
   // the plan's expected expenses that already came (rent, bills…), by type: so the total is everything spent
   for (const ym of yms) for (const p of m.plannedIn(ym)) {
-    if (p.it.kind !== 'out' || p.save || p.state === 'future' || (m.openAfter(ym) && p.date <= m.openAfter(ym))) continue; // before the start balance's day: already in it
+    if (p.it.kind !== 'out' || p.save || !isDone(p) || (m.openAfter(ym) && p.date <= m.openAfter(ym))) continue; // before the start balance's day: already in it
     const c = itemCat(p.it) || 'otros';
     by[c] = (by[c] || 0) + p.amount;
   }

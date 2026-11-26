@@ -322,6 +322,8 @@ export function compute(data, today = new Date()) {
     const v = (mon(ym).real || {})[it.id] ?? (mon(ym).potSpent || {})[it.id];
     return v == null ? null : +v;
   };
+  /** The pay that started month ym, once it has started (months from payday to payday). */
+  const startPay = (it, ym) => anchorOf(ym)?.id === it.id && !waitingPay(ym) && range(ym).from <= todayStr;
   /** The date an item falls on in a month; without a day, the first day of the month. */
   // what you haven't moved to another day can't come before its month starts: while the month waits for its pay, what it
   // plans for its first days (or has no day) waits too, instead of landing in the month before
@@ -332,7 +334,10 @@ export function compute(data, today = new Date()) {
     return d && d > f ? d : f;
   };
   /** future: not due yet · auto: due, taken as planned · pending: due, variable, not confirmed · real: exact amount entered */
-  const stateOf = (it, ym) => realOf(it, ym) != null ? 'real' : dateOf(it, ym) > todayISO ? 'future' : it.vary ? 'pending' : 'auto';
+  // A planned item counts once you confirm it: due and not confirmed, it's pending (not taken as happened). The one exception,
+  // the pay a month started with: the month started because it came in.
+  const assume = data.settings?.assume === true; // older behaviour: what's due is taken as happened unless it varies
+  const stateOf = (it, ym) => realOf(it, ym) != null ? 'real' : startPay(it, ym) ? 'auto' : dateOf(it, ym) > todayISO ? 'future' : assume && !it.vary ? 'auto' : 'pending';
   /** Best figure for one occurrence: the exact amount if entered, otherwise the planned one. */
   const amountIn = (it, ym) => realOf(it, ym) ?? it.amount;
 
@@ -400,7 +405,7 @@ export function compute(data, today = new Date()) {
       if (it.budget) continue;
       const r = realOf(it, ym);
       if (r == null && !occ(it, ym)) continue;
-      out.push({ it, ym, date: dateOf(it, ym), v: r ?? it.amount, any: r != null && !(mon(ym).dates || {})[it.id] });
+      out.push({ it, ym, date: dateOf(it, ym), v: r ?? (stateOf(it, ym) === 'pending' && !assume ? 0 : it.amount), any: r != null && !(mon(ym).dates || {})[it.id] });
     }
     return out;
   };
@@ -515,7 +520,7 @@ export function compute(data, today = new Date()) {
     const tDay = ym === curYM ? at(todayISO) : dim;
     let V = null;
     if (ym === curYM && tDay - d0 >= 3) {
-      const paid = items.filter((it) => !it.budget && it.kind === 'out' && !isSave(it) && occ(it, ym) && dateOf(it, ym) <= todayISO && !(after && dateOf(it, ym) <= after)).reduce((a, it) => a + (realOf(it, ym) ?? it.amount), 0);
+      const paid = items.filter((it) => !it.budget && it.kind === 'out' && !isSave(it) && occ(it, ym) && dateOf(it, ym) <= todayISO && !(after && dateOf(it, ym) <= after)).reduce((a, it) => a + (realOf(it, ym) ?? (stateOf(it, ym) === 'pending' && !assume ? 0 : it.amount)), 0);
       V = Math.max(0, spentAll(ym, todayISO) - paid) / (tDay - d0);
     }
     const yy = (d) => (V == null || d <= tDay ? y(d) : y(tDay) + (E[d] - E[tDay]) - V * (d - tDay));
