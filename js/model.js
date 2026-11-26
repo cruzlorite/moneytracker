@@ -519,9 +519,9 @@ export function compute(data, today = new Date()) {
     // pace on everything else), so the line ends where "A este ritmo" says it will.
     const tDay = ym === curYM ? at(todayISO) : dim;
     let V = null;
-    if (ym === curYM && tDay - d0 >= 3) {
+    if (ym === curYM) {
       const paid = items.filter((it) => !it.budget && it.kind === 'out' && !isSave(it) && occ(it, ym) && dateOf(it, ym) <= todayISO && !(after && dateOf(it, ym) <= after)).reduce((a, it) => a + (realOf(it, ym) ?? (stateOf(it, ym) === 'pending' && !assume ? 0 : it.amount)), 0);
-      V = Math.max(0, spentAll(ym, todayISO) - paid) / (tDay - d0);
+      V = paceOf(ym, Math.max(0, spentAll(ym, todayISO) - paid), tDay - d0);
     }
     const yy = (d) => (V == null || d <= tDay ? y(d) : y(tDay) + (E[d] - E[tDay]) - V * (d - tDay));
     const pts = [];
@@ -556,6 +556,25 @@ export function compute(data, today = new Date()) {
     let from = 0;
     for (let i = 1; i < pts.length; i++) if (isoDays(pts[i].date) - isoDays(pts[i - 1].date) > 1) from = i;
     return pts.slice(from);
+  };
+  /** What you spend a day beyond the plan (budgets and the rest), on average over the last closed months (up to 3); null without any. */
+  const pastRate = (ym) => {
+    let sum = 0, n = 0;
+    for (let k = 1; k <= 3; k++) {
+      const p = ymAdd(ym, -k);
+      if (!mon(p).close || balStart(p) == null) continue;
+      const after = openAfter(p), days = range(p).days - (after && after >= range(p).from ? clamp(dayOfM(after, p), 0, range(p).days) : 0);
+      if (days <= 0) continue;
+      sum += Math.max(0, spentAll(p) - flowTo(p, endISO(p)).out); n += days;
+    }
+    return n ? sum / n : null;
+  };
+  /** The daily pace a month's projection goes on, from what it spent beyond the plan in `days` days: the last months' at first,
+   *  blending into your own over the first week (with no months behind, your own from the third day; null before). */
+  const paceOf = (ym, spent, days) => {
+    const h = pastRate(ym);
+    if (h == null) return days >= 3 ? spent / days : null;
+    return days >= 7 ? spent / days : (spent + h * (7 - Math.max(0, days))) / 7;
   };
   /** Where a month's spending comes from: 'bal' (closed with a balance), 'check' (a look mid-month) or 'log' (logged spends). */
   const spentSrc = (ym) => {
@@ -612,7 +631,7 @@ export function compute(data, today = new Date()) {
     incomeY, outY, possible, payday, idx, pre, over, curIdx, cur, curYM, mon, status, spentOf, saved, streak, cleared,
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
     cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: dayOfM, byPay, anchorOf, base, waitingPay,
-    balStart, openAfter, onceDate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
+    balStart, openAfter, onceDate, paceOf, pastRate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
     budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, budFor, byCat,
     /** One version per item, as it stands in month ym (default: this one). */
     shown: (ym = curYM) => planShown(items, ym), segmentsOf: (id) => items.filter((i) => i.id === id), itemAt: (id, ym) => items.find((i) => i.id === id && activeIn(i, ym)) || null,

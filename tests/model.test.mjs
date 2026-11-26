@@ -637,3 +637,17 @@ test('a planned item counts once you confirm it; the pay the month started with 
   const c = compute({ ...d, months: { '2026-12': { dates: { pay: '2026-11-26' }, real: { gym: 40 } } } }, new Date(2026, 10, 26, 9));
   assert.equal(c.spentAll('2026-12', c.todayISO), 40);
 });
+
+test('early in a month, the projection goes on the last months\' daily pace beyond the plan', () => {
+  const d = plan([{ id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 1 }], {
+    settings: { goal: 0, start: '2027-01', cycleDay: 1 },
+    // January (31 days) closed: 1000 + 2000 − 2380 = 620 spent beyond the plan, 20 a day
+    months: { '2027-01': { open: 1000, bal: 2380, close: { amount: 1380 }, real: { pay: 2000 } }, '2027-02': { real: { pay: 2000 } } },
+  });
+  const m = compute(d, new Date(2027, 1, 2));
+  assert.equal(round(m.pastRate('2027-02')), 20);
+  assert.equal(m.paceOf('2027-02', 0, 0), 20); // nothing of its own yet: the last months'
+  assert.equal(m.paceOf('2027-02', 70, 7), 10); // a week gone: its own
+  assert.equal(m.paceOf('2027-02', 30, 3), (30 + 20 * 4) / 7); // in between: both
+  assert.equal(compute(plan([], { settings: { goal: 0, start: '2027-01', cycleDay: 1 } }), new Date(2027, 1, 2)).paceOf('2027-02', 0, 1), null);
+});

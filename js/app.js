@@ -570,6 +570,7 @@ function home(m) {
     <div class="barleg small num">${proj != null ? `<span><i class="lg-proj" style="--pc:${proj > plan + 0.5 ? 'var(--spend)' : 'var(--out)'}"></i>${t('Proyección a fin de mes')} ≈ ${fmt((proj))}</span>` : '<span></span>'}</div>
     ${hpNote ? `<p class="hpsent" style="${toneText(hpNote.over ? ptone : 'var(--ok)')}">${hpNote.text}${hpNote.over ? '' : ' <span aria-hidden="true">🎉</span>'}</p>` : ''}
     ${trail ? '' : balanceBox(m, ym, cm)}
+    ${unloggedNote(m, ym)}
   </section>
   <div class="stats2">
     <section class="card stat"><span class="label"><i class="sdot in"></i>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym, iso))}</b>
@@ -579,6 +580,14 @@ function home(m) {
   ${trail}
   ${monthTypes(m, ym)}
   ${monthMoves(m, ym)}`;
+}
+/** Your balance dropped beyond what you logged while planned expenses are due unconfirmed: probably some were charged. */
+function unloggedNote(m, ym) {
+  if (m.spentSrc(ym) !== 'check') return '';
+  const after = m.openAfter(ym), x = round2(m.spentOf(ym) - m.loggedRest(ym, after));
+  const due = m.plannedIn(ym).filter((p) => p.state === 'pending' && p.it.kind === 'out' && !(after && p.date <= after));
+  if (x < 1 || !due.length) return '';
+  return `<p class="note">${t('Tu saldo ha bajado {x} más de lo apuntado. Si se te ha cargado alguno de «Por confirmar» ({n}), confírmalo y dejará de contar como gasto sin detallar.', { x: fmt(x), n: due.map((p) => esc(p.it.name)).slice(0, 3).join(', ') + (due.length > 3 ? '…' : '') })}</p>`;
 }
 /** One line of a spending-by-type list: icon and name (and its share) on the left, the amount on the right, a thin bar under it
  *  against the biggest one. The same in Hoy and in Análisis. */
@@ -1196,18 +1205,19 @@ const ofPlan = (v, plan, cap, { approx = false, signed = false, cls = '', tone =
 /** This month's saving at the current pace (null early in the month): the target plus what would be left over. */
 /**
  * Where this month's spending ends at this pace: the expected expenses as planned, plus everything else by rule of three
- * on the days gone (from the 3rd day; null before). One projection for everything: Hoy, the year, Análisis.
+ * on the days gone, or at the last months' daily pace in the first week. One projection for everything: Hoy, the year, Análisis.
  */
 function projSpent(m, ym) {
   if (ym !== m.curYM) return null;
   const pc = pace(m, ym), after = m.openAfter(ym);
   // a first month counts from the day you started: before it, nothing (it's already in your balance)
   const from = after ? m.dayOf(after, ym) : 0, days = pc.day - from, total = pc.dim - from;
-  if (days < 3) return null;
   const planned = m.plannedIn(ym).filter((p) => p.it.kind === 'out' && !p.save && p.date > after);
   const outPlan = planned.reduce((a, p) => a + p.amount, 0);
   const outPaid = planned.filter(isDone).reduce((a, p) => a + p.amount, 0);
-  return round2(outPlan + Math.max(0, m.spentAll(ym, m.todayISO) - outPaid) / days * total);
+  // beyond the plan: what you spent so far, and the rest of the days at your pace (the last months' in the first week)
+  const extra = Math.max(0, m.spentAll(ym, m.todayISO) - outPaid), rate = m.paceOf(ym, extra, days);
+  return rate == null ? null : round2(outPlan + extra + rate * Math.max(0, total - days));
 }
 /**
  * Where the year's income ends, month by month, like the spending projection: what came in as it was; this month, what came

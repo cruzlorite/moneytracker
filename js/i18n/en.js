@@ -1610,4 +1610,5 @@ export default {
   'Saldo de tu cuenta a lo largo de {m}: empieza en {a} y termina en {x}': 'Your account balance through {m}: starts at {a} and ends at {x}',
   'el de tu cuenta cada día: el del inicio del mes, más lo que entra y menos lo que sale. Al cierre, termina en el saldo que escribes.': "your account's, day by day: the month's start, plus what comes in and minus what goes out. At the close it ends on the balance you enter.",
   'Lo que salió sin apuntar se reparte por igual entre los días.': 'What went out unlogged is spread evenly over the days.',
+  'Tu saldo ha bajado {x} más de lo apuntado. Si se te ha cargado alguno de «Por confirmar» ({n}), confírmalo y dejará de contar como gasto sin detallar.': 'Your balance went down {x} more than you logged. If any of «To confirm» ({n}) was charged, confirm it and it will stop counting as unitemised spending.',
 };
