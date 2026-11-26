@@ -1857,3 +1857,8 @@ table.cm { width: 100%; border-collapse: collapse; font-size: 14px; }
 @media (max-width: 959px) { .calc-tabsr { grid-auto-columns: auto; gap: 2px; } .calc-tabsr button { font-size: 12px; padding: 8px 4px; letter-spacing: -.01em; } }
 @media (max-width: 480px) { .wf-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: 8px; font-size: 12.5px; } .wf-row > b { min-width: 76px; } }
 @media (max-width: 360px) { .calc-tabsr button { font-size: 11px; padding: 7px 2px; } .calc-tabsr { padding: 2px; } }
+/* the month close's summary: one figure per line */
+.cl-sum { padding: 4px 14px; border-radius: 12px; background: var(--panel-2); font-size: 15px; gap: 0; }
+.cl-sum > :nth-child(even) { padding-left: 12px; }
+.cl-sum > * { padding: 10px 0; border-top: 1px solid var(--line); }
+.cl-sum > :nth-child(-n+2) { border-top: 0; }

@@ -191,7 +191,7 @@ test('spending types: guessed from names', async () => {
     ['super', 'seguros', 'suministros', 'internet', 'gasolina', 'belleza', 'copas', 'mascotas', null]);
 });
 
-test('the month read from the account balance: spent, and what is left over counts as saved', () => {
+test('the month read from the account balance: spent; saved is only what you put aside', () => {
   const items = [
     { id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 1 },
     { id: 'rent', kind: 'out', name: 'Alquiler', amount: 1000, freq: 'monthly', day: 2 },
@@ -220,7 +220,7 @@ test('the month read from the account balance: spent, and what is left over coun
   assert.deepEqual([j.cash, j.rest, j.left], [450, 450, 250]);
   assert.equal(m.spentSrc('2027-01'), 'bal');
   assert.equal(m.spentOf('2027-01'), 450);
-  assert.equal(m.savedOf('2027-01'), 550); // 300 put aside + 250 left over at the close
+  assert.equal(m.savedOf('2027-01'), 300); // what you put aside: the 250 left over stays in the account
   // February starts where January ended: nothing carried, the leftover stays in the account counted as saved
   assert.equal(m.balStart('2027-02'), 1250);
   const f = m.fromBalance('2027-02', 600);
@@ -228,7 +228,7 @@ test('the month read from the account balance: spent, and what is left over coun
   assert.equal(f.rest, 750 - 400);
   assert.equal(f.left, 600 - 1250); // an expensive month: −650, it would come off savings
   assert.equal(m.restOf('2027-02'), 2000 - 1600 - 400 + 250);
-  assert.equal(m.savedOf('2027-02'), 300 - 650); // 300 put aside, 650 missing at the close
+  assert.equal(m.savedOf('2027-02'), 300); // what you put aside, whatever the account did
   // the money through February: 0 on day 0, pay and rent early on, ends where the balance says
   const cv = m.curveOf('2027-02', 600);
   assert.equal(cv.pts.length, 29);
@@ -302,8 +302,8 @@ test('money moved to savings leaves the account but is not spending', () => {
   assert.equal(r.cash, 1000 + 2000 - 1000 - 400 - 1300); // spent outside the plan: 300
   assert.equal(m.spentAll('2027-01'), 1000 + 300);
   assert.equal(m.loggedRest('2027-01'), 40); // the 100 to savings isn't a spend
-  assert.equal(m.savedOf('2027-01'), 400 + 300); // moved + left over in the account
-  assert.equal(round(m.incomeTo('2027-01') - m.spentAll('2027-01')), 700); // the same thing: in − spent
+  assert.equal(m.savedOf('2027-01'), 400); // only what was moved: the 300 left over stays in the account
+  assert.equal(round(m.incomeTo('2027-01') - m.spentAll('2027-01')), 700); // in − spent: moved + left over
 });
 
 test('the current month before closing: a line from the start balance, estimated after today', () => {

@@ -435,7 +435,7 @@ function infoHTML(key) {
       ixRow(IX.k('k-free'), t('Sin presupuestar'), t('el resto: comida, salidas…')),
       ixRow(IX.k('k-neg'), t('Falta'), t('lo que no cabe.')),
       ixRow('', t('Gasto total planificado'), t('ingresos − ahorro.'))],
-      t('Porcentajes: sobre tus ingresos. Lo que no gastes, también es ahorro.'));
+      t('Porcentajes: sobre tus ingresos.'));
     case 'acumulado': return card(t('Ahorro e inversión acumulado'), [
       ixRow(IX.fill('var(--sav)'), t('Ahorrado'), t('suma de lo ahorrado mes a mes.')),
       ixRow(IX.proj('var(--sav)'), t('Estimado'), t('este mes a tu ritmo y los siguientes según lo planificado.')),
@@ -446,13 +446,14 @@ function infoHTML(key) {
       ixRow(IX.proj('var(--s1)'), t('Estimado'), t('desde hoy hasta fin de mes: lo planificado y tu ritmo de gasto desde tu último saldo.'))],
       t('Los días de meses cerrados se reparten a partes iguales entre el saldo inicial y el de cierre.'));
     case 'curvaMes': return card(t('Tu dinero en el mes'), [
-      ixRow(IX.fill('var(--s1)'), t('Acumulado del mes'), t('lo que ha entrado menos lo que ha salido desde el primer día del mes. Empieza en 0.')),
+      ixRow(IX.fill('var(--s1)'), t('Saldo'), t('el de tu cuenta cada día: el del inicio del mes, más lo que entra y menos lo que sale. Al cierre, termina en el saldo que escribes.')),
       ixRow(IX.proj('var(--s1)'), t('Proyectado'), t('desde hoy hasta fin de mes: lo planificado y tu ritmo de gasto desde tu último saldo.'))],
-      t('Cada punto es el acumulado de ese día, no el gasto de ese día.'));
+      t('Lo que salió sin apuntar se reparte por igual entre los días.'));
     case 'cierre': return card(t('Cierre del mes'), [
       ixRow('', t('Saldo'), t('lo que hay hoy en tu cuenta.')),
       ixRow(IX.fill(O), t('Gastado'), t('saldo inicial + ingresos − ahorro − saldo final.')),
-      ixRow(IX.fill(S), t('Ahorrado'), t('ingresos − gastado.'))],
+      ixRow(IX.fill(S), t('Ahorrado'), t('lo que pasaste al ahorro o a inversión.')),
+      ixRow('', t('Diferencia en tu cuenta'), t('saldo final − saldo inicial: lo que no gastaste sigue en la cuenta, no cuenta como ahorro.'))],
       t('El saldo final es el inicial del mes siguiente.'));
     default: return '';
   }
@@ -732,7 +733,7 @@ function mes(m) {
   const inc = past ? m.incomeTo(ym) : cur ? m.incomeTo(ym, m.todayISO) : m.incomeOf(ym);
   const spent = past ? m.spentAll(ym) : cur ? m.spentAll(ym, m.todayISO) : planSpend(m, ym);
   const open = past && !d.close, look = open && d.check ? m.fromBalance(ym, +d.check.bal, d.check.date) : null;
-  const saved = past ? (d.close ? m.savedOf(ym) : look ? round2(look.saved + look.left) : null) : cur ? ps : tgt;
+  const saved = past ? (d.close ? m.savedOf(ym) : look ? round2(look.saved) : null) : cur ? ps : tgt;
   const vd = saved == null || (!past && !cur) ? null : verdict(saved, tgt, m.target);
   return `
   ${monthHead(cap(ymLabel(ym)), rangeText(m, ym), cur ? t('Este mes') : past ? (d.close ? t('Cerrado') : t('Terminado')) : t('Planificado'), 'calmove')}
@@ -1154,11 +1155,6 @@ function spentCard(m, ym) {
   </section>`;
 }
 
-/** How a month was closed, in a few words. */
-function closeText(m, ym) {
-  const a = +m.mon(ym).close.amount || 0;
-  return Math.abs(a) < 0.5 ? t('ni sobró ni faltó') : a > 0 ? t('sobraron {x}: ahorro', { x: fmt(a) }) : t('faltaron {x}: de tu ahorro', { x: fmt(-a) });
-}
 
 // ---------- the road of the year ----------
 /** A month's colour by what you put aside, net: green the month's target, yellow something, red nothing or less than nothing. */
@@ -1260,10 +1256,8 @@ function spendProjection(m) {
 }
 /** This month's saving at this pace: its target, plus what the projection leaves of the budget (minus, if it goes over). */
 const projSaved = (m, pc, ym) => {
-  const p = projSpent(m, ym); if (p == null) return null;
-  // what the month saves = what it adds to the account by its end (the estimated balance, from the same projection as the spending) plus what went to savings on the way
-  const cv = ym === m.curYM ? m.curveNow(ym) : null;
-  return cv ? round2(cv.pts[cv.pts.length - 1].y + cv.saveMoved) : round2(m.targetOf(ym) + planSpend(m, ym) - p);
+  // what the month saves: what you put aside, done and still planned (what stays in the account isn't saving)
+  return round2(m.flowTo(ym, m.endISO(ym)).save);
 };
 const shortMoney = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + (Math.abs(v) >= 1000 ? (Math.abs(v) / 1000).toLocaleString(locale, { maximumFractionDigits: 1 }) + 'K' : Math.round(Math.abs(v)));
 
@@ -2349,16 +2343,16 @@ function openClose(ym) {
       <label class="field"><span class="label" id="cl-bal-l">${t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) })}</span>
         <input type="text" inputmode="decimal" id="cl-bal" class="bigin" value="${esc(d.bal ?? '')}" placeholder="${curSym}" autocomplete="off">
 </label>
+      ${toISO(new Date()) > m.range(ym).to ? `<p class="fine">${t('Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco.')}</p>` : ''}
     </div>
     ${(() => {
-      // what the plan expected this month and you haven't confirmed: it closes as done, with its amount, unless you say it didn't happen
+      // what the plan expected this month and you haven't confirmed: left unticked, it closes as not happened (0)
       const pend = m.pendingIn(ym);
       if (!pend.length) return '';
-      return `<div data-step class="stack-sm clpend"><span class="label">${t('Sin confirmar')}</span><p class="fine">${t('Se cierran como hechos, con su importe. Desmarca lo que no ocurrió o corrige el importe.')}</p>
-        ${pend.map((p) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="clp-on" data-id="${esc(p.it.id)}" checked><span><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)} · ${p.it.kind === 'in' ? t('ingreso') : t('gasto')}</span></span></label><label class="clp-a"><input type="text" inputmode="decimal" class="clp-amt" data-id="${esc(p.it.id)}" value="${esc(String(p.amount).replace('.', ','))}" aria-label="${esc(t('Importe de {n}', { n: p.it.name }))}"><span>${curSym}</span></label></div>`).join('')}</div>`;
+      return `<div data-step class="stack-sm clpend"><span class="label">${t('Sin confirmar')}</span><p class="fine">${t('Marca lo que sí ocurrió, con su importe. Lo que dejes sin marcar se cierra como no ocurrido.')}</p>
+        ${pend.map((p) => `<div class="clp"><label class="clp-l"><input type="checkbox" class="clp-on" data-id="${esc(p.it.id)}"><span><b>${esc(p.it.name)}</b><span class="fine">${shortDate(p.date)} · ${p.it.kind === 'in' ? t('ingreso') : t('gasto')}</span></span></label><label class="clp-a"><input type="text" inputmode="decimal" class="clp-amt" data-id="${esc(p.it.id)}" value="${esc(String(p.amount).replace('.', ','))}" disabled aria-label="${esc(t('Importe de {n}', { n: p.it.name }))}"><span>${curSym}</span></label></div>`).join('')}</div>`;
     })()}
     ${closeEdge(m, ym)}
-    ${toISO(new Date()) > m.range(ym).to ? `<p class="fine">${t('Cierra con el saldo que tenías ese último día, no con el de hoy: míralo en los movimientos de tu banco.')}</p>` : ''}
     <div id="cl-calc" aria-live="polite"></div>
   </div>`;
   openDialog();
@@ -2434,47 +2428,50 @@ function closeCalc() {
   const vdBox = dlg.querySelector('#cl-vd'), balL = dlg.querySelector('#cl-bal-l');
   if (balL) balL.textContent = t('Saldo de tu cuenta el {d}', { d: shortDate(m.range(ym).to) });
   if (!r) { box.innerHTML = bal == null ? '' : '<p class="fine">' + t('Falta el saldo al empezar el mes.') + '</p>'; if (vdBox) vdBox.innerHTML = ''; return; }
-  const tgt = m.targetOf(ym), savedM = round2(r.saved + r.left), spentAll = round2(r.out + r.cash), vd = verdict(savedM, tgt, m.target);
-  const sc = savedScale(withMonth(ym, { ...patch, close: { amount: r.left } }, more), ym);
+  // saved: only what you put aside (transfers to savings); what stays in the account is just that, not saving
+  const tgt = m.targetOf(ym), savedM = round2(r.saved), spentAll = round2(r.out + r.cash), plan = planSpend(m, ym), vd = verdict(savedM, tgt, m.target);
   if (vdBox) vdBox.innerHTML = `<span class="pill ${vd.cls}">${vd.word}</span>`;
   box.innerHTML = `
-    <div class="tiles cl-tiles">
-      <div class="tile"><span class="label">${t('Ingresado')}</span><span class="v num">${fmt(r.inc)}</span></div>
-      <div class="tile"><span class="label">${t('Gastado')}</span>${ofPlan(spentAll, planSpend(m, ym), t('gastado / planificado'), { tone: spentAll > planSpend(m, ym) + 0.5 ? 'var(--spend)' : null })}</div>
-      <div class="tile svtile" style="${sc.style}"><span class="label">${t('Ahorrado')}</span>${ofPlan(savedM, tgt, t('ahorrado / planificado'), { signed: true })}</div>
+    <div class="sum cl-sum">
+      <span>${t('Ingresado')}</span><b class="num">${fmt(r.inc)}</b>
+      <span>${t('Gastado')}</span><span class="num"><b class="${spentAll > plan + 0.5 ? 'c-spend' : ''}">${fmt(spentAll)}</b> <span class="muted">${t('de')} ${fmt(plan)}</span></span>
+      <span>${t('Ahorrado')}</span><span class="num"><b class="c-save">${fmt(savedM)}</b> <span class="muted">${t('de')} ${fmt(tgt)}</span></span>
+      <span>${t('Diferencia en tu cuenta')}</span><span class="num">${fmtSigned(r.left)}</span>
     </div>
     ${(() => {
       const after = m.openAfter(ym), logged = m.allSpends.filter((e) => m.monthOf(e.date) === ym && e.cat !== SAVE_CAT && !(after && e.date <= after)).reduce((s, e) => s + e.amount, 0), x = round2(logged - r.cash);
       if (x < 1) return '';
       const pend = dlg.querySelectorAll('.clp-on').length;
-      return `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explica lo apuntado.', { x: fmt(x) })} ${pend ? t('¿Alguno de los de arriba no ocurrió o costó menos? Desmárcalo o corrige su importe.') : t('Puede ser un ingreso que no apuntaste.')}</p>`;
+      return `<p class="note c-warn">${t('Tu saldo es {x} más alto de lo que explica lo apuntado.', { x: fmt(x) })} ${pend ? t('Si alguno de los de arriba ocurrió, márcalo.') : t('Puede ser un ingreso que no apuntaste.')}</p>`;
     })()}
-    <p class="cl-line">${r.save > 0.5 ? t('Pasaste {x} al ahorro.', { x: `<b>${fmt(r.save)}</b>` }) + ' ' : ''}${savedM >= -0.5 ? t('Aportas {x} a tu ahorro.', { x: `<b class="c-ok">${fmt(savedM)}</b>` }) : t('Consumes {x} de tu ahorro.', { x: `<b class="c-spend">${fmt(-savedM)}</b>` })}</p>
-    ${inSheet(() => moneyChart(m, ym, bal))}
+    ${inSheet(() => moneyChart(m, ym, bal, false))}
     <button class="primary" data-act="closeset" data-ym="${ym}">${t('Cerrar {m}', { m: monthName(ym) })}</button>`;
 }
 /** The month's money as a line: 0 on day 1, up when the pay comes in, down as it goes. */
 /** Charts inside a dialog are drawn for the dialog's width, not the page's. */
 const inSheet = (fn) => withChartWidth(Math.min(560, innerWidth) - (innerWidth >= 960 ? 48 : 32) - 32, fn);
-function moneyChart(m, ym, bal) {
+function moneyChart(m, ym, bal, withTable = true) {
   const live = bal == null, cv = live ? m.curveNow(ym) : m.curveOf(ym, bal);
   if (!cv) return '';
+  // the account's balance day by day: from the month's start balance, it ends where your balance says
+  const s0 = live ? cv.start : m.balStart(ym), abs = (y) => round2(s0 + y);
   const first = cv.pts[0].day, dim = cv.pts[cv.pts.length - 1].day, name = monthName(ym), last = cv.pts.length - 1;
   const projFrom = live && cv.fromDay <= dim ? cv.fromDay - first : null;
   const evText = (e) => `${e.label} ${fmtSigned(e.amount)}`;
   const pts = cv.pts.map((p) => {
     const proj = live && p.day >= cv.fromDay;
-    return { y: p.y, tip: p.day
-      ? tipx(`${t('Día')} ${p.day}`, [{ c: 'var(--s1)', k: proj ? 'hatch' : 'solid', l: proj ? t('Proyectado') : t('Acumulado del mes'), v: `${proj ? '≈ ' : ''}${fmtSigned(p.y)}` }])
-      : tipx(t('Empieza el mes'), [{ c: 'var(--s1)', k: 'solid', l: t('Acumulado del mes'), v: fmt(0) }]) };
+    const ev = p.events.map(evText).join(', ');
+    return { y: abs(p.y), tip: p.day
+      ? tipx(`${shortDate(p.date)}`, [{ c: 'var(--s1)', k: proj ? 'hatch' : 'solid', l: proj ? t('Saldo estimado') : t('Saldo'), v: `${proj ? '≈ ' : ''}${fmt(abs(p.y))}` }], ev)
+      : tipx(t('Empieza el mes'), [{ c: 'var(--s1)', k: 'solid', l: t('Saldo'), v: fmt(s0) }]) };
   });
   const inDay = cv.pts.reduce((b, p, ix) => { const v = p.events.filter((e) => e.amount > 0).reduce((s, e) => s + e.amount, 0); return v > b.v ? { i: ix, v } : b; }, { i: -1, v: 0 });
-  const marks = [...(inDay.i > 0 && inDay.i !== last ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: last, text: (projFrom != null ? '≈ ' : '') + fmtSigned(cv.pts[last].y) }];
-  const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmtSigned(p.y)]);
+  const marks = [...(inDay.i > 0 && inDay.i !== last ? [{ i: inDay.i, text: `+${fmt(inDay.v)}` }] : []), { i: last, text: (projFrom != null ? '≈ ' : '') + fmt(abs(cv.pts[last].y)) }];
+  const rows = cv.pts.filter((p) => (p.events.length && !(live && p.day >= cv.fromDay)) || p.day === dim).map((p) => [String(p.day), esc(p.events.map(evText).join(', ') || '—'), (live && p.day >= cv.fromDay ? '≈ ' : '') + fmt(abs(p.y))]);
   return `<div class="cl-block">
     <div><span class="label">${t('Tu dinero en {m}', { m: name })} ${info('curvaMes')}</span>${live ? `<div class="fine">${t('estimado según tu último saldo')}</div>` : ''}</div>
-    ${line({ pts, marks, projFrom, xTicks: [1, 10, 20, dim].filter((d) => d >= first).map((d) => ({ i: d - first, text: d })), aria: t('Tu dinero a lo largo de {m}: empieza en 0 y termina en {x}', { m: name, x: fmtSigned(cv.pts[last].y) }) })}
-    ${table([t('Día'), t('Movimientos'), t('Acumulado')], rows)}
+    ${line({ pts, marks, projFrom, xTicks: [1, 10, 20, dim].filter((d) => d >= first).map((d) => ({ i: d - first, text: d })), aria: t('Saldo de tu cuenta a lo largo de {m}: empieza en {a} y termina en {x}', { m: name, a: fmt(s0), x: fmt(abs(cv.pts[last].y)) }) })}
+    ${withTable ? table([t('Día'), t('Movimientos'), t('Saldo')], rows) : ''}
   </div>`;
 }
 
@@ -2537,7 +2534,7 @@ function checkCalc() {
   const m = withMonth(ym, patch);
   if (m.spentSrc(ym) !== 'check') { box.innerHTML = '<p class="fine">' + t('Falta el saldo al empezar el mes.') + '</p>'; return; }
   if (ym < m.curYM) {
-    const r = m.fromBalance(ym, bal, toISO(new Date())), sv = round2(r.saved + r.left), tgt = m.targetOf(ym), vd = verdict(sv, tgt, m.target);
+    const r = m.fromBalance(ym, bal, toISO(new Date())), sv = round2(r.saved), tgt = m.targetOf(ym), vd = verdict(sv, tgt, m.target);
     box.innerHTML = `<div class="sum">
       <span>${t('Ingresado')}</span><b class="num">${fmt(m.incomeTo(ym))}</b>
       <span>${t('Gastado')} <span class="muted">${t('/ planificado')}</span></span><span class="num"><b>${fmtN(m.spentAll(ym))}</b> / ${fmt(planSpend(m, ym))}</span>

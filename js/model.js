@@ -564,11 +564,10 @@ export function compute(data, today = new Date()) {
   const spentAll = (ym, upto = endISO(ym)) => { const f = flowTo(ym, upto); return round2(f.out + f.bud + Math.max(0, spentOf(ym))); };
   /** What came in during a month up to a date (default: all of it). */
   const incomeTo = (ym, upto = endISO(ym)) => flowTo(ym, upto).inc;
-  /** Saved in a month: what you moved to savings, plus what was left over when it closed (minus, if it was missing). */
+  /** Saved in a month: what you moved to savings or investment. What stays in the account isn't saving. */
   const savedOf = (ym) => {
     if (ym > curYM) return 0;
-    const m = mon(ym);
-    return round2(flowTo(ym, ym === curYM ? todayISO : endISO(ym)).save + (m.close ? +m.close.amount || 0 : 0));
+    return round2(flowTo(ym, ym === curYM ? todayISO : endISO(ym)).save);
   };
   const status = (ym) => {
     const m = mon(ym), spent = spentOf(ym);
@@ -693,7 +692,7 @@ export function normMonth(m) {
   const dt = {};
   for (const [k, v] of Object.entries(m?.dates || {})) if (isISO(v)) dt[k] = v;
   if (Object.keys(dt).length) o.dates = dt;
-  // month close: what was left over (or missing), which counts as saved
+  // month close: how much the account grew (or shrank) over the month; a record, not saving
   const ca = num(m?.close?.amount);
   if (m?.close && ca != null) o.close = { amount: ca };
   // the month's challenge

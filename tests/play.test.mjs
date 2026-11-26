@@ -27,13 +27,13 @@ test('pace: even spending line, forecast and daily allowance', () => {
   assert.equal(p.daysLeft, 22);
 });
 
-test('month close: what is left over counts as saved, nothing carries over', () => {
+test('month close: saved is what you put aside, the leftover stays in the account, nothing carries over', () => {
   const d = base({ months: { '2027-01': { saved: 100, open: 900, bal: 1040, close: { amount: 40 } }, '2027-02': { saved: 100, bal: 1100, check: { date: '2027-02-10', bal: 1200 }, checks: [{ date: '2027-02-10', bal: 1200 }], close: { amount: -25 } } } });
   const m = compute(d, new Date(2027, 2, 5));
   assert.equal(m.restOf('2027-02'), 300); // no carry from January
-  assert.equal(m.savedOf('2027-01'), 140);
-  assert.equal(m.savedOf('2027-02'), 75); // 100 put aside, 25 missing at the close
-  assert.equal(m.saved, 215);
+  assert.equal(m.savedOf('2027-01'), 100); // the 40 left over isn't saving
+  assert.equal(m.savedOf('2027-02'), 100); // nor the 25 missing
+  assert.equal(m.saved, 200);
   assert.equal(m.balStart('2027-03'), 1100);
   const rows = toRows(d);
   const back = parseSheet(Object.entries(TABS).map(([k, t]) => ({ range: `'${t.title}'!A1:Z100`, values: rows[k] })));

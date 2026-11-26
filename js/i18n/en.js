@@ -1601,4 +1601,13 @@ export default {
   'Quitado de {m}: cuenta 0': 'Taken off {m}: it counts 0',
   'no ha entrado': "didn't come in",
   'Aún no ha entrado': "It hasn't come in yet",
+  'Marca lo que sí ocurrió, con su importe. Lo que dejes sin marcar se cierra como no ocurrido.': "Tick what did happen, with its amount. What you leave unticked closes as not happened.",
+  'Si alguno de los de arriba ocurrió, márcalo.': 'If any of the ones above happened, tick it.',
+  'Diferencia en tu cuenta': 'Change in your account',
+  'lo que pasaste al ahorro o a inversión.': 'what you moved to savings or investment.',
+  'saldo final − saldo inicial: lo que no gastaste sigue en la cuenta, no cuenta como ahorro.': "closing balance − opening balance: what you didn't spend stays in the account; it isn't saving.",
+  'Saldo estimado': 'Estimated balance',
+  'Saldo de tu cuenta a lo largo de {m}: empieza en {a} y termina en {x}': 'Your account balance through {m}: starts at {a} and ends at {x}',
+  'el de tu cuenta cada día: el del inicio del mes, más lo que entra y menos lo que sale. Al cierre, termina en el saldo que escribes.': "your account's, day by day: the month's start, plus what comes in and minus what goes out. At the close it ends on the balance you enter.",
+  'Lo que salió sin apuntar se reparte por igual entre los días.': 'What went out unlogged is spread evenly over the days.',
 };
