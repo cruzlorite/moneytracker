@@ -1613,4 +1613,12 @@ export default {
   'Tu saldo ha bajado {x} más de lo apuntado. Si se te ha cargado alguno de «Por confirmar» ({n}), confírmalo y dejará de contar como gasto sin detallar.': 'Your balance went down {x} more than you logged. If any of «To confirm» ({n}) was charged, confirm it and it will stop counting as unitemised spending.',
   'este mes': 'this month',
   'En el año: {a} de {b}': 'In the year: {a} of {b}',
+  'Eliminar del plan': 'Delete from the plan',
+  'Terminar: deja de contar desde el mes que elijas. Eliminar: desaparece de todos los meses, también de los pasados.': 'End: it stops counting from the month you choose. Delete: it disappears from every month, past ones too.',
+  '¿Eliminar del plan?': 'Delete from the plan?',
+  'Desaparece de todos los meses, también de los pasados, con lo que hubieras confirmado. No se puede deshacer.': 'It disappears from every month, past ones too, with what you confirmed for it. It cannot be undone.',
+  'Confirmado en': 'Confirmed in',
+  'Eliminado del plan': 'Deleted from the plan',
+  'Eliminar': 'Delete',
+  'Te pediré el importe exacto al confirmarlo. Si no, se confirma con el importe planificado de un toque.': "I'll ask for the exact amount when you confirm it. If not, one tap confirms it at the planned amount.",
 };

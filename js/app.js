@@ -2251,7 +2251,7 @@ function renderForm() {
         <label class="field"><span class="label">${t('Día')}</span><input type="text" inputmode="numeric" id="f-day" value="${f.day ? esc(f.day) : ''}" placeholder="—"></label>
         ${f.freq === 'once' ? `<label class="field"><span class="label">${t('Año')}</span><input type="text" inputmode="numeric" id="f-year" value="${esc(f.year || new Date().getFullYear())}"></label>` : ''}
       </div>`}
-    ${bud ? '' : `<label class="check-row"><input type="checkbox" id="f-vary" ${f.vary ? 'checked' : ''}><span>${t('El importe varía')}<br><span class="fine">${t('Te pediré el importe exacto cada vez. Si no, cuenta el importe planificado y solo lo corriges si cambia.')}</span></span></label>`}
+    ${bud ? '' : `<label class="check-row"><input type="checkbox" id="f-vary" ${f.vary ? 'checked' : ''}><span>${t('El importe varía')}<br><span class="fine">${t('Te pediré el importe exacto al confirmarlo. Si no, se confirma con el importe planificado de un toque.')}</span></span></label>`}
     <label class="field"><span class="label">${t('Nota')}</span><input id="f-note" value="${esc(f.note)}" placeholder="${t('Opcional')}" autocomplete="off"></label>
     ${applyBlock(f)}
     <div class="formbtns">
@@ -2259,6 +2259,8 @@ function renderForm() {
       ${f._edit ? `<button type="button" data-act="fdup">${t('Duplicar')}</button>` : ''}
       ${f._edit ? `<button type="button" class="danger" data-act="fdel">${t('Terminar')}</button>` : ''}
     </div>
+    ${f._edit ? `<button type="button" class="ghost small danger-text" data-act="fremove">${t('Eliminar del plan')}</button>
+      <p class="fine">${t('Terminar: deja de contar desde el mes que elijas. Eliminar: desaparece de todos los meses, también de los pasados.')}</p>` : ''}
   </form>`;
 }
 function readForm() {
@@ -2677,6 +2679,11 @@ const ASK = {
     return { title: t('¿Deshacer el cierre de {m}?', { m: monthName(b.dataset.ym) }), text: t('El mes vuelve a quedar sin cerrar.'), yes: t('Deshacer el cierre'), rows: [...(mo.bal != null ? [[t('Saldo del cierre'), fmt(mo.bal)]] : []), ...(mo.close ? [[mo.close.amount >= 0 ? t('Sobró') : t('Faltó'), fmt(Math.abs(mo.close.amount))]] : [])] };
   },
   signout: () => ({ title: t('¿Desconectar de Google?'), text: t('Tus datos siguen en tu hoja de Drive. Esta copia del dispositivo se borra.'), yes: t('Desconectar'), rows: [] }),
+  fremove: () => {
+    readForm();
+    const f = FORM || {}, n = Object.values(store.data.months || {}).filter((mo) => (mo.real || {})[f.id] != null).length;
+    return { title: t('¿Eliminar del plan?'), text: t('Desaparece de todos los meses, también de los pasados, con lo que hubieras confirmado. No se puede deshacer.'), yes: t('Eliminar'), rows: [[t('Nombre'), f.name || t('Sin nombre')], [t('Importe'), fmt(num(f.amount) || 0)], ...(n ? [[t('Confirmado en'), `${n} ${tn(n, 'mes', 'meses')}`]] : [])] };
+  },
   fdel: () => {
     readForm();
     const f = FORM || {};
@@ -3023,6 +3030,22 @@ function onAct(b, sure = false) {
       const id = FORM.id, mm = compute(store.data), F = FORM._from || mm.curYM, before = mm.itemAt(id, F) || mm.segmentsOf(id)[0];
       store.update(['items', 'log'], (d) => { d.items = planDelete(d.items, id, F); d.log = [...(d.log || []), logEntry('delete', before, before, F, '')]; });
       dlg.close(); toast(t('Terminado')); break;
+    }
+    case 'fremove': {
+      // gone from the plan altogether: every version of it, and what was confirmed or moved for it in any month
+      readForm();
+      const id = FORM.id, before = compute(store.data).segmentsOf(id)[0];
+      if (!id || !before) break;
+      store.update(['items', 'months', 'log'], (d) => {
+        d.items = d.items.filter((i) => i.id !== id);
+        for (const [k, mo] of Object.entries(d.months || {})) {
+          if (!(mo.real || {})[id] && (mo.real || {})[id] !== 0 && !(mo.dates || {})[id]) continue;
+          const o = d.months[k] = { ...mo };
+          for (const f of ['real', 'dates', 'potSpent']) if (o[f] && id in o[f]) { o[f] = { ...o[f] }; delete o[f][id]; if (!Object.keys(o[f]).length) delete o[f]; }
+        }
+        d.log = [...(d.log || []), logEntry('delete', before, before, '', '')];
+      });
+      dlg.close(); toast(t('Eliminado del plan')); render(true); break;
     }
     case 'keepremote': dlg.close(); toast(t('Usando la hoja de Drive')); break;
     case 'keeplocal': store.replaceAll(UI.chooseLocal); dlg.close(); toast(t('Subiendo el plan de este dispositivo')); break;
