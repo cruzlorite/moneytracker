@@ -1,5 +1,5 @@
 // Pure calculations: no DOM, no storage. Everything the views show comes from compute().
-import { CAT, guessCat, isCustomCat, SAVE_CAT } from './cats.js';
+import { CAT, guessCat, isCustomCat, SAVE_CAT, IN_CAT } from './cats.js';
 import { t, lang, locale, cur, curDecimals } from './i18n.js';
 
 // month and day names in the chosen language
@@ -301,7 +301,10 @@ export function compute(data, today = new Date()) {
   // allSpends: every one (older ones may point at a budget's id: read them as its type);
   // spends: the ones against Resto de vida
   const idCat = new Map(budgets.map((b) => [b.id, b.cat]));
-  const allSpends = (data.spends || []).map((e) => (idCat.has(e.cat) ? { ...e, cat: idCat.get(e.cat) } : e));
+  const logs = (data.spends || []).map((e) => (idCat.has(e.cat) ? { ...e, cat: idCat.get(e.cat) } : e));
+  const allSpends = logs.filter((e) => e.cat !== IN_CAT);
+  /** Incomes you logged by hand, outside the plan: they come in on their date, in the month that date falls in. */
+  const loggedIns = logs.filter((e) => e.cat === IN_CAT);
   const spends = allSpends.filter((e) => !budFor(e.cat, monthOf(e.date)) && e.cat !== SAVE_CAT);
   /** What you logged against a budget in a month. */
   const budSpent = (b, ym) => budFor(b.cat, ym) !== b ? 0
@@ -431,6 +434,7 @@ export function compute(data, today = new Date()) {
       if (monthOf(e.date) !== ym || e.date > upto || e.date <= after) continue;
       if (e.cat === SAVE_CAT) save += e.amount; else if (budByCat.has(e.cat)) bud += e.amount;
     }
+    for (const e of loggedIns) if (monthOf(e.date) === ym && e.date <= upto && !(after && e.date <= after)) inc += e.amount;
     // older months may carry what was moved to savings as a figure of the month
     return { inc: round2(inc), out: round2(out), bud: round2(bud), save: round2(save + (+mon(ym).saved || 0)) };
   };
@@ -460,6 +464,7 @@ export function compute(data, today = new Date()) {
     const shift = round2(c.inc - c.out - c.save + nxt - (f.inc - f.out - f.save)); // in the balance, but from another month (+ in, − out)
     return { start, bal, ...f, saved, cash, rest: round2(cash - f.bud), left: round2(bal - start - shift), shift };
   };
+  const inEvent = (e) => ({ label: e.note || t('Ingreso'), amount: e.amount, kind: 'in' });
   /** A planned occurrence as a movement of the account in month ym (one of another month says which). */
   const occEvent = (o, ym) => ({ label: o.ym === ym ? o.it.name : `${o.it.name} (${t('de {m}', { m: monthName(o.ym) })})`, amount: o.it.kind === 'in' ? o.v : -o.v, kind: isSave(o.it) ? 'save' : o.it.kind, other: o.ym === ym ? '' : o.ym });
   /**
@@ -481,6 +486,7 @@ export function compute(data, today = new Date()) {
       if (e.cat !== SAVE_CAT) logged += e.amount;
       ev[at(e.date)].push({ label: e.note || CAT[e.cat]?.name || t('Gasto'), amount: -e.amount, kind: e.cat === SAVE_CAT ? 'save' : 'spend' });
     }
+    for (const e of loggedIns) if (monthOf(e.date) === ym) ev[at(e.date)].push(inEvent(e));
     const daily = -(r.cash - logged) / dim;
     const pts = [{ day: 0, date: isoAdd(dateOfDay(ym, 1), -1), y: 0, events: [] }]; // the balance at the start of the month's first day
     let y = 0;
@@ -506,6 +512,7 @@ export function compute(data, today = new Date()) {
       if (monthOf(e.date) !== ym || (after && e.date <= after)) continue;
       ev[at(e.date)].push({ label: e.note || CAT[e.cat]?.name || t('Gasto'), amount: -e.amount, kind: e.cat === SAVE_CAT ? 'save' : 'spend' });
     }
+    for (const e of loggedIns) if (monthOf(e.date) === ym && !(after && e.date <= after)) ev[at(e.date)].push(inEvent(e));
     const E = Array(dim + 1).fill(0);
     for (let d = Math.max(1, d0 + 1); d <= dim; d++) E[d] = E[d - 1] + ev[d].reduce((a, e) => a + e.amount, 0);
     const chk = m.check, a = chk ? clamp(at(chk.date), d0, dim) : d0;
@@ -632,7 +639,7 @@ export function compute(data, today = new Date()) {
     paidMonths, expected, plannedIn, pendingIn, realOf, stateOf, amountIn, spends,
     cycleDay: D, isSave, saveItems, monthOf, range, dateOf, occurs: occ, todayISO, dayOf: dayOfM, byPay, anchorOf, base, waitingPay,
     balStart, openAfter, onceDate, paceOf, pastRate, flowTo, fromBalance, curveOf, curveNow, balanceTrail, spentSrc, loggedRest, endISO, spentAll, incomeTo,
-    budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, budByCat, budFor, byCat,
+    budgets, mbud, ybud, budSpent, budUse, budOf, budY, budSpentY, allSpends, loggedIns, budByCat, budFor, byCat,
     /** One version per item, as it stands in month ym (default: this one). */
     shown: (ym = curYM) => planShown(items, ym), segmentsOf: (id) => items.filter((i) => i.id === id), itemAt: (id, ym) => items.find((i) => i.id === id && activeIn(i, ym)) || null,
   };

@@ -90,6 +90,8 @@ export const isCustomCat = (id) => /^c-/.test(String(id || ''));
 /** What new users see before they have budgets or habits of their own. */
 /** The type for money moved to savings or investments: it leaves the account but it isn't spending. */
 export const SAVE_CAT = 'ahorro';
+/** Money that came in outside the plan, logged like a spend (a refund, a gift, a one-off job): never spending. */
+export const IN_CAT = 'ingreso';
 export const STARTERS = ['super', 'restaurante', 'cafe', 'copas', 'transporte', 'ocio', 'compras', 'ropa'];
 
 // Guess a type from a name ("Seguro del coche" → seguros). First match wins, so the more specific rules go first.

@@ -651,3 +651,21 @@ test('early in a month, the projection goes on the last months\' daily pace beyo
   assert.equal(m.paceOf('2027-02', 30, 3), (30 + 20 * 4) / 7); // in between: both
   assert.equal(compute(plan([], { settings: { goal: 0, start: '2027-01', cycleDay: 1 } }), new Date(2027, 1, 2)).paceOf('2027-02', 0, 1), null);
 });
+
+test('an income logged outside the plan adds to what came in and is never spending', () => {
+  const d = plan([{ id: 'pay', kind: 'in', name: 'Nómina', amount: 2000, freq: 'monthly', day: 1 }], {
+    settings: { goal: 0, start: '2027-01', cycleDay: 1 },
+    months: { '2027-01': { open: 1000, real: { pay: 2000 } } },
+    spends: [{ id: 'g1', date: '2027-01-10', amount: 300, cat: 'ingreso', note: 'Devolución' }, { id: 'g2', date: '2027-01-11', amount: 50, cat: 'super' }],
+  });
+  const m = compute(d, new Date(2027, 0, 20));
+  assert.equal(m.incomeTo('2027-01', '2027-01-20'), 2300);
+  assert.equal(m.incomeTo('2027-01', '2027-01-09'), 2000);
+  assert.equal(m.allSpends.length, 1);
+  assert.equal(m.loggedIns.length, 1);
+  assert.deepEqual(m.byCat('2027-01').map((x) => x.cat), ['super']);
+  // the balance holds it: 1000 + 2000 + 300 − 50 = 3250 means nothing else was spent
+  assert.equal(round(m.fromBalance('2027-01', 3250, '2027-01-20').cash), 50);
+  const cv = m.curveNow('2027-01');
+  assert.ok(cv.pts.some((p) => p.events.some((e) => e.kind === 'in' && e.amount === 300)));
+});

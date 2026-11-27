@@ -1621,4 +1621,13 @@ export default {
   'Eliminado del plan': 'Deleted from the plan',
   'Eliminar': 'Delete',
   'Te pediré el importe exacto al confirmarlo. Si no, se confirma con el importe planificado de un toque.': "I'll ask for the exact amount when you confirm it. If not, one tap confirms it at the planned amount.",
+  'Ingreso': 'Income',
+  'fuera del plan': 'outside the plan',
+  'Apuntar un ingreso': 'Log an income',
+  'Apuntar ingreso': 'Log income',
+  'Ingreso guardado': 'Income saved',
+  'Ingreso borrado': 'Income deleted',
+  'el saldo sube lo que apuntas': 'the balance goes up by what you log',
+  '¿Aún no ha entrado? Añádelo al plan': "Not in yet? Add it to the plan",
+  'Fuera del plan: una devolución, un regalo, un trabajo puntual… Suma a lo ingresado este mes.': 'Outside the plan: a refund, a gift, a one-off job… It adds to what came in this month.',
 };

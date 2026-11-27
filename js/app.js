@@ -9,7 +9,7 @@ import { animateNumbers, animateBars, burst, pop, coinDrop, floatText, hit, stag
 import { sortable } from './sort.js';
 import { tco, valueAt, compare, scenario, evenRet, optOf, aheadFrom, CURVES, curveKeep, AGE_UP, AGE_DOWN } from './tco.js';
 import { columns, pairs, segbar, ranked, table, line, balanceLine, bindBalance, cumLines, multiLines, stackCols, tipx, setChartWidth, withChartWidth } from './charts.js';
-import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
+import { CAT, CATS, GROUPS, STARTERS, BASE, EXTRA_ICONS, SAVE_CAT, IN_CAT, guessCat, searchCats, setCustomCats } from './cats.js';
 import { pace, closeDue } from './play.js';
 import { VERSION } from './version.js';
 import { t, tn, lang, locale, LANGS, setLang, cur, curSym, curName, CURRENCIES, setCurrency, readLook, writeLook } from './i18n.js';
@@ -634,12 +634,15 @@ function monthTypes(m, ym) {
 }
 /** One line per movement, all alike: type icon, name, date (and what it is), amount. */
 const moveRow = ({ act, id, ym, icon, title, sub, date, amount, kind, vary, save, pend }) => `<button type="button" class="move" data-act="${act}" data-id="${esc(id)}"${ym ? ` data-ym="${ym}"` : ''}>${icon}<span class="grow"><b>${esc(title)}</b><span class="fine">${shortDate(date)}${sub ? ' · ' + (pend ? `<span class="st-pend">${esc(sub)}</span>` : esc(sub)) : ''}</span></span><span class="num ${save ? 'c-save' : kind === 'in' ? 'c-in' : ''}">${vary ? '≈ ' : ''}${amount ? (kind === 'in' ? '+' : '−') : ''}${fmt(amount)}</span></button>`;
+/** An income you logged outside the plan, as a movement. */
+const inMove = (e) => moveRow({ act: 'editspend', id: e.id, icon: catEl(IN_CAT, 'sm'), title: e.note || t('Ingreso'), sub: e.note ? t('fuera del plan') : '', date: e.date, amount: e.amount, kind: 'in' });
 /** Everything that moved this month, newest first: what you logged and what the plan expected that already came. */
 function monthMoves(m, ym) {
   const after = m.openAfter(ym), rows = [];
   for (const e of m.allSpends) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) {
     rows.push({ date: e.date, html: moveRow({ act: 'editspend', id: e.id, icon: catEl(e.cat, 'sm'), title: e.note || CAT[e.cat]?.name || t('Gasto'), sub: e.note && CAT[e.cat] ? CAT[e.cat].short : '', date: e.date, amount: Math.abs(e.amount), kind: e.amount < 0 ? 'in' : 'out', save: e.cat === SAVE_CAT }) });
   }
+  for (const e of m.loggedIns) if (m.monthOf(e.date) === ym && !(after && e.date <= after)) rows.push({ date: e.date, html: inMove(e) });
   for (const p of m.plannedIn(ym)) if (isDone(p) && !(after && p.date <= after)) {
     rows.push({ date: p.date, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl(itemCat(p.it) || '', 'sm'), title: p.it.name, sub: ST[p.state][0], date: p.date, amount: p.amount, kind: p.it.kind, vary: p.it.vary && p.state !== 'real', save: !!p.save, pend: p.state === 'pending' }) });
   }
@@ -793,24 +796,26 @@ function openQuick(keep = {}) {
   const m = compute(store.data), today = toISO(new Date());
   const date = keep.date || UI.quickDate || today;
   const save = UI.qcat === SAVE_CAT; // saving or investing is not spending: its own mode, with its own look
-  const head = UI.editSpend ? (save ? t('Editar ahorro') : t('Editar gasto')) : save ? t('Apuntar ahorro') : t('Apuntar un gasto');
-  dlg.innerHTML = `<div class="sheet quick${UI.kmore ? ' more' : ''}${save ? ' savemode' : ''}" id="quick-sheet">
+  const inc = UI.qcat === IN_CAT; // money that came in outside the plan: logged the same way, but it adds
+  const head = UI.editSpend ? (save ? t('Editar ahorro') : inc ? t('Editar ingreso') : t('Editar gasto')) : save ? t('Apuntar ahorro') : inc ? t('Apuntar un ingreso') : t('Apuntar un gasto');
+  dlg.innerHTML = `<div class="sheet quick${UI.kmore ? ' more' : ''}${save ? ' savemode' : ''}${inc ? ' inmode' : ''}" id="quick-sheet">
     <div class="row between"><h2>${head}</h2><button type="button" class="iconbtn" data-act="dclose" aria-label="${t('Cerrar')}">${ic('x')}</button></div>
-    ${UI.editSpend ? '' : `    <div class="seg qmode" role="group" aria-label="${t('Qué apuntas')}"><button type="button" data-act="qmode" data-v="spend" aria-pressed="${!save}">${t('Gasto')}</button><button type="button" data-act="qmode" data-v="save" aria-pressed="${save}">${t('Ahorro e inversión')}</button></div>`}
+    ${UI.editSpend ? '' : `    <div class="seg qmode" role="group" aria-label="${t('Qué apuntas')}"><button type="button" data-act="qmode" data-v="spend" aria-pressed="${!save && !inc}">${t('Gasto')}</button><button type="button" data-act="qmode" data-v="in" aria-pressed="${inc}">${t('Ingreso')}</button><button type="button" data-act="qmode" data-v="save" aria-pressed="${save}">${t('Ahorro')}</button></div>`}
     <label class="amt"><input type="text" inputmode="decimal" id="k-amt" placeholder="0" value="${esc(keep.amt || '')}" autocomplete="off" aria-label="${t('Importe')}"><span>${curSym}</span></label>
     ${save ? `<div class="seg qdir" id="k-dir" role="group" aria-label="${t('Ahorro e inversión')}"><button type="button" data-act="qdir" data-v="in" aria-pressed="${UI.qdir !== 'out'}">${t('Aportar')}</button><button type="button" data-act="qdir" data-v="out" aria-pressed="${UI.qdir === 'out'}">${t('Retirar')}</button></div>
       <p class="cathint">${t('Sale de tu cuenta, pero no es gasto: suma a lo que ahorras.')}</p>`
+      : inc ? `<p class="cathint">${t('Fuera del plan: una devolución, un regalo, un trabajo puntual… Suma a lo ingresado este mes.')}</p>`
       : `${catRow(m, true)}
     ${UI.kmore ? catGrid(UI.qcat, 'kpick', true) : ''}`}
     <div class="fields2">
       <label class="field"><span class="label">${t('Nota')}</span><input id="k-note" value="${esc(keep.note || '')}" placeholder="${t('Opcional')}" autocomplete="off"></label>
       <label class="field"><span class="label">${t('Día')}</span><input type="date" id="k-date" value="${date}"></label>
     </div>
-    ${!UI.editSpend && m.balStart(m.curYM) != null ? `<label class="updbal" id="k-updrow" ${date === today ? '' : 'hidden'}><input type="checkbox" id="k-upd" ${lsGet('hucha:updbal') !== '0' ? 'checked' : ''}><span>${t('Actualizar saldo')}<span class="fine">${save ? (UI.qdir === 'out' ? t('el saldo sube lo que retiras') : t('el saldo baja lo que apuntas')) : t('el saldo baja lo que apuntas')}</span></span></label>` : ''}
+    ${!UI.editSpend && m.balStart(m.curYM) != null ? `<label class="updbal" id="k-updrow" ${date === today ? '' : 'hidden'}><input type="checkbox" id="k-upd" ${lsGet('hucha:updbal') !== '0' ? 'checked' : ''}><span>${t('Actualizar saldo')}<span class="fine">${save ? (UI.qdir === 'out' ? t('el saldo sube lo que retiras') : t('el saldo baja lo que apuntas')) : inc ? t('el saldo sube lo que apuntas') : t('el saldo baja lo que apuntas')}</span></span></label>` : ''}
     ${UI.editSpend ? `<button type="button" class="primary big" data-act="kgo">${t('Guardar')}</button>
-    <button type="button" class="ghost small danger" data-act="delspend" data-id="${esc(UI.editSpend)}">${save ? t('Borrar') : t('Borrar gasto')}</button>`
-      : `<button type="button" class="primary big" data-act="kgo">${save ? t('Apuntar ahorro') : t('Apuntar')}</button>
-    ${save ? '' : `<button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Un ingreso puntual? Añádelo al plan')}</button>`}`}
+    <button type="button" class="ghost small danger" data-act="delspend" data-id="${esc(UI.editSpend)}">${save || inc ? t('Borrar') : t('Borrar gasto')}</button>`
+      : `<button type="button" class="primary big" data-act="kgo">${save ? t('Apuntar ahorro') : inc ? t('Apuntar ingreso') : t('Apuntar')}</button>
+    ${inc ? `<button type="button" class="ghost small" data-act="addonce" data-date="${date}">${t('¿Aún no ha entrado? Añádelo al plan')}</button>` : ''}`}
   </div>`;
   openDialog();
   // no automatic focus: the keyboard opens only when you tap the amount
@@ -821,6 +826,7 @@ const quickKeep = () => ({ amt: $('#k-amt')?.value, note: $('#k-note')?.value, d
 // ---------- spending types ----------
 const catCls = (c) => `g-${c.group}${c.color ? ' pc-' + c.color : ''}`;
 const catEl = (id, cls = '') => {
+  if (id === IN_CAT) return `<span class="ct ct-in ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M11 3h2v9.2l3.3-3.3 1.4 1.4L12 16l-5.7-5.7 1.4-1.4L11 12.2zM4 18h16v2H4z"/></svg></span>`;
   const c = CAT[id];
   return c ? `<span class="ct ${catCls(c)} ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="${c.d}"/></svg></span>`
     : `<span class="ct none ${cls}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 11h3v3H6zm5 0h3v3h-3zm5 0h3v3h-3z"/></svg></span>`;
@@ -1047,6 +1053,7 @@ function openLineDetail(kind) {
     listHead = t('Ingresos');
     const rows = [];
     for (const ym of m.season) for (const p of m.plannedIn(ym)) if (p.it.kind === 'in' && isDone(p) && !(m.openAfter(ym) && p.date <= m.openAfter(ym))) rows.push({ date: p.date, ym, html: moveRow({ act: 'occ', id: p.it.id, ym, icon: catEl('', 'sm'), title: p.it.name, sub: `${p.state === 'real' && !p.amount ? t('no ha entrado') : ST[p.state][0]} · ${t('de {m}', { m: monthName(ym) })}`, date: p.date, amount: p.amount, kind: 'in', vary: p.it.vary && p.state !== 'real' }) });
+    for (const e of m.loggedIns) { const ym = m.monthOf(e.date); if (m.season.includes(ym) && !(m.openAfter(ym) && e.date <= m.openAfter(ym))) rows.push({ date: e.date, ym, html: inMove(e) }); }
     rows.sort((a, b) => b.date.localeCompare(a.date));
     body = `<div class="moves">${rows.map((r) => r.html).join('') || `<p class="fine">${t('Aún no hay ingresos.')}</p>`}</div>`;
   } else if (kind === 'out') {
@@ -2612,7 +2619,7 @@ function addSpend(date, amount, note, from, cat) {
   UI.qcat = null;
   const done = celebrate(() => store.update('spends', (d) => { d.spends.push(e); }), from);
   UI.undo.push(e.id); UI.undo = UI.undo.slice(-20);
-  if (!done) toast(`${amount < 0 ? t('Retirado') : t('Apuntado')} ${fmt(Math.abs(amount))}${cat ? ' · ' + CAT[cat].short : ''}${bud ? ` (${t('presupuesto')})` : cat === SAVE_CAT ? ` (${t('no es gasto')})` : ''}`);
+  if (!done) toast(`${amount < 0 ? t('Retirado') : t('Apuntado')} ${fmt(Math.abs(amount))}${cat === IN_CAT ? ' · ' + t('ingreso') : cat ? ' · ' + CAT[cat].short : ''}${bud ? ` (${t('presupuesto')})` : cat === SAVE_CAT ? ` (${t('no es gasto')})` : ''}`);
 }
 
 async function connect() {
@@ -2826,7 +2833,7 @@ function onAct(b, sure = false) {
       document.querySelectorAll('.cathint').forEach((h) => { h.textContent = hint; });
       break;
     }
-    case 'qmode': { const k = quickKeep(); UI.qcat = b.dataset.v === 'save' ? SAVE_CAT : null; UI.kmore = false; openQuick(k); break; }
+    case 'qmode': { const k = quickKeep(); UI.qcat = b.dataset.v === 'save' ? SAVE_CAT : b.dataset.v === 'in' ? IN_CAT : null; UI.kmore = false; openQuick(k); break; }
     case 'qdir': UI.qdir = b.dataset.v; document.querySelectorAll('#k-dir [data-act="qdir"]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.v === UI.qdir))); break;
     case 'catmore': openCatPicker(); break;
     case 'catnew': if (b.dataset.from === 'fcat') readForm(); openNewCat(b.dataset.from); break;
@@ -2859,16 +2866,17 @@ function onAct(b, sure = false) {
       const v = num(val('k-amt')), date = val('k-date') || toISO(new Date());
       if (!v || v <= 0) { invalid('#k-amt', t('Escribe un importe')); return; }
       const sgn = UI.qcat === SAVE_CAT && UI.qdir === 'out' ? -1 : 1; // taking money out of savings: only there a negative amount makes sense
+      const isIn = UI.qcat === IN_CAT;
       if (UI.editSpend) {
         const id = UI.editSpend, cat = UI.qcat || undefined;
         dlg.close(); UI.qcat = null;
         store.update('spends', (d) => { const e = d.spends.find((x) => x.id === id); if (e) { e.amount = round2(v * sgn); e.date = date; e.note = (val('k-note') || '').trim(); if (cat) e.cat = cat; else delete e.cat; } });
-        toast(t('Gasto guardado'));
+        toast(isIn ? t('Ingreso guardado') : t('Gasto guardado'));
         break;
       }
       const upd = $('#k-upd'), want = !!upd && upd.checked && !$('#k-updrow')?.hidden && date === toISO(new Date());
       if (upd) lsSet('hucha:updbal', upd.checked ? '' : '0');
-      const nb = want ? bumpBalance(v * sgn) : null; // the balance as it is after this leaves the account
+      const nb = want ? bumpBalance(isIn ? -v : v * sgn) : null; // the balance as it is after this leaves (or comes into) the account
       dlg.close();
       addSpend(date, v * sgn, (val('k-note') || '').trim(), null, UI.qcat);
       if (nb != null) setTimeout(() => toast(`${t('Saldo en cuenta')}: ${fmt(nb)}`, 2600), 300);
@@ -2924,7 +2932,8 @@ function onAct(b, sure = false) {
     }
     case 'delspend': {
       if (dlg.open && UI.editSpend) dlg.close();
-      store.update('spends', (d) => { d.spends = d.spends.filter((x) => x.id !== b.dataset.id); }); toast(t('Gasto borrado'));
+      const wasIn = store.data.spends.find((x) => x.id === b.dataset.id)?.cat === IN_CAT;
+      store.update('spends', (d) => { d.spends = d.spends.filter((x) => x.id !== b.dataset.id); }); toast(wasIn ? t('Ingreso borrado') : t('Gasto borrado'));
       const sheet = $('#bud-sheet'); if (sheet) openBudget(sheet.dataset.id);
       break;
     }
